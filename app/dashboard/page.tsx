@@ -252,7 +252,9 @@ export default function DashboardPage() {
             </div>
 
             <div>
-              <label className="block text-slate-300 mb-2 font-medium">Техніки:</label>
+              <label className="block text-slate-300 mb-2 font-medium">
+                Техніки <span className="text-slate-400 text-xs">(торкніться для вибору)</span>:
+              </label>
               <div className="flex flex-wrap gap-2">
                 {TECH_OPTIONS.map((tech) => {
                   const isSelected = selectedTechniques.includes(tech);
@@ -276,7 +278,9 @@ export default function DashboardPage() {
             </div>
 
             <div>
-              <label className="block text-slate-300 mb-2 font-medium">Напрямки:</label>
+              <label className="block text-slate-300 mb-2 font-medium">
+                Напрямки <span className="text-slate-400 text-xs">(торкніться для вибору)</span>:
+              </label>
               <div className="flex flex-wrap gap-2">
                 {DIRECTION_OPTIONS.map((dir) => {
                   const isSelected = selectedDirections.includes(dir);
@@ -300,7 +304,7 @@ export default function DashboardPage() {
             </div>
 
             <div>
-              <label className="block text-slate-300 mb-1 font-medium">Жанри</label>
+              <label className="block text-slate-300 mb-1 font-medium">Жанри (наприклад: Пейзаж, Портрет)</label>
               <input
                 type="text"
                 name="genres"
@@ -326,10 +330,11 @@ export default function DashboardPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-slate-300 mb-1 font-medium">Макс. вартість заявки</label>
+                <label className="block text-slate-300 mb-1 font-medium">Максимальний оргвнесок за подачу заявки ($ / €)</label>
                 <input
                   type="text"
                   name="maxApplicationFee"
+                  placeholder="Безкоштовно або до $50"
                   value={formData.maxApplicationFee}
                   onChange={handleChange}
                   className="w-full min-h-[44px] px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
@@ -339,34 +344,37 @@ export default function DashboardPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-slate-300 mb-1 font-medium">Мови</label>
+                <label className="block text-slate-300 mb-1 font-medium">Мови володіння</label>
                 <input
                   type="text"
                   name="languages"
                   value={formData.languages}
                   onChange={handleChange}
+                  placeholder="Українська, Англійська..."
                   className="w-full min-h-[44px] px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-slate-300 mb-1 font-medium">Країни інтересу</label>
+                <label className="block text-slate-300 mb-1 font-medium">Цільові країни для участі</label>
                 <input
                   type="text"
                   name="targetCountries"
                   value={formData.targetCountries}
                   onChange={handleChange}
+                  placeholder="ЄС, США..."
                   className="w-full min-h-[44px] px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-slate-300 mb-1 font-medium">Цілі</label>
+              <label className="block text-slate-300 mb-1 font-medium">Цілі (продаж, виставки, гранти)</label>
               <input
                 type="text"
                 name="goals"
                 value={formData.goals}
                 onChange={handleChange}
+                placeholder="Вкажіть пріоритетні цілі"
                 className="w-full min-h-[44px] px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -381,17 +389,18 @@ export default function DashboardPage() {
                 className="w-6 h-6 accent-blue-600 rounded cursor-pointer touch-manipulation"
               />
               <label htmlFor="readyForExportEdit" className="text-slate-300 cursor-pointer text-sm">
-                Готовий/а відправляти роботи за кордон
+                Готовий/а відправляти оригінали робіт за кордон
               </label>
             </div>
 
             <div>
-              <label className="block text-slate-300 mb-1 font-medium">Bio</label>
+              <label className="block text-slate-300 mb-1 font-medium">Коротко про свою творчість (Bio)</label>
               <textarea
                 name="bio"
                 rows={3}
                 value={formData.bio}
                 onChange={handleChange}
+                placeholder="Розповісти про свій стиль та концепції..."
                 className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500 resize-none"
               />
             </div>
@@ -414,7 +423,7 @@ export default function DashboardPage() {
               <div><strong className="text-slate-400">Жанри:</strong> {profile?.genres || '—'}</div>
               <div><strong className="text-slate-400">Цілі:</strong> {profile?.goals || '—'}</div>
               <div><strong className="text-slate-400">Країни інтересу:</strong> {profile?.target_countries || '—'}</div>
-              <div><strong className="text-slate-400">Макс. плата за заявку:</strong> {profile?.max_application_fee || '—'}</div>
+              <div><strong className="text-slate-400">Макс. оргвнесок:</strong> {profile?.max_application_fee || '—'}</div>
               <div><strong className="text-slate-400">Мови:</strong> {profile?.languages || '—'}</div>
               <div><strong className="text-slate-400">Відправка за кордон:</strong> {profile?.ready_for_export ? 'Так' : 'Ні'}</div>
             </div>
