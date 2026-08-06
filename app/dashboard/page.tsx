@@ -66,13 +66,15 @@ export default function DashboardPage() {
     loadProfile();
   }, [router]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked;
-      setFormData((prev) => ({ ...prev, [name]: checked }));
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const target = e.target;
+    if (target.type === 'checkbox') {
+      const checked = (target as HTMLInputElement).checked;
+      setFormData((prev) => ({ ...prev, [target.name]: checked }));
     } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+      setFormData((prev) => ({ ...prev, [target.name]: target.value }));
     }
   };
 
@@ -104,7 +106,11 @@ export default function DashboardPage() {
         });
 
       if (!error) {
-        setProfile({ ...formData, full_name: formData.fullName, ready_for_export: formData.readyForExport });
+        setProfile({
+          ...formData,
+          full_name: formData.fullName,
+          ready_for_export: formData.readyForExport,
+        });
         setIsEditing(false);
       }
     }
@@ -341,9 +347,6 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
-    </main>
-  );
-}
     </main>
   );
 }
