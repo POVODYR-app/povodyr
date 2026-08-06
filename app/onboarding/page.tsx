@@ -228,7 +228,7 @@ export default function OnboardingPage() {
             </div>
 
             <div>
-              <label className="block text-slate-300 mb-1 font-medium">Максимальний внесок заявки ($ / €)</label>
+              <label className="block text-slate-300 mb-1 font-medium">Максимальний оргвнесок за подачу заявки ($ / €)</label>
               <input
                 type="text"
                 name="maxApplicationFee"
@@ -298,6 +298,7 @@ export default function OnboardingPage() {
               rows={3}
               value={formData.bio}
               onChange={handleChange}
+              placeholder="Розповісти про свій стиль та концепції..."
               className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500 resize-none"
             />
           </div>
