@@ -102,7 +102,7 @@ export default function OnboardingPage() {
 
   return (
     <main className="min-h-screen bg-slate-900 text-white p-4 sm:p-8 flex justify-center items-center">
-      <div className="w-full max-w-2xl bg-slate-800 p-6 sm:p-8 rounded-xl border border-slate-700 shadow-xl space-y-6">
+      <div className="w-full max-w-2xl bg-slate-800 p-5 sm:p-8 rounded-xl border border-slate-700 shadow-xl space-y-6">
         <h1 className="text-2xl font-bold text-center">Анкета художника</h1>
         <p className="text-slate-400 text-sm text-center">Заповніть профіль для створення персонального алгоритму пошуку</p>
 
@@ -121,7 +121,7 @@ export default function OnboardingPage() {
               required
               value={formData.fullName}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
+              className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -133,7 +133,7 @@ export default function OnboardingPage() {
                 name="country"
                 value={formData.country}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
               />
             </div>
             <div>
@@ -143,14 +143,16 @@ export default function OnboardingPage() {
                 name="city"
                 value={formData.city}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
 
-          {/* Техніки */}
+          {/* Техніки — Мобільні кнопко-теги */}
           <div>
-            <label className="block text-slate-300 mb-2 font-medium">Техніки (оберіть потрібні):</label>
+            <label className="block text-slate-300 mb-2 font-medium">
+              Техніки <span className="text-slate-400 text-xs">(торкніться для вибору)</span>:
+            </label>
             <div className="flex flex-wrap gap-2">
               {TECH_OPTIONS.map((tech) => {
                 const isSelected = selectedTechniques.includes(tech);
@@ -159,22 +161,25 @@ export default function OnboardingPage() {
                     key={tech}
                     type="button"
                     onClick={() => toggleSelection(tech, selectedTechniques, setSelectedTechniques)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition border ${
+                    className={`min-h-[42px] px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5 border active:scale-95 touch-manipulation ${
                       isSelected
-                        ? 'bg-blue-600 border-blue-500 text-white'
+                        ? 'bg-blue-600 border-blue-500 text-white shadow-md'
                         : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'
                     }`}
                   >
-                    {tech}
+                    <span>{isSelected ? '✓' : '+'}</span>
+                    <span>{tech}</span>
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Напрямки */}
+          {/* Напрямки — Мобільні кнопко-теги */}
           <div>
-            <label className="block text-slate-300 mb-2 font-medium">Напрямки (оберіть потрібні):</label>
+            <label className="block text-slate-300 mb-2 font-medium">
+              Напрямки <span className="text-slate-400 text-xs">(торкніться для вибору)</span>:
+            </label>
             <div className="flex flex-wrap gap-2">
               {DIRECTION_OPTIONS.map((dir) => {
                 const isSelected = selectedDirections.includes(dir);
@@ -183,13 +188,14 @@ export default function OnboardingPage() {
                     key={dir}
                     type="button"
                     onClick={() => toggleSelection(dir, selectedDirections, setSelectedDirections)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition border ${
+                    className={`min-h-[42px] px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5 border active:scale-95 touch-manipulation ${
                       isSelected
-                        ? 'bg-emerald-600 border-emerald-500 text-white'
+                        ? 'bg-emerald-600 border-emerald-500 text-white shadow-md'
                         : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'
                     }`}
                   >
-                    {dir}
+                    <span>{isSelected ? '✓' : '+'}</span>
+                    <span>{dir}</span>
                   </button>
                 );
               })}
@@ -203,7 +209,7 @@ export default function OnboardingPage() {
               name="genres"
               value={formData.genres}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
+              className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -214,7 +220,7 @@ export default function OnboardingPage() {
                 name="professionalLevel"
                 value={formData.professionalLevel}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
               >
                 <option value="Початковий">Початковий</option>
                 <option value="Незалежний художник">Незалежний художник</option>
@@ -231,7 +237,7 @@ export default function OnboardingPage() {
                 placeholder="Безкоштовно або до $50"
                 value={formData.maxApplicationFee}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -245,7 +251,7 @@ export default function OnboardingPage() {
                 value={formData.languages}
                 onChange={handleChange}
                 placeholder="Українська, Англійська..."
-                className="w-full px-4 py-2.5 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
               />
             </div>
             <div>
@@ -256,7 +262,7 @@ export default function OnboardingPage() {
                 value={formData.targetCountries}
                 onChange={handleChange}
                 placeholder="ЄС, США..."
-                className="w-full px-4 py-2.5 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -269,20 +275,20 @@ export default function OnboardingPage() {
               value={formData.goals}
               onChange={handleChange}
               placeholder="Вкажіть пріоритетні цілі"
-              className="w-full px-4 py-2.5 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
+              className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
             />
           </div>
 
-          <div className="flex items-center gap-3 py-1">
+          <div className="flex items-center gap-3 py-2">
             <input
               type="checkbox"
               id="readyForExport"
               name="readyForExport"
               checked={formData.readyForExport}
               onChange={handleChange}
-              className="w-5 h-5 accent-blue-600 rounded cursor-pointer"
+              className="w-6 h-6 accent-blue-600 rounded cursor-pointer"
             />
-            <label htmlFor="readyForExport" className="text-slate-300 cursor-pointer">
+            <label htmlFor="readyForExport" className="text-slate-300 cursor-pointer text-sm">
               Готовий/а відправляти оригінали робіт за кордон
             </label>
           </div>
@@ -294,19 +300,22 @@ export default function OnboardingPage() {
               rows={3}
               value={formData.bio}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500 resize-none"
+              className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500 resize-none"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded font-medium transition disabled:opacity-50 text-base mt-4"
+            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-lg font-medium transition disabled:opacity-50 text-base mt-4"
           >
             {loading ? 'Збереження...' : 'Створити персональний профіль'}
           </button>
         </form>
       </div>
+    </main>
+  );
+}
     </main>
   );
 }
