@@ -103,8 +103,8 @@ export default function OnboardingPage() {
   return (
     <main className="min-h-screen bg-slate-900 text-white p-4 sm:p-8 flex justify-center items-center">
       <div className="w-full max-w-2xl bg-slate-800 p-5 sm:p-8 rounded-xl border border-slate-700 shadow-xl space-y-6">
-        <h1 className="text-2xl font-bold text-center">Анкета художника</h1>
-        <p className="text-slate-400 text-sm text-center">Заповніть профіль для створення персонального алгоритму пошуку</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-center">Анкета художника</h1>
+        <p className="text-slate-400 text-xs sm:text-sm text-center">Заповніть профіль для створення персонального алгоритму пошуку</p>
 
         {error && (
           <div className="p-3 bg-red-500/20 border border-red-500 text-red-200 text-sm rounded">
@@ -121,7 +121,7 @@ export default function OnboardingPage() {
               required
               value={formData.fullName}
               onChange={handleChange}
-              className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
+              className="w-full min-h-[44px] px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -133,7 +133,7 @@ export default function OnboardingPage() {
                 name="country"
                 value={formData.country}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
+                className="w-full min-h-[44px] px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
               />
             </div>
             <div>
@@ -143,12 +143,11 @@ export default function OnboardingPage() {
                 name="city"
                 value={formData.city}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
+                className="w-full min-h-[44px] px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
 
-          {/* Техніки — Мобільні кнопко-теги */}
           <div>
             <label className="block text-slate-300 mb-2 font-medium">
               Техніки <span className="text-slate-400 text-xs">(торкніться для вибору)</span>:
@@ -161,7 +160,7 @@ export default function OnboardingPage() {
                     key={tech}
                     type="button"
                     onClick={() => toggleSelection(tech, selectedTechniques, setSelectedTechniques)}
-                    className={`min-h-[42px] px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5 border active:scale-95 touch-manipulation ${
+                    className={`min-h-[44px] px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 border active:scale-95 touch-manipulation ${
                       isSelected
                         ? 'bg-blue-600 border-blue-500 text-white shadow-md'
                         : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'
@@ -175,7 +174,6 @@ export default function OnboardingPage() {
             </div>
           </div>
 
-          {/* Напрямки — Мобільні кнопко-теги */}
           <div>
             <label className="block text-slate-300 mb-2 font-medium">
               Напрямки <span className="text-slate-400 text-xs">(торкніться для вибору)</span>:
@@ -188,7 +186,7 @@ export default function OnboardingPage() {
                     key={dir}
                     type="button"
                     onClick={() => toggleSelection(dir, selectedDirections, setSelectedDirections)}
-                    className={`min-h-[42px] px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5 border active:scale-95 touch-manipulation ${
+                    className={`min-h-[44px] px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 border active:scale-95 touch-manipulation ${
                       isSelected
                         ? 'bg-emerald-600 border-emerald-500 text-white shadow-md'
                         : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'
@@ -209,7 +207,7 @@ export default function OnboardingPage() {
               name="genres"
               value={formData.genres}
               onChange={handleChange}
-              className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
+              className="w-full min-h-[44px] px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -220,7 +218,7 @@ export default function OnboardingPage() {
                 name="professionalLevel"
                 value={formData.professionalLevel}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
+                className="w-full min-h-[44px] px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
               >
                 <option value="Початковий">Початковий</option>
                 <option value="Незалежний художник">Незалежний художник</option>
@@ -237,7 +235,7 @@ export default function OnboardingPage() {
                 placeholder="Безкоштовно або до $50"
                 value={formData.maxApplicationFee}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
+                className="w-full min-h-[44px] px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -251,7 +249,7 @@ export default function OnboardingPage() {
                 value={formData.languages}
                 onChange={handleChange}
                 placeholder="Українська, Англійська..."
-                className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
+                className="w-full min-h-[44px] px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
               />
             </div>
             <div>
@@ -262,7 +260,7 @@ export default function OnboardingPage() {
                 value={formData.targetCountries}
                 onChange={handleChange}
                 placeholder="ЄС, США..."
-                className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
+                className="w-full min-h-[44px] px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -275,7 +273,7 @@ export default function OnboardingPage() {
               value={formData.goals}
               onChange={handleChange}
               placeholder="Вкажіть пріоритетні цілі"
-              className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
+              className="w-full min-h-[44px] px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white text-base focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -286,7 +284,7 @@ export default function OnboardingPage() {
               name="readyForExport"
               checked={formData.readyForExport}
               onChange={handleChange}
-              className="w-6 h-6 accent-blue-600 rounded cursor-pointer"
+              className="w-6 h-6 accent-blue-600 rounded cursor-pointer touch-manipulation"
             />
             <label htmlFor="readyForExport" className="text-slate-300 cursor-pointer text-sm">
               Готовий/а відправляти оригінали робіт за кордон
@@ -307,15 +305,12 @@ export default function OnboardingPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-lg font-medium transition disabled:opacity-50 text-base mt-4"
+            className="w-full min-h-[48px] py-3.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-lg font-medium transition disabled:opacity-50 text-base mt-4 touch-manipulation"
           >
             {loading ? 'Збереження...' : 'Створити персональний профіль'}
           </button>
         </form>
       </div>
-    </main>
-  );
-}
     </main>
   );
 }
