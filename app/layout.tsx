@@ -10,7 +10,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="uk">
-      <body style={{ margin: 0, padding: 0, fontFamily: 'sans-serif' }}>
+      <head>
+        <script src="https://cdn.tailwindcss.com"></script>
+      </head>
+      <body style={{ margin: 0, padding: 0 }}>
         {children}
       </body>
     </html>
