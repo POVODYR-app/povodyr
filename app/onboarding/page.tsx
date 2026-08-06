@@ -4,17 +4,31 @@ import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 
+const TECH_OPTIONS = [
+  'Акварель', 'Акрил', 'Графіка', 'Гуаш', 'Імпасто',
+  'Олійний живопис', 'Пастель', 'Пуантилізм', 'Сфумато',
+  'Темпера', 'Флюїд-арт'
+];
+
+const DIRECTION_OPTIONS = [
+  'Абстракціонізм', 'Бароко', 'Експресіонізм', 'Імпресіонізм',
+  'Класицизм', 'Кубізм', 'Модернізм та авангард', 'Поп-арт',
+  'Постімпресіонізм', 'Реалізм', 'Ренесанс (Відродження)',
+  'Романтизм', 'Сюрреалізм', 'Фотореалізм'
+];
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [selectedTechniques, setSelectedTechniques] = useState<string[]>([]);
+  const [selectedDirections, setSelectedDirections] = useState<string[]>([]);
+
   const [formData, setFormData] = useState({
     fullName: '',
     country: 'Україна',
     city: '',
-    techniques: '',
-    directions: '',
     genres: '',
     readyForExport: false,
     targetCountries: '',
@@ -24,6 +38,14 @@ export default function OnboardingPage() {
     goals: '',
     bio: '',
   });
+
+  const toggleSelection = (item: string, list: string[], setList: (val: string[]) => void) => {
+    if (list.includes(item)) {
+      setList(list.filter((i) => i !== item));
+    } else {
+      setList([...list, item]);
+    }
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -57,8 +79,8 @@ export default function OnboardingPage() {
         full_name: formData.fullName,
         country: formData.country,
         city: formData.city,
-        techniques: formData.techniques,
-        directions: formData.directions,
+        techniques: selectedTechniques.join(', '),
+        directions: selectedDirections.join(', '),
         genres: formData.genres,
         ready_for_export: formData.readyForExport,
         target_countries: formData.targetCountries,
@@ -90,7 +112,7 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-sm">
+        <form onSubmit={handleSubmit} className="space-y-5 text-sm">
           <div>
             <label className="block text-slate-300 mb-1 font-medium">ПІБ / Творчий псевдонім *</label>
             <input
@@ -126,39 +148,63 @@ export default function OnboardingPage() {
             </div>
           </div>
 
+          {/* Техніки */}
           <div>
-            <label className="block text-slate-300 mb-1 font-medium">Техніки (напр. Живопис, Графіка, Кераміка)</label>
-            <input
-              type="text"
-              name="techniques"
-              value={formData.techniques}
-              onChange={handleChange}
-              placeholder="Вкажіть через кому"
-              className="w-full px-4 py-2.5 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
-            />
+            <label className="block text-slate-300 mb-2 font-medium">Техніки (оберіть потрібні):</label>
+            <div className="flex flex-wrap gap-2">
+              {TECH_OPTIONS.map((tech) => {
+                const isSelected = selectedTechniques.includes(tech);
+                return (
+                  <button
+                    key={tech}
+                    type="button"
+                    onClick={() => toggleSelection(tech, selectedTechniques, setSelectedTechniques)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition border ${
+                      isSelected
+                        ? 'bg-blue-600 border-blue-500 text-white'
+                        : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'
+                    }`}
+                  >
+                    {tech}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-slate-300 mb-1 font-medium">Напрямки</label>
-              <input
-                type="text"
-                name="directions"
-                value={formData.directions}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
-              />
+          {/* Напрямки */}
+          <div>
+            <label className="block text-slate-300 mb-2 font-medium">Напрямки (оберіть потрібні):</label>
+            <div className="flex flex-wrap gap-2">
+              {DIRECTION_OPTIONS.map((dir) => {
+                const isSelected = selectedDirections.includes(dir);
+                return (
+                  <button
+                    key={dir}
+                    type="button"
+                    onClick={() => toggleSelection(dir, selectedDirections, setSelectedDirections)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition border ${
+                      isSelected
+                        ? 'bg-emerald-600 border-emerald-500 text-white'
+                        : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'
+                    }`}
+                  >
+                    {dir}
+                  </button>
+                );
+              })}
             </div>
-            <div>
-              <label className="block text-slate-300 mb-1 font-medium">Жанри</label>
-              <input
-                type="text"
-                name="genres"
-                value={formData.genres}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
-              />
-            </div>
+          </div>
+
+          <div>
+            <label className="block text-slate-300 mb-1 font-medium">Жанри (наприклад: Пейзаж, Портрет)</label>
+            <input
+              type="text"
+              name="genres"
+              value={formData.genres}
+              onChange={handleChange}
+              className="w-full px-4 py-2.5 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -182,7 +228,7 @@ export default function OnboardingPage() {
               <input
                 type="text"
                 name="maxApplicationFee"
-                placeholder="наприклад: Безкоштовно або до $50"
+                placeholder="Безкоштовно або до $50"
                 value={formData.maxApplicationFee}
                 onChange={handleChange}
                 className="w-full px-4 py-2.5 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
@@ -227,7 +273,7 @@ export default function OnboardingPage() {
             />
           </div>
 
-          <div className="flex items-center gap-3 py-2">
+          <div className="flex items-center gap-3 py-1">
             <input
               type="checkbox"
               id="readyForExport"
