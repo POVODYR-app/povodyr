@@ -64,7 +64,8 @@ export default function DashboardPage() {
         await existingSub.unsubscribe();
       }
 
-      const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-Sk1kUp222A9S-uIn725f483g88yYjZJ_aY8G400jJ6412e_O20849-o';
+      // Жодного process.env, щоб Vercel не зміг підставити старий зламаний ключ
+const publicVapidKey = 'BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8';
       if (!publicVapidKey) {
         alert('Помилка: NEXT_PUBLIC_VAPID_PUBLIC_KEY відсутній у Vercel');
         return;
