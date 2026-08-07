@@ -14,6 +14,15 @@ const AVAILABLE_CATEGORIES = [
   'Аукціони та ярмарки'
 ];
 
+interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  link_url: string;
+  is_read: boolean;
+  created_at: string;
+}
+
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -32,8 +41,9 @@ export default function DashboardPage() {
   // Модальні вікна
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
 
-  // Повні дані профілю користувача
+  // Дані профілю
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState('');
   const [artStyle, setArtStyle] = useState('');
@@ -41,6 +51,8 @@ export default function DashboardPage() {
   const [portfolio, setPortfolio] = useState('');
   const [bio, setBio] = useState('');
 
+  // Сповіщення та категорії
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([
     'Гранти та фінансування',
     'Виставки та Open Calls'
@@ -56,6 +68,7 @@ export default function DashboardPage() {
     }
 
     loadUserProfile();
+    loadNotifications();
   }, []);
 
   const loadUserProfile = async () => {
@@ -79,6 +92,32 @@ export default function DashboardPage() {
         }
       }
     }
+  };
+
+  const loadNotifications = async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id || 'guest_user';
+
+    const { data } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (data) {
+      setNotifications(data as NotificationItem[]);
+    }
+  };
+
+  const markAsRead = async (id: string) => {
+    await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', id);
+
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
+    );
   };
 
   const handleSubscribe = async () => {
@@ -114,7 +153,7 @@ export default function DashboardPage() {
       if (error) throw error;
 
       setSubscribed(true);
-      alert('Сповіщення успішно підключено!');
+      alert('Push-сповіщення пристрою підключено!');
     } catch (err: any) {
       console.error(err);
       alert(`Помилка підключення: ${err.message || err}`);
@@ -158,6 +197,8 @@ export default function DashboardPage() {
     setShowCategoriesModal(false);
   };
 
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
   return (
     <div className="min-h-screen bg-slate-900 text-white p-6">
       <div className="max-w-md mx-auto space-y-6">
@@ -165,19 +206,39 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold">
             Вітаємо{userName ? `, ${userName}` : ''}!
           </h1>
-          <button
-            onClick={() => setShowProfileModal(true)}
-            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition text-sm flex items-center gap-1.5 border border-slate-700"
-          >
-            ✏️ Профіль
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowNotificationsModal(true)}
+              className="relative p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition text-sm border border-slate-700"
+            >
+              🔔
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setShowProfileModal(true)}
+              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition text-sm border border-slate-700"
+            >
+              ✏️ Профіль
+            </button>
+          </div>
         </div>
 
         <p className="text-slate-400">
-          Сьогодні знайдено 0 персональних можливостей.
+          Знайдено матеріалів у базі: {notifications.length}.
         </p>
 
         <div className="flex flex-col gap-3">
+          <button
+            onClick={() => setShowNotificationsModal(true)}
+            className="w-full py-3 px-4 rounded-xl font-medium bg-blue-600 hover:bg-blue-700 text-white transition flex items-center justify-center gap-2"
+          >
+            📋 Центр можливостей ({notifications.length})
+          </button>
+
           <button
             onClick={() => setShowCategoriesModal(true)}
             className="w-full py-3 px-4 rounded-xl font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center justify-center gap-2 border border-slate-700"
@@ -191,19 +252,90 @@ export default function DashboardPage() {
             className={`w-full py-3 px-4 rounded-xl font-medium transition flex items-center justify-center gap-2 ${
               subscribed
                 ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
             }`}
           >
             {loading
-              ? 'Підключення...'
+              ? 'Підключення Push...'
               : subscribed
-              ? '🔔 Сповіщення увімкнено'
-              : '🔔 Увімкнути сповіщення'}
+              ? '📲 Push-сповіщення пристрою увімкнено'
+              : '📲 Увімкнути Push на пристрої'}
           </button>
         </div>
       </div>
 
-      {/* Повне модальне вікно редагування профілю */}
+      {/* Модальне вікно центру сповіщень */}
+      {showNotificationsModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700 space-y-4 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">Знайдені можливості</h2>
+              <button
+                onClick={() => setShowNotificationsModal(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="overflow-y-auto space-y-3 flex-1 pr-1">
+              {notifications.length === 0 ? (
+                <p className="text-slate-400 text-sm text-center py-6">
+                  Поки немає збережених можливостей. Вони з'являться тут автоматично.
+                </p>
+              ) : (
+                notifications.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => markAsRead(item.id)}
+                    className={`p-4 rounded-xl border transition space-y-2 ${
+                      item.is_read
+                        ? 'bg-slate-900/50 border-slate-800 text-slate-400'
+                        : 'bg-slate-900 border-blue-500/50 text-white'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-semibold text-sm">{item.title}</h3>
+                      {!item.is_read && (
+                        <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-1"></span>
+                      )}
+                    </div>
+                    {item.message && (
+                      <p className="text-xs text-slate-300 leading-relaxed">
+                        {item.message}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[10px] text-slate-500">
+                        {new Date(item.created_at).toLocaleDateString('uk-UA')}
+                      </span>
+                      {item.link_url && (
+                        <a
+                          href={item.link_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-400 hover:underline flex items-center gap-1 font-medium"
+                        >
+                          Детальніше 🔗
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowNotificationsModal(false)}
+              className="w-full py-2.5 rounded-xl bg-slate-700 text-slate-300 font-medium"
+            >
+              Закрити
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Модальне вікно редагування профілю */}
       {showProfileModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700 space-y-4 max-h-[85vh] overflow-y-auto">
@@ -300,7 +432,7 @@ export default function DashboardPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700 space-y-4">
             <h2 className="text-xl font-bold">Категорії пошуку</h2>
-            <p className="text-xs text-slate-400">Оберіть напрями для моніторингу можливостей:</p>
+            <p className="text-xs text-slate-400">Оберіть напрями для моніторингу возможностей:</p>
 
             <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
               {AVAILABLE_CATEGORIES.map((category) => {
