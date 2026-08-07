@@ -4,6 +4,22 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
 
+// Функція конвертації Base64 VAPID ключа у Uint8Array для браузера
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 export default function DashboardPage() {
   const [userName, setUserName] = useState('');
   const [isSubscribing, setIsSubscribing] = useState(false);
@@ -41,18 +57,24 @@ export default function DashboardPage() {
 
       const registration = await navigator.serviceWorker.register('/sw.js');
       const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      
       if (!publicVapidKey) {
-        alert('Помилка ключів VAPID');
+        alert('Помилка: NEXT_PUBLIC_VAPID_PUBLIC_KEY не знайдено у Vercel');
         return;
       }
 
+      const convertedKey = urlBase64ToUint8Array(publicVapidKey);
+
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: publicVapidKey
+        applicationServerKey: convertedKey
       });
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        alert('Помилка авторизації');
+        return;
+      }
 
       const res = await fetch('/api/push/subscribe', {
         method: 'POST',
@@ -63,11 +85,12 @@ export default function DashboardPage() {
       if (res.ok) {
         alert('Сповіщення успішно увімкнено!');
       } else {
-        alert('Помилка збереження підписки');
+        const errData = await res.json();
+        alert('Помилка збереження: ' + (errData.error || 'Невідома помилка'));
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Помилка під час підключення сповіщень');
+      alert('Помилка під час підключення сповіщень: ' + (err.message || err));
     } finally {
       setIsSubscribing(false);
     }
