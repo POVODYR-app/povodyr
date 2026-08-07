@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+// Імпорт з використанням аліасу Next.js (@/lib/supabase)
+import supabase from '@/lib/supabase'; 
 
 const PUBLIC_VAPID_KEY = 'BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8';
 
@@ -73,7 +74,6 @@ export default function DashboardPage() {
     loadNotifications();
   }, []);
 
-  // 1. Завантаження даних профілю з автоматичною перевіркою обох таблиць
   const loadUserProfile = async () => {
     try {
       const { data: userData } = await supabase.auth.getUser();
@@ -81,14 +81,12 @@ export default function DashboardPage() {
 
       if (!userId) return;
 
-      // Спочатку перевіряємо основну таблицю profiles
       let { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      // Якщо в profiles порожньо, робимо фолбек на artist_profiles
       if (!profile) {
         const { data: artistProfile } = await supabase
           .from('artist_profiles')
@@ -115,7 +113,6 @@ export default function DashboardPage() {
     }
   };
 
-  // 2. Відкриття вікон з попереднім завантаженням актуальних даних
   const openProfileModal = async () => {
     await loadUserProfile();
     setShowProfileModal(true);
@@ -126,7 +123,6 @@ export default function DashboardPage() {
     setShowCategoriesModal(true);
   };
 
-  // 3. Завантаження сповіщень
   const loadNotifications = async () => {
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData?.user?.id || 'guest_user';
@@ -141,7 +137,6 @@ export default function DashboardPage() {
       const items = data as NotificationItem[];
       setNotifications(items);
 
-      // Підраховуємо можливості за сьогоднішню дату
       const todayStr = new Date().toISOString().split('T')[0];
       const todayItems = items.filter((item) => {
         const itemDateStr = new Date(item.created_at).toISOString().split('T')[0];
@@ -149,7 +144,6 @@ export default function DashboardPage() {
       });
       setTodayMatchesCount(todayItems.length);
 
-      // Перевірка активності за останній тиждень
       if (items.length === 0) {
         setShouldPromptUpdate(true);
       } else {
@@ -222,7 +216,6 @@ export default function DashboardPage() {
     }
   };
 
-  // 4. Збереження оновленого профілю
   const saveProfile = async () => {
     try {
       const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -267,7 +260,6 @@ export default function DashboardPage() {
     }
   };
 
-  // 5. Збереження обраних категорій
   const saveCategories = async () => {
     try {
       const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -327,7 +319,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Статус за сьогодні */}
         <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-lg space-y-2">
           {todayMatchesCount > 0 ? (
             <div className="flex items-center justify-between gap-3">
@@ -362,7 +353,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Баннер-підказка */}
         {shouldPromptUpdate && (
           <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 space-y-3">
             <div className="flex items-start gap-3">
@@ -430,7 +420,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Модальне вікно Центру можливостей */}
       {showNotificationsModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700 space-y-4 max-h-[85vh] flex flex-col">
@@ -501,7 +490,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Модальне вікно Редагування профілю */}
       {showProfileModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700 space-y-4 max-h-[85vh] overflow-y-auto">
@@ -593,7 +581,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Модальне вікно Вибору категорій */}
       {showCategoriesModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700 space-y-4">
