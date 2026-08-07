@@ -5,6 +5,15 @@ import { supabase } from '../../lib/supabase';
 
 const PUBLIC_VAPID_KEY = 'BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8';
 
+const AVAILABLE_CATEGORIES = [
+  'Гранти та фінансування',
+  'Виставки та Open Calls',
+  'Мистецькі резиденції',
+  'Конкурси та премії',
+  'Стипендії та навчання',
+  'Аукціони та ярмарки'
+];
+
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -19,8 +28,21 @@ function urlBase64ToUint8Array(base64String: string) {
 export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
+  
+  // Стани модальних вікон
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+
+  // Дані користувача
+  const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([
+    'Гранти та фінансування',
+    'Виставки та Open Calls'
+  ]);
 
   useEffect(() => {
+    // Перевірка підписки на push
     if ('serviceWorker' in navigator && 'PushManager' in window) {
       navigator.serviceWorker.ready.then((registration) => {
         registration.pushManager.getSubscription().then((sub) => {
@@ -28,7 +50,29 @@ export default function DashboardPage() {
         });
       });
     }
+
+    // Завантаження профілю з Supabase
+    loadUserProfile();
   }, []);
+
+  const loadUserProfile = async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData?.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, role, categories')
+        .eq('id', userData.user.id)
+        .single();
+
+      if (profile) {
+        if (profile.full_name) setUserName(profile.full_name);
+        if (profile.role) setUserRole(profile.role);
+        if (profile.categories && Array.isArray(profile.categories)) {
+          setSelectedCategories(profile.categories);
+        }
+      }
+    }
+  };
 
   const handleSubscribe = async () => {
     setLoading(true);
@@ -72,23 +116,46 @@ export default function DashboardPage() {
     }
   };
 
-  const handleEditProfile = () => {
-    // Тут буде перехід на сторінку редагування профілю або відкриття модального вікна
-    window.location.href = '/profile/edit';
+  const saveProfile = async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData?.user) {
+      await supabase.from('profiles').upsert({
+        id: userData.user.id,
+        full_name: userName,
+        role: userRole,
+      });
+    }
+    setShowProfileModal(false);
   };
 
-  const handleSelectCategories = () => {
-    // Тут буде перехід на сторінку вибору категорій або відкриття відповідних налаштувань
-    window.location.href = '/categories';
+  const toggleCategory = (category: string) => {
+    if (selectedCategories.includes(category)) {
+      setSelectedCategories(selectedCategories.filter((c) => c !== category));
+    } else {
+      setSelectedCategories([...selectedCategories, category]);
+    }
+  };
+
+  const saveCategories = async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData?.user) {
+      await supabase.from('profiles').upsert({
+        id: userData.user.id,
+        categories: selectedCategories,
+      });
+    }
+    setShowCategoriesModal(false);
   };
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-6">
       <div className="max-w-md mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Вітаємо!</h1>
+          <h1 className="text-2xl font-bold">
+            Вітаємо{userName ? `, ${userName}` : ''}!
+          </h1>
           <button
-            onClick={handleEditProfile}
+            onClick={() => setShowProfileModal(true)}
             className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition text-sm flex items-center gap-1.5 border border-slate-700"
           >
             ✏️ Профіль
@@ -101,10 +168,10 @@ export default function DashboardPage() {
 
         <div className="flex flex-col gap-3">
           <button
-            onClick={handleSelectCategories}
+            onClick={() => setShowCategoriesModal(true)}
             className="w-full py-3 px-4 rounded-xl font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center justify-center gap-2 border border-slate-700"
           >
-            🎯 Категорії пошуку
+            🎯 Категорії пошуку ({selectedCategories.length})
           </button>
 
           <button
@@ -124,6 +191,99 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      {/* Модальне вікно редагування профілю */}
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700 space-y-4">
+            <h2 className="text-xl font-bold">Редагування профілю</h2>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Ім'я</label>
+                <input
+                  type="text"
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                  placeholder="Введіть ім'я"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Спеціалізація / Роль</label>
+                <input
+                  type="text"
+                  value={userRole}
+                  onChange={(e) => setUserRole(e.target.value)}
+                  placeholder="Художник, куратор тощо"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="flex-1 py-2 px-4 rounded-xl bg-slate-700 text-slate-300 font-medium"
+              >
+                Скасувати
+              </button>
+              <button
+                onClick={saveProfile}
+                className="flex-1 py-2 px-4 rounded-xl bg-blue-600 text-white font-medium"
+              >
+                Зберегти
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальне вікно вибору категорій */}
+      {showCategoriesModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700 space-y-4">
+            <h2 className="text-xl font-bold">Категорії пошуку</h2>
+            <p className="text-xs text-slate-400">Оберіть напрями для моніторингу можливостей:</p>
+
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              {AVAILABLE_CATEGORIES.map((category) => {
+                const isSelected = selectedCategories.includes(category);
+                return (
+                  <button
+                    key={category}
+                    onClick={() => toggleCategory(category)}
+                    className={`w-full text-left px-4 py-3 rounded-xl border transition flex items-center justify-between ${
+                      isSelected
+                        ? 'bg-blue-600/20 border-blue-500 text-blue-300'
+                        : 'bg-slate-900 border-slate-700 text-slate-400'
+                    }`}
+                  >
+                    <span>{category}</span>
+                    <span>{isSelected ? '✓' : '+'}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setShowCategoriesModal(false)}
+                className="flex-1 py-2 px-4 rounded-xl bg-slate-700 text-slate-300 font-medium"
+              >
+                Скасувати
+              </button>
+              <button
+                onClick={saveCategories}
+                className="flex-1 py-2 px-4 rounded-xl bg-blue-600 text-white font-medium"
+              >
+                Зберегти
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
