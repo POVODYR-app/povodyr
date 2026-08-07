@@ -2,17 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import Link from 'next/link';
+
+const PUBLIC_VAPID_KEY = 'BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8';
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
-
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
-
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
@@ -20,175 +17,86 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 export default function DashboardPage() {
-  const [userName, setUserName] = useState('');
-  const [isSubscribing, setIsSubscribing] = useState(false);
-  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [subscribed, setSubscribed] = useState(false);
 
   useEffect(() => {
-    async function loadUser() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('id', user.id)
-          .single();
-        if (profile?.full_name) {
-          setUserName(profile.full_name);
-        }
-      }
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      navigator.serviceWorker.ready.then((registration) => {
+        registration.pushManager.getSubscription().then((sub) => {
+          if (sub) setSubscribed(true);
+        });
+      });
     }
-    loadUser();
   }, []);
 
-  // Активація Push-підписки з авто-скиданням старої
-  const subscribeToPush = async () => {
+  const handleSubscribe = async () => {
+    setLoading(true);
     try {
-      setIsSubscribing(true);
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        alert('Ваш браузер не підтримує Web Push сповіщення');
+      if (!('serviceWorker' in navigator)) {
+        alert('Service Worker не підтримується у цьому браузері');
         return;
       }
 
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        alert('Дозвіл на сповіщення не надано');
-        return;
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        const convertedKey = urlBase64ToUint8Array(PUBLIC_VAPID_KEY);
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedKey,
+        });
       }
 
-      const registration = await navigator.serviceWorker.register('./sw.js', { scope: '/' });
-      
-      // Скидання попередньої підписки, якщо вона існує зі старим ключем
-      const existingSub = await registration.pushManager.getSubscription();
-      if (existingSub) {
-        await existingSub.unsubscribe();
-      }
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id || 'guest_user';
 
-      // Жодного process.env, щоб Vercel не зміг підставити старий зламаний ключ
-const publicVapidKey = 'BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8';
-      if (!publicVapidKey) {
-        alert('Помилка: NEXT_PUBLIC_VAPID_PUBLIC_KEY відсутній у Vercel');
-        return;
-      }
+      const { error } = await supabase.from('push_subscriptions').upsert(
+        {
+          user_id: userId,
+          subscription: subscription,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' }
+      );
 
-      const convertedKey = urlBase64ToUint8Array(publicVapidKey);
+      if (error) throw error;
 
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: convertedKey
-      });
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        alert('Помилка авторизації');
-        return;
-      }
-
-      const res = await fetch('/api/push/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, subscription })
-      });
-
-      if (res.ok) {
-        alert('Сповіщення успішно оновлено та увімкнено!');
-      } else {
-        const errData = await res.json();
-        alert('Помилка збереження: ' + (errData.error || 'Невідома помилка'));
-      }
+      setSubscribed(true);
+      alert('Сповіщення успішно підключено!');
     } catch (err: any) {
       console.error(err);
-      alert('Помилка під час підключення: ' + (err.message || err));
+      alert(`Помилка підключення: ${err.message || err}`);
     } finally {
-      setIsSubscribing(false);
-    }
-  };
-
-  // Відправка тестового повідомлення
-  const testMyPush = async () => {
-    try {
-      setIsSendingTest(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        alert('Користувача не знайдено');
-        return;
-      }
-
-      const res = await fetch('/api/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          title: 'POVODYR',
-          body: 'Тестове сповіщення! Push-система повністю працює.',
-          url: '/dashboard'
-        })
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        alert('Відправлено! Зачекайте пару секунд.');
-      } else {
-        alert('Помилка відправки: ' + (data.error || 'Невідома помилка'));
-      }
-    } catch (e: any) {
-      alert('Помилка: ' + (e.message || e));
-    } finally {
-      setIsSendingTest(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white p-4">
+    <div className="min-h-screen bg-slate-900 text-white p-6">
       <div className="max-w-md mx-auto space-y-6">
-        <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl space-y-4">
-          <h1 className="text-2xl font-bold">
-            Вітаємо, {userName || 'Художнику'}!
-          </h1>
-          <p className="text-slate-400 text-sm">
-            Сьогодні знайдено <span className="text-white font-semibold">0</span> персональних можливостей.
-          </p>
+        <h1 className="text-2xl font-bold">Вітаємо!</h1>
+        <p className="text-slate-400">
+          Сьогодні знайдено 0 персональних можливостей.
+        </p>
 
-          <div className="flex flex-wrap gap-2 pt-2">
-            <Link 
-              href="/onboarding"
-              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition"
-            >
-              Редагувати профіль
-            </Link>
-
-            <button
-              onClick={subscribeToPush}
-              disabled={isSubscribing}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition disabled:opacity-50"
-            >
-              {isSubscribing ? 'Підключення...' : '🔔 Сповіщення'}
-            </button>
-
-            <button
-              onClick={testMyPush}
-              disabled={isSendingTest}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium transition disabled:opacity-50"
-            >
-              {isSendingTest ? 'Надсилання...' : '🧪 Тест Push'}
-            </button>
-          </div>
-        </div>
-
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          <button className="px-4 py-2 bg-blue-600 rounded-full text-sm font-medium">Усі</button>
-          <button className="px-4 py-2 bg-slate-800 rounded-full text-sm font-medium border border-slate-700">Open Call</button>
-          <button className="px-4 py-2 bg-slate-800 rounded-full text-sm font-medium border border-slate-700">Конкурси</button>
-          <button className="px-4 py-2 bg-slate-800 rounded-full text-sm font-medium border border-slate-700">Гранти</button>
-        </div>
-
-        <div className="bg-slate-800/50 rounded-2xl p-8 border border-slate-700/50 text-center space-y-3">
-          <p className="text-lg font-medium text-slate-300">
-            У цій категорії поки немає збережених рекомендацій.
-          </p>
-          <p className="text-sm text-slate-500">
-            Штучний інтелект регулярно шукає нові відкриті конкурси та гранти з перевірених джерел.
-          </p>
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={handleSubscribe}
+            disabled={loading}
+            className={`w-full py-3 px-4 rounded-xl font-medium transition flex items-center justify-center gap-2 ${
+              subscribed
+                ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}
+          >
+            {loading
+              ? 'Підключення...'
+              : subscribed
+              ? '🔔 Сповіщення увімкнено'
+              : '🔔 Увімкнути сповіщення'}
+          </button>
         </div>
       </div>
     </div>
