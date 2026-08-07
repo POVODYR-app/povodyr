@@ -51,8 +51,9 @@ export default function DashboardPage() {
   const [portfolio, setPortfolio] = useState('');
   const [bio, setBio] = useState('');
 
-  // Сповіщення та стан активності
+  // Сповіщення та статистика за сьогодні
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [todayMatchesCount, setTodayMatchesCount] = useState<number>(0);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([
     'Гранти та фінансування',
     'Виставки та Open Calls'
@@ -106,13 +107,22 @@ export default function DashboardPage() {
       .order('created_at', { ascending: false });
 
     if (data) {
-      setNotifications(data as NotificationItem[]);
+      const items = data as NotificationItem[];
+      setNotifications(items);
+
+      // Підраховуємо можливості, що були додані за сьогоднішню дату
+      const todayStr = new Date().toISOString().split('T')[0];
+      const todayItems = items.filter((item) => {
+        const itemDateStr = new Date(item.created_at).toISOString().split('T')[0];
+        return itemDateStr === todayStr;
+      });
+      setTodayMatchesCount(todayItems.length);
 
       // Перевірка: чи були релевантні пропозиції протягом останніх 7 днів
-      if (data.length === 0) {
+      if (items.length === 0) {
         setShouldPromptUpdate(true);
       } else {
-        const latestDate = new Date(data[0].created_at).getTime();
+        const latestDate = new Date(items[0].created_at).getTime();
         const now = new Date().getTime();
         const daysDifference = (now - latestDate) / (1000 * 3600 * 24);
 
@@ -123,6 +133,7 @@ export default function DashboardPage() {
         }
       }
     } else {
+      setTodayMatchesCount(0);
       setShouldPromptUpdate(true);
     }
   };
@@ -245,6 +256,41 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Картка статусу за сьогодні */}
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-lg space-y-2">
+          {todayMatchesCount > 0 ? (
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">✨</span>
+                <div>
+                  <p className="text-sm font-semibold text-emerald-400">
+                    Сьогодні для вас знайдено {todayMatchesCount}{' '}
+                    {todayMatchesCount === 1
+                      ? 'можливість'
+                      : todayMatchesCount < 5
+                      ? 'можливості'
+                      : 'можливостей'}.
+                  </p>
+                  <p className="text-xs text-slate-400">Перегляньте нові деталі у базі.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowNotificationsModal(true)}
+                className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-xs font-medium text-white transition flex-shrink-0"
+              >
+                Переглянути
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🔍</span>
+              <p className="text-sm font-medium text-slate-300">
+                Сьогодні нових можливостей немає. Я продовжую шукати.
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Баннер-пропозиція оновити критерії, якщо протягом тижня нічого не знайдено */}
         {shouldPromptUpdate && (
           <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 space-y-3">
@@ -276,8 +322,8 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <p className="text-slate-400">
-          Знайдено матеріалів у базі: {notifications.length}.
+        <p className="text-slate-400 text-sm">
+          Усього знайдено матеріалів у базі: {notifications.length}.
         </p>
 
         <div className="flex flex-col gap-3">
