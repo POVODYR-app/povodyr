@@ -13,6 +13,7 @@
     "react": "^18",
     "react-dom": "^18",
     "@supabase/supabase-js": "^2.43.4",
+    "openai": "^4.52.0",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
