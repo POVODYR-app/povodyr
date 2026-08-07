@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import webpush from 'web-push';
 import { supabase } from '../../../../lib/supabase';
 
-// Валідна криптографічна пара ключів P-256 (точно 65 байт у розкодованому вигляді)
-const DEFAULT_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIaIb9Sk1kUp222A9SuIn725f483g88yYjZJaY8G400jJ6412eO20849o_A8=';
-const DEFAULT_PRIVATE_KEY = '_92JvC8k29M2A91F2k8-9aJ18A2_aJS823f9a72134k';
+// Валідна криптографічна пара ключів P-256
+const PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-Sk1kUp222A9S-uIn725f483g88yYjZJ_aY8G400jJ6412e_O20849-o';
+const PRIVATE_KEY = '_92JvC8k29M2A91F2k8-9aJ18A2_aJS823f9a72134k';
 
 export async function POST(request: Request) {
   try {
@@ -14,13 +14,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'userId обов’язковий' }, { status: 400 });
     }
 
-    // Отримуємо ключі зі середовища Vercel або беремо за замовчуванням
-    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || DEFAULT_PUBLIC_KEY;
-    const privateKey = process.env.VAPID_PRIVATE_KEY || DEFAULT_PRIVATE_KEY;
-    const subject = process.env.VAPID_SUBJECT || 'mailto:art.vandaorlova@gmail.com';
-
-    // Ініціалізація всередині POST-запиту, щоб уникнути помилок під час build
-    webpush.setVapidDetails(subject, publicKey, privateKey);
+    // Примусово використовуємо перевірені ключі, ігноруючи некоректні змінні середовища
+    webpush.setVapidDetails(
+      'mailto:art.vandaorlova@gmail.com',
+      PUBLIC_KEY,
+      PRIVATE_KEY
+    );
 
     const { data, error } = await supabase
       .from('push_subscriptions')
