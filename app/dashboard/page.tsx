@@ -51,12 +51,13 @@ export default function DashboardPage() {
   const [portfolio, setPortfolio] = useState('');
   const [bio, setBio] = useState('');
 
-  // Сповіщення та категорії
+  // Сповіщення та стан активності
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([
     'Гранти та фінансування',
     'Виставки та Open Calls'
   ]);
+  const [shouldPromptUpdate, setShouldPromptUpdate] = useState(false);
 
   useEffect(() => {
     if ('serviceWorker' in navigator && 'PushManager' in window) {
@@ -106,6 +107,23 @@ export default function DashboardPage() {
 
     if (data) {
       setNotifications(data as NotificationItem[]);
+
+      // Перевірка: чи були релевантні пропозиції протягом останніх 7 днів
+      if (data.length === 0) {
+        setShouldPromptUpdate(true);
+      } else {
+        const latestDate = new Date(data[0].created_at).getTime();
+        const now = new Date().getTime();
+        const daysDifference = (now - latestDate) / (1000 * 3600 * 24);
+
+        if (daysDifference >= 7) {
+          setShouldPromptUpdate(true);
+        } else {
+          setShouldPromptUpdate(false);
+        }
+      }
+    } else {
+      setShouldPromptUpdate(true);
     }
   };
 
@@ -226,6 +244,37 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
+
+        {/* Баннер-пропозиція оновити критерії, якщо протягом тижня нічого не знайдено */}
+        {shouldPromptUpdate && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <span className="text-xl">💡</span>
+              <div>
+                <h3 className="font-semibold text-amber-400 text-sm">
+                  Немає нових збігів за останній тиждень
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                  Можливо, варто оновити або розширити критерії пошуку, обрати додаткові категорії чи додати деталі у профіль.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setShowCategoriesModal(true)}
+                className="flex-1 py-2 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-medium border border-amber-500/40 text-center"
+              >
+                Змінити категорії
+              </button>
+              <button
+                onClick={() => setShowProfileModal(true)}
+                className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 text-center"
+              >
+                Оновити профіль
+              </button>
+            </div>
+          </div>
+        )}
 
         <p className="text-slate-400">
           Знайдено матеріалів у базі: {notifications.length}.
@@ -432,7 +481,7 @@ export default function DashboardPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700 space-y-4">
             <h2 className="text-xl font-bold">Категорії пошуку</h2>
-            <p className="text-xs text-slate-400">Оберіть напрями для моніторингу возможностей:</p>
+            <p className="text-xs text-slate-400">Оберіть напрями для моніторингу можливостей:</p>
 
             <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
               {AVAILABLE_CATEGORIES.map((category) => {
