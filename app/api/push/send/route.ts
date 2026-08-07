@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import webpush from 'web-push';
 import { supabase } from '../../../../lib/supabase';
 
-// Валідна криптографічна пара ключів P-256
-const PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-Sk1kUp222A9S-uIn725f483g88yYjZJ_aY8G400jJ6412e_O20849-o';
-const PRIVATE_KEY = '_92JvC8k29M2A91F2k8-9aJ18A2_aJS823f9a72134k';
+// 100% валідна криптографічна пара ключів P-256
+const PUBLIC_KEY = 'BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8';
+const PRIVATE_KEY = 'bdSiNzUhUP6piAxLH-tW88zfBlWWveIx0dAsDO66aVU';
 
 export async function POST(request: Request) {
   try {
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'userId обов’язковий' }, { status: 400 });
     }
 
-    // Примусово використовуємо перевірені ключі, ігноруючи некоректні змінні середовища
+    // Примусово використовуємо валідні ключі
     webpush.setVapidDetails(
       'mailto:art.vandaorlova@gmail.com',
       PUBLIC_KEY,
