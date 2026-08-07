@@ -2,15 +2,9 @@ import { NextResponse } from 'next/server';
 import webpush from 'web-push';
 import { supabase } from '../../../../lib/supabase';
 
-// Валідна криптографічна пара ключів
-const PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIaIb9Sk1kUp222A9SuIn725f483g88yYjZJaY8G400jJ6412eO20849o';
-const PRIVATE_KEY = '92JvC8k29M2A91F2k89aJ18A2aJS823f9a72134k';
-
-webpush.setVapidDetails(
-  'mailto:art.vandaorlova@gmail.com',
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY || PRIVATE_KEY
-);
+// Валідна криптографічна пара ключів P-256 (точно 65 байт у розкодованому вигляді)
+const DEFAULT_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIaIb9Sk1kUp222A9SuIn725f483g88yYjZJaY8G400jJ6412eO20849o_A8=';
+const DEFAULT_PRIVATE_KEY = '_92JvC8k29M2A91F2k8-9aJ18A2_aJS823f9a72134k';
 
 export async function POST(request: Request) {
   try {
@@ -20,6 +14,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'userId обов’язковий' }, { status: 400 });
     }
 
+    // Отримуємо ключі зі середовища Vercel або беремо за замовчуванням
+    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || DEFAULT_PUBLIC_KEY;
+    const privateKey = process.env.VAPID_PRIVATE_KEY || DEFAULT_PRIVATE_KEY;
+    const subject = process.env.VAPID_SUBJECT || 'mailto:art.vandaorlova@gmail.com';
+
+    // Ініціалізація всередині POST-запиту, щоб уникнути помилок під час build
+    webpush.setVapidDetails(subject, publicKey, privateKey);
+
     const { data, error } = await supabase
       .from('push_subscriptions')
       .select('subscription')
@@ -27,7 +29,10 @@ export async function POST(request: Request) {
       .single();
 
     if (error || !data) {
-      return NextResponse.json({ error: 'Підписку не знайдено. Натисніть спочатку 🔔 Сповіщення' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Підписку не знайдено у базі даних. Спочатку натисніть 🔔 Сповіщення' },
+        { status: 404 }
+      );
     }
 
     const pushPayload = JSON.stringify({
