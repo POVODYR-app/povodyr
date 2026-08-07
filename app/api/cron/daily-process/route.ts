@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../../lib/supabase';
-import webpush from 'web-push';
+import * as webpush from 'web-push';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -68,7 +68,7 @@ export async function GET() {
 
           try {
             await webpush.sendNotification(
-              subData.subscription as unknown as webpush.PushSubscription,
+              subData.subscription as any,
               payload
             );
             totalNotificationsSent++;
