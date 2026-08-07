@@ -56,7 +56,6 @@ export default function DashboardPage() {
         {
           user_id: userId,
           subscription: subscription,
-          updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id' }
       );
