@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
 
-// Функція конвертації Base64 VAPID ключа у Uint8Array для браузера
+// Вспоміжна функція конвертації Base64 VAPID ключа у Uint8Array для браузера
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding)
@@ -22,12 +22,16 @@ function urlBase64ToUint8Array(base64String: string) {
 
 export default function DashboardPage() {
   const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
 
   useEffect(() => {
     async function loadUser() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        if (user.email) setUserEmail(user.email);
+
         const { data: profile } = await supabase
           .from('profiles')
           .select('full_name')
@@ -41,6 +45,7 @@ export default function DashboardPage() {
     loadUser();
   }, []);
 
+  // 1. Активація Push-підписки
   const subscribeToPush = async () => {
     try {
       setIsSubscribing(true);
@@ -96,6 +101,40 @@ export default function DashboardPage() {
     }
   };
 
+  // 2. Відправка тестового сповіщення на смартфон
+  const testMyPush = async () => {
+    try {
+      setIsSendingTest(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('Користувача не знайдено');
+        return;
+      }
+
+      const res = await fetch('/api/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          title: 'POVODYR',
+          body: 'Тестове сповіщення для Вас! Push-система повністю працює.',
+          url: '/dashboard'
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert('Запит відправлено! Зачекайте пару секунд для появи пушу.');
+      } else {
+        alert('Помилка відправки: ' + (data.error || 'Невідома помилка'));
+      }
+    } catch (e: any) {
+      alert('Помилка: ' + (e.message || e));
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-white p-4">
       <div className="max-w-md mx-auto space-y-6">
@@ -108,7 +147,7 @@ export default function DashboardPage() {
             Сьогодні знайдено <span className="text-white font-semibold">0</span> персональних можливостей.
           </p>
 
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-wrap gap-2 pt-2">
             <Link 
               href="/onboarding"
               className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition"
@@ -122,6 +161,14 @@ export default function DashboardPage() {
               className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition disabled:opacity-50"
             >
               {isSubscribing ? 'Підключення...' : '🔔 Сповіщення'}
+            </button>
+
+            <button
+              onClick={testMyPush}
+              disabled={isSendingTest}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium transition disabled:opacity-50"
+            >
+              {isSendingTest ? 'Надсилання...' : '🧪 Тест Push'}
             </button>
           </div>
         </div>
