@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import webpush from 'web-push';
 
 // Налаштування VAPID ключів
@@ -15,7 +15,7 @@ if (
   );
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     // 1. Отримуємо всі активні профілі користувачів
     const { data: profiles, error: profileError } = await supabase
@@ -27,14 +27,19 @@ export async function GET(request: Request) {
     }
 
     let totalNotificationsSent = 0;
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 
     // 2. Для кожного користувача запускаємо AI Match
     for (const user of profiles) {
-      await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://' + process.env.VERCEL_URL}/api/match`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }),
-      });
+      try {
+        await fetch(`${baseUrl}/api/match`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id }),
+        });
+      } catch (e) {
+        console.error(`Помилка виклику match для користувача ${user.id}:`, e);
+      }
 
       // 3. Перевіряємо наявність збереженої Push-підписки
       const { data: subData } = await supabase
@@ -59,7 +64,7 @@ export async function GET(request: Request) {
           });
 
           try {
-            await webpush.sendNotification(subData.subscription, payload);
+            await webpush.sendNotification(subData.subscription as any, payload);
             totalNotificationsSent++;
           } catch (pushErr) {
             console.error('Помилка відправки push:', pushErr);
