@@ -64,7 +64,7 @@ export default function DashboardPage() {
         await existingSub.unsubscribe();
       }
 
-      const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-Sk1kUp222A9S-uIn725f483g88yYjZJ_aY8G400jJ6412e_O20849-o';
       if (!publicVapidKey) {
         alert('Помилка: NEXT_PUBLIC_VAPID_PUBLIC_KEY відсутній у Vercel');
         return;
