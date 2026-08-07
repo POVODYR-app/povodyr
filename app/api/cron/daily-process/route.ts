@@ -5,21 +5,25 @@ import * as webpush from 'web-push';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// Налаштування VAPID ключів
-if (
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY &&
-  process.env.VAPID_PRIVATE_KEY &&
-  process.env.VAPID_SUBJECT
-) {
-  webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT,
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
-}
-
 export async function GET() {
   try {
+    // Ініціалізація VAPID ключів у момент виклику маршруту
+    if (
+      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY &&
+      process.env.VAPID_PRIVATE_KEY &&
+      process.env.VAPID_SUBJECT
+    ) {
+      try {
+        webpush.setVapidDetails(
+          process.env.VAPID_SUBJECT,
+          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+          process.env.VAPID_PRIVATE_KEY
+        );
+      } catch (vError) {
+        console.error('Помилка конфігурації VAPID ключів:', vError);
+      }
+    }
+
     // 1. Отримуємо всі активні профілі користувачів
     const { data: profiles, error: profileError } = await supabase
       .from('profiles')
