@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../../../../lib/supabase';
 import webpush from 'web-push';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 // Налаштування VAPID ключів
 if (
@@ -38,7 +41,7 @@ export async function GET() {
           body: JSON.stringify({ userId: user.id }),
         });
       } catch (e) {
-        console.error(`Помилка виклику match для користувача ${user.id}:`, e);
+        console.error(`Помилка match для ${user.id}:`, e);
       }
 
       // 3. Перевіряємо наявність збереженої Push-підписки
@@ -64,7 +67,10 @@ export async function GET() {
           });
 
           try {
-            await webpush.sendNotification(subData.subscription as any, payload);
+            await webpush.sendNotification(
+              subData.subscription as unknown as webpush.PushSubscription,
+              payload
+            );
             totalNotificationsSent++;
           } catch (pushErr) {
             console.error('Помилка відправки push:', pushErr);
