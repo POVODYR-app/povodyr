@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
 
-// Вспоміжна функція конвертації Base64 VAPID ключа у Uint8Array для браузера
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding)
@@ -22,7 +21,6 @@ function urlBase64ToUint8Array(base64String: string) {
 
 export default function DashboardPage() {
   const [userName, setUserName] = useState('');
-  const [userEmail, setUserEmail] = useState('');
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
 
@@ -30,8 +28,6 @@ export default function DashboardPage() {
     async function loadUser() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        if (user.email) setUserEmail(user.email);
-
         const { data: profile } = await supabase
           .from('profiles')
           .select('full_name')
@@ -45,7 +41,7 @@ export default function DashboardPage() {
     loadUser();
   }, []);
 
-  // 1. Активація Push-підписки
+  // Активація Push-підписки з авто-скиданням старої
   const subscribeToPush = async () => {
     try {
       setIsSubscribing(true);
@@ -61,10 +57,16 @@ export default function DashboardPage() {
       }
 
       const registration = await navigator.serviceWorker.register('./sw.js', { scope: '/' });
-      const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
       
+      // Скидання попередньої підписки, якщо вона існує зі старим ключем
+      const existingSub = await registration.pushManager.getSubscription();
+      if (existingSub) {
+        await existingSub.unsubscribe();
+      }
+
+      const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
       if (!publicVapidKey) {
-        alert('Помилка: NEXT_PUBLIC_VAPID_PUBLIC_KEY не знайдено у Vercel');
+        alert('Помилка: NEXT_PUBLIC_VAPID_PUBLIC_KEY відсутній у Vercel');
         return;
       }
 
@@ -88,20 +90,20 @@ export default function DashboardPage() {
       });
 
       if (res.ok) {
-        alert('Сповіщення успішно увімкнено!');
+        alert('Сповіщення успішно оновлено та увімкнено!');
       } else {
         const errData = await res.json();
         alert('Помилка збереження: ' + (errData.error || 'Невідома помилка'));
       }
     } catch (err: any) {
       console.error(err);
-      alert('Помилка під час підключення сповіщень: ' + (err.message || err));
+      alert('Помилка під час підключення: ' + (err.message || err));
     } finally {
       setIsSubscribing(false);
     }
   };
 
-  // 2. Відправка тестового сповіщення на смартфон
+  // Відправка тестового повідомлення
   const testMyPush = async () => {
     try {
       setIsSendingTest(true);
@@ -117,14 +119,14 @@ export default function DashboardPage() {
         body: JSON.stringify({
           userId: user.id,
           title: 'POVODYR',
-          body: 'Тестове сповіщення для Вас! Push-система повністю працює.',
+          body: 'Тестове сповіщення! Push-система повністю працює.',
           url: '/dashboard'
         })
       });
 
       const data = await res.json();
       if (data.success) {
-        alert('Запит відправлено! Зачекайте пару секунд для появи пушу.');
+        alert('Відправлено! Зачекайте пару секунд.');
       } else {
         alert('Помилка відправки: ' + (data.error || 'Невідома помилка'));
       }
@@ -138,7 +140,6 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-slate-900 text-white p-4">
       <div className="max-w-md mx-auto space-y-6">
-        {/* Карточка вітання */}
         <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl space-y-4">
           <h1 className="text-2xl font-bold">
             Вітаємо, {userName || 'Художнику'}!
@@ -173,7 +174,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Фільтри та вміст */}
         <div className="flex gap-2 overflow-x-auto pb-2">
           <button className="px-4 py-2 bg-blue-600 rounded-full text-sm font-medium">Усі</button>
           <button className="px-4 py-2 bg-slate-800 rounded-full text-sm font-medium border border-slate-700">Open Call</button>
