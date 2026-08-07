@@ -48,22 +48,49 @@ export async function GET() {
         console.error(`Помилка match для ${user.id}:`, e);
       }
 
-      // 3. Перевіряємо наявність збереженої Push-підписки
-      const { data: subData } = await supabase
-        .from('push_subscriptions')
-        .select('subscription')
+      // 3. Отримуємо високі збіги (match_score >= 70) разом з деталями пропозицій
+      const { data: matches } = await supabase
+        .from('user_opportunity_matches')
+        .select(`
+          id,
+          opportunity_id,
+          match_score,
+          opportunities (
+            title,
+            description,
+            link
+          )
+        `)
         .eq('user_id', user.id)
-        .single();
+        .gte('match_score', 70);
 
-      if (subData?.subscription) {
-        // Отримуємо кількість високих збігів (match_score >= 70)
-        const { count } = await supabase
-          .from('user_opportunity_matches')
-          .select('id', { count: 'exact', head: true })
+      const count = matches?.length || 0;
+
+      if (count > 0 && matches) {
+        // 4. Зберігаємо нові знайдені можливості в внутрішню таблицю notifications
+        for (const match of matches) {
+          const opp = match.opportunities as any;
+          if (opp) {
+            await supabase.from('notifications').insert([
+              {
+                user_id: user.id,
+                title: opp.title || 'Нова арт-можливість',
+                message: opp.description || `Відповідність профілю: ${match.match_score}%`,
+                link_url: opp.link || '',
+                is_read: false,
+              },
+            ]);
+          }
+        }
+
+        // 5. Відправляємо Push-сповіщення на пристрій
+        const { data: subData } = await supabase
+          .from('push_subscriptions')
+          .select('subscription')
           .eq('user_id', user.id)
-          .gte('match_score', 70);
+          .single();
 
-        if (count && count > 0) {
+        if (subData?.subscription) {
           const payload = JSON.stringify({
             title: 'Нові арт-можливості!',
             body: `Доброго ранку! Знайдено ${count} нових пропозицій з високим відсотком відповідності.`,
