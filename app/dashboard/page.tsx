@@ -29,20 +29,24 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
   
-  // Стани модальних вікон
+  // Модальні вікна
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
 
-  // Дані користувача
+  // Повні дані профілю користувача
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState('');
+  const [artStyle, setArtStyle] = useState('');
+  const [city, setCity] = useState('');
+  const [portfolio, setPortfolio] = useState('');
+  const [bio, setBio] = useState('');
+
   const [selectedCategories, setSelectedCategories] = useState<string[]>([
     'Гранти та фінансування',
     'Виставки та Open Calls'
   ]);
 
   useEffect(() => {
-    // Перевірка підписки на push
     if ('serviceWorker' in navigator && 'PushManager' in window) {
       navigator.serviceWorker.ready.then((registration) => {
         registration.pushManager.getSubscription().then((sub) => {
@@ -51,7 +55,6 @@ export default function DashboardPage() {
       });
     }
 
-    // Завантаження профілю з Supabase
     loadUserProfile();
   }, []);
 
@@ -60,13 +63,17 @@ export default function DashboardPage() {
     if (userData?.user) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name, role, categories')
+        .select('full_name, role, art_style, city, portfolio, bio, categories')
         .eq('id', userData.user.id)
         .single();
 
       if (profile) {
         if (profile.full_name) setUserName(profile.full_name);
         if (profile.role) setUserRole(profile.role);
+        if (profile.art_style) setArtStyle(profile.art_style);
+        if (profile.city) setCity(profile.city);
+        if (profile.portfolio) setPortfolio(profile.portfolio);
+        if (profile.bio) setBio(profile.bio);
         if (profile.categories && Array.isArray(profile.categories)) {
           setSelectedCategories(profile.categories);
         }
@@ -123,6 +130,10 @@ export default function DashboardPage() {
         id: userData.user.id,
         full_name: userName,
         role: userRole,
+        art_style: artStyle,
+        city: city,
+        portfolio: portfolio,
+        bio: bio,
       });
     }
     setShowProfileModal(false);
@@ -192,20 +203,20 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Модальне вікно редагування профілю */}
+      {/* Повне модальне вікно редагування профілю */}
       {showProfileModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700 space-y-4">
+          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700 space-y-4 max-h-[85vh] overflow-y-auto">
             <h2 className="text-xl font-bold">Редагування профілю</h2>
             
             <div className="space-y-3">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Ім'я</label>
+                <label className="block text-xs text-slate-400 mb-1">Ім'я та Прізвище</label>
                 <input
                   type="text"
                   value={userName}
                   onChange={(e) => setUserName(e.target.value)}
-                  placeholder="Введіть ім'я"
+                  placeholder="Введіть ім'я та прізвище"
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
                 />
               </div>
@@ -216,8 +227,52 @@ export default function DashboardPage() {
                   type="text"
                   value={userRole}
                   onChange={(e) => setUserRole(e.target.value)}
-                  placeholder="Художник, куратор тощо"
+                  placeholder="Художник, куратор, ілюстратор тощо"
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Напрямок / Стиль мистецтва</label>
+                <input
+                  type="text"
+                  value={artStyle}
+                  onChange={(e) => setArtStyle(e.target.value)}
+                  placeholder="Живопис, соляризм, цифрова графіка..."
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Місто / Локація</label>
+                <input
+                  type="text"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="Київ, Львів..."
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Посилання на портфоліо чи соцмережі</label>
+                <input
+                  type="text"
+                  value={portfolio}
+                  onChange={(e) => setPortfolio(e.target.value)}
+                  placeholder="https://instagram.com/..."
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Коротке резюме / Про себе</label>
+                <textarea
+                  rows={3}
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="Опишіть коротко ваш досвід та творчі зацікавлення..."
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500 resize-none"
                 />
               </div>
             </div>
