@@ -1,8 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-// Імпорт з використанням аліасу Next.js (@/lib/supabase)
-import supabase from '@/lib/supabase'; 
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const PUBLIC_VAPID_KEY = 'BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8';
 
@@ -39,12 +42,10 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
   
-  // Модальні вікна
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
 
-  // Дані профілю
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState('');
   const [artStyle, setArtStyle] = useState('');
@@ -52,7 +53,6 @@ export default function DashboardPage() {
   const [portfolio, setPortfolio] = useState('');
   const [bio, setBio] = useState('');
 
-  // Сповіщення та статистика
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [todayMatchesCount, setTodayMatchesCount] = useState<number>(0);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([
