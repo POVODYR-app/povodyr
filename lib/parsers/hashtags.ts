@@ -16,14 +16,9 @@ export async function fetchOpportunitiesByHashtags(): Promise<HashtagOpportunity
   const targetHashtags = ['#opencall', '#мистецькийконкурс'];
   const results: HashtagOpportunity[] = [];
 
-  // Приклад підключення до Telegram API, RSS-стрічок або зовнішнього Scraper API
   for (const tag of targetHashtags) {
     try {
-      // Тут виконується запит до вашого джерела даних за хештегом
-      // const response = await fetch(`https://api.example.com/search?q=${encodeURIComponent(tag)}`);
-      // const posts = await response.json();
-      
-      // Логіка обробки отриманих дописів
+      // Логіка запиту до джерел за хештегом
     } catch (err) {
       console.error(`Помилка парсингу за хештегом ${tag}:`, err);
     }
@@ -38,7 +33,6 @@ export async function saveHashtagOpportunitiesToDb(items: HashtagOpportunity[]) 
   let insertedCount = 0;
 
   for (const item of items) {
-    // Перевіряємо, чи немає вже такого посилання в базі
     const { data: existing } = await supabase
       .from('opportunities')
       .select('id')
