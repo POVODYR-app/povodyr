@@ -30,6 +30,7 @@ export async function GET() {
     }
 
     let emailCount = 0;
+    const logs: any[] = [];
 
     for (const item of pendingNotifications) {
       let targetEmail = '';
@@ -79,22 +80,23 @@ export async function GET() {
             }),
           });
 
+          const resData = await emailResponse.json();
+
           if (emailResponse.ok) {
             await supabase
               .from('notifications')
               .update({ sent_email: true })
               .eq('id', item.id);
             emailCount++;
+            logs.push({ status: 'sent', email: targetEmail, resend_id: resData.id });
+          } else {
+            logs.push({ status: 'error', email: targetEmail, error: resData });
           }
-        } catch (eErr) {
-          console.error('Помилка відправки email:', eErr);
+        } catch (eErr: any) {
+          logs.push({ status: 'exception', email: targetEmail, error: eErr.message });
         }
       } else {
-        await supabase
-          .from('notifications')
-          .update({ sent_email: true })
-          .eq('id', item.id);
-        emailCount++;
+        logs.push({ status: 'skipped', reason: !RESEND_API_KEY ? 'No RESEND_API_KEY' : 'No target email' });
       }
     }
 
@@ -102,7 +104,8 @@ export async function GET() {
       success: true, 
       processed: pendingNotifications.length, 
       emailCount,
-      totalInDb: allNotifs?.length || 0 
+      totalInDb: allNotifs?.length || 0,
+      details: logs
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
