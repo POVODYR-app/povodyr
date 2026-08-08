@@ -17,11 +17,61 @@ async function fetchOpportunitiesByHashtags(): Promise<HashtagOpportunity[]> {
   const targetHashtags = ['#opencall', '#мистецькийконкурс'];
   const results: HashtagOpportunity[] = [];
 
-  for (const tag of targetHashtags) {
+  // Джерела публічних Telegram-каналів з мистецькими можливостями
+  const publicChannels = [
+    'https://t.me/s/culture_ukraine',
+    'https://t.me/s/art_opportunities_ua'
+  ];
+
+  for (const channelUrl of publicChannels) {
     try {
-      // Тут виконується збір даних за відповідним хештегом
+      const res = await fetch(channelUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        },
+        cache: 'no-store'
+      });
+
+      if (!res.ok) continue;
+
+      const html = await res.text();
+
+      // Базовий розбір блоків повідомлень
+      const posts = html.split('js-widget_message');
+
+      for (const postHtml of posts) {
+        const lowerHtml = postHtml.toLowerCase();
+        
+        // Перевіряємо наявність потрібних хештегів
+        const matchedTags = targetHashtags.filter(tag => lowerHtml.includes(tag.toLowerCase()));
+
+        if (matchedTags.length > 0) {
+          // Витягуємо текст допису
+          const textMatch = postHtml.match(/<div class="tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/);
+          if (!textMatch) continue;
+
+          const rawText = textMatch[1].replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim();
+          if (!rawText) continue;
+
+          // Витягуємо посилання на допис
+          const linkMatch = postHtml.match(/href="(https:\/\/t\.me\/[^"]+\/\d+)"/);
+          const linkUrl = linkMatch ? linkMatch[1] : channelUrl;
+
+          // Формуємо заголовок з першого рядка
+          const firstLine = rawText.split('\n')[0].replace(/[^\w\sа-яА-ЯєєіїґҐ#–—-]/gi, '').trim();
+          const title = firstLine.length > 5 ? firstLine.substring(0, 100) : `Open Call за хештегом ${matchedTags.join(', ')}`;
+
+          results.push({
+            title,
+            description: rawText.substring(0, 500),
+            link_url: linkUrl,
+            source_platform: 'Telegram Hashtag Monitor',
+            tags: matchedTags
+          });
+        }
+      }
     } catch (err) {
-      console.error(`Помилка парсингу за хештегом ${tag}:`, err);
+      console.error(`Помилка отримання даних з ${channelUrl}:`, err);
     }
   }
 
