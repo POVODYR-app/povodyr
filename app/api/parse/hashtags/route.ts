@@ -17,7 +17,6 @@ async function fetchOpportunitiesByHashtags(): Promise<HashtagOpportunity[]> {
   const targetHashtags = ['#opencall', '#мистецькийконкурс', 'open call', 'конкурс'];
   const results: HashtagOpportunity[] = [];
 
-  // Джерела відкритих RSS-потоків та мистецьких ресурсів
   const sources = [
     { url: 'https://prostir.ua/feed/', name: 'Громадський Простір' },
     { url: 'https://biggggidea.com/rss/', name: 'Велика Ідея' }
@@ -66,11 +65,10 @@ async function fetchOpportunitiesByHashtags(): Promise<HashtagOpportunity[]> {
     }
   }
 
-  // Якщо автоматичні джерела порожні, додаємо контрольний запис для перевірки бази
   if (results.length === 0) {
     results.push({
       title: 'Моніторинг за хештегами #opencall та #мистецькийконкурс активовано',
-      description: 'Автоматична система POVODYR сканує публічні джерела та Telegram-канали за хештегами #opencall та #мистецькийконкурс.',
+      description: 'Автоматична система POVODYR сканує публічні джерела за хештегами #opencall та #мистецькийконкурс.',
       link_url: `https://povodyr.vercel.app/dashboard?tag_check=${Date.now()}`,
       source_platform: 'Hashtag System Monitor',
       tags: ['#opencall', '#мистецькийконкурс']
@@ -81,19 +79,25 @@ async function fetchOpportunitiesByHashtags(): Promise<HashtagOpportunity[]> {
 }
 
 async function saveHashtagOpportunitiesToDb(items: HashtagOpportunity[]) {
-  if (!items || items.length === 0) return 0;
+  if (!items || items.length === 0) return { insertedCount: 0, logs: [] };
 
   let insertedCount = 0;
+  const logs: any[] = [];
 
   for (const item of items) {
-    const { data: existing } = await supabase
+    const { data: existing, error: selectErr } = await supabase
       .from('opportunities')
       .select('id')
       .eq('link_url', item.link_url)
       .maybeSingle();
 
+    if (selectErr) {
+      logs.push({ title: item.title, status: 'error_select', error: selectErr.message });
+      continue;
+    }
+
     if (!existing) {
-      const { error } = await supabase.from('opportunities').insert({
+      const { error: insertErr } = await supabase.from('opportunities').insert({
         title: item.title,
         description: item.description,
         link_url: item.link_url,
@@ -103,25 +107,31 @@ async function saveHashtagOpportunitiesToDb(items: HashtagOpportunity[]) {
         created_at: new Date().toISOString(),
       });
 
-      if (!error) {
+      if (!insertErr) {
         insertedCount++;
+        logs.push({ title: item.title, status: 'inserted' });
+      } else {
+        logs.push({ title: item.title, status: 'error_insert', error: insertErr.message });
       }
+    } else {
+      logs.push({ title: item.title, status: 'already_exists' });
     }
   }
 
-  return insertedCount;
+  return { insertedCount, logs };
 }
 
 export async function GET() {
   try {
     const fetchedItems = await fetchOpportunitiesByHashtags();
-    const savedCount = await saveHashtagOpportunitiesToDb(fetchedItems);
+    const { insertedCount, logs } = await saveHashtagOpportunitiesToDb(fetchedItems);
 
     return NextResponse.json({
       success: true,
       found: fetchedItems.length,
-      saved: savedCount,
+      saved: insertedCount,
       hashtags: ['#opencall', '#мистецькийконкурс'],
+      details: logs
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
