@@ -41,12 +41,14 @@ function urlBase64ToUint8Array(base64String: string) {
 export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
+  const [pushPermissionStatus, setPushPermissionStatus] = useState<string>('default');
   
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
 
   const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
   const [userRole, setUserRole] = useState('');
   const [artStyle, setArtStyle] = useState('');
   const [city, setCity] = useState('');
@@ -62,6 +64,10 @@ export default function DashboardPage() {
   const [shouldPromptUpdate, setShouldPromptUpdate] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setPushPermissionStatus(Notification.permission);
+    }
+
     if ('serviceWorker' in navigator && 'PushManager' in window) {
       navigator.serviceWorker.ready.then((registration) => {
         registration.pushManager.getSubscription().then((sub) => {
@@ -77,22 +83,23 @@ export default function DashboardPage() {
   const loadUserProfile = async () => {
     try {
       const { data: userData } = await supabase.auth.getUser();
-      const userId = userData?.user?.id;
+      const user = userData?.user;
 
-      if (!userId) return;
+      if (!user) return;
+      if (user.email) setUserEmail(user.email);
 
       let { data: profile } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
-        .single();
+        .eq('id', user.id)
+        .maybeSingle();
 
       if (!profile) {
         const { data: artistProfile } = await supabase
           .from('artist_profiles')
           .select('*')
-          .eq('user_id', userId)
-          .single();
+          .eq('user_id', user.id)
+          .maybeSingle();
         profile = artistProfile;
       }
 
@@ -125,7 +132,9 @@ export default function DashboardPage() {
 
   const loadNotifications = async () => {
     const { data: userData } = await supabase.auth.getUser();
-    const userId = userData?.user?.id || 'guest_user';
+    const userId = userData?.user?.id;
+
+    if (!userId) return;
 
     const { data } = await supabase
       .from('notifications')
@@ -177,8 +186,16 @@ export default function DashboardPage() {
   const handleSubscribe = async () => {
     setLoading(true);
     try {
-      if (!('serviceWorker' in navigator)) {
-        alert('Service Worker не підтримується у цьому браузері');
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        alert('Push-сповіщення не підтримуються вашим браузером або пристроєм.');
+        return;
+      }
+
+      const permission = await Notification.requestPermission();
+      setPushPermissionStatus(permission);
+
+      if (permission !== 'granted') {
+        alert('Будь ласка, дозвольте сповіщення у налаштуваннях браузера або системи.');
         return;
       }
 
@@ -194,12 +211,18 @@ export default function DashboardPage() {
       }
 
       const { data: userData } = await supabase.auth.getUser();
-      const userId = userData?.user?.id || 'guest_user';
+      const user = userData?.user;
+
+      if (!user) {
+        alert('Помилка авторизації.');
+        return;
+      }
 
       const { error } = await supabase.from('push_subscriptions').upsert(
         {
-          user_id: userId,
+          user_id: user.id,
           subscription: subscription,
+          updated_at: new Date().toISOString()
         },
         { onConflict: 'user_id' }
       );
@@ -207,7 +230,7 @@ export default function DashboardPage() {
       if (error) throw error;
 
       setSubscribed(true);
-      alert('Push-сповіщення пристрою підключено!');
+      alert('Push-сповіщення пристрою успішно підключено!');
     } catch (err: any) {
       console.error(err);
       alert(`Помилка підключення: ${err.message || err}`);
@@ -225,17 +248,23 @@ export default function DashboardPage() {
         return;
       }
 
+      const userId = userData.user.id;
+      const profileData: Record<string, any> = {
+        id: userId,
+        full_name: userName,
+        email: userEmail || userData.user.email,
+        bio: bio,
+        updated_at: new Date().toISOString()
+      };
+
+      if (userRole) profileData.role = userRole;
+      if (artStyle) profileData.art_style = artStyle;
+      if (city) profileData.city = city;
+      if (portfolio) profileData.portfolio = portfolio;
+
       const { error } = await supabase
         .from('profiles')
-        .update({
-          full_name: userName,
-          role: userRole,
-          art_style: artStyle,
-          city: city,
-          portfolio: portfolio,
-          bio: bio,
-        })
-        .eq('id', userData.user.id);
+        .upsert(profileData, { onConflict: 'id' });
 
       if (error) {
         console.error('Помилка збереження профілю:', error);
@@ -269,10 +298,15 @@ export default function DashboardPage() {
         return;
       }
 
+      const userId = userData.user.id;
+
       const { error } = await supabase
         .from('profiles')
-        .update({ categories: selectedCategories })
-        .eq('id', userData.user.id);
+        .upsert({ 
+          id: userId, 
+          categories: selectedCategories,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
 
       if (error) {
         console.error('Помилка збереження категорій:', error);
@@ -318,6 +352,13 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
+
+        {pushPermissionStatus === 'denied' && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 text-xs text-red-300 space-y-1">
+            <p className="font-semibold">⚠️ Push-сповіщення блокуються пристроєм</p>
+            <p className="text-slate-400">Перевірте дозволи сповіщень у налаштуваннях вашого браузера або смартфона.</p>
+          </div>
+        )}
 
         <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-lg space-y-2">
           {todayMatchesCount > 0 ? (
@@ -503,6 +544,17 @@ export default function DashboardPage() {
                   value={userName}
                   onChange={(e) => setUserName(e.target.value)}
                   placeholder="Введіть ім'я та прізвище"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Email для сповіщень</label>
+                <input
+                  type="email"
+                  value={userEmail}
+                  onChange={(e) => setUserEmail(e.target.value)}
+                  placeholder="yourname@gmail.com"
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
                 />
               </div>
