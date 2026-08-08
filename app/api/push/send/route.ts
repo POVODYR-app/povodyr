@@ -12,11 +12,15 @@ export async function GET() {
     const { data: pendingNotifications, error: notifError } = await supabase
       .from('notifications')
       .select('*')
-      .or('sent_push.eq.false,sent_email.eq.false')
+      .or('sent_email.is.null,sent_email.eq.false')
       .limit(50);
 
-    if (notifError || !pendingNotifications) {
-      return NextResponse.json({ success: false, error: notifError?.message || 'Немає сповіщень для обробки' });
+    if (notifError) {
+      return NextResponse.json({ success: false, error: notifError.message }, { status: 500 });
+    }
+
+    if (!pendingNotifications || pendingNotifications.length === 0) {
+      return NextResponse.json({ success: true, processed: 0, emailCount: 0, message: 'Немає нових сповіщень для відправки' });
     }
 
     let emailCount = 0;
@@ -24,44 +28,58 @@ export async function GET() {
     for (const item of pendingNotifications) {
       const userId = item.user_id;
 
-      if (!item.sent_email && RESEND_API_KEY) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('id', userId)
-          .single();
+      let targetEmail = '';
 
-        if (profile?.email) {
-          try {
-            const emailResponse = await fetch('https://api.resend.com/emails', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${RESEND_API_KEY}`,
-              },
-              body: JSON.stringify({
-                from: 'POVODYR <onboarding@resend.dev>',
-                to: [profile.email],
-                subject: `Нова можливість: ${item.title}`,
-                html: `<div style="font-family: sans-serif; padding: 20px;">
-                  <h2>${item.title}</h2>
-                  <p>${item.message}</p>
-                  <a href="${item.link_url || 'https://povodyr.vercel.app/dashboard'}" style="background: #2563eb; color: #fff; padding: 10px 15px; text-decoration: none; border-radius: 8px;">Переглянути деталі</a>
-                </div>`,
-              }),
-            });
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', userId)
+        .maybeSingle();
 
-            if (emailResponse.ok) {
-              await supabase
-                .from('notifications')
-                .update({ sent_email: true })
-                .eq('id', item.id);
-              emailCount++;
-            }
-          } catch (eErr) {
-            console.error('Помилка відправки email:', eErr);
-          }
+      if (profile?.email) {
+        targetEmail = profile.email;
+      } else {
+        const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+        if (authUser?.user?.email) {
+          targetEmail = authUser.user.email;
         }
+      }
+
+      if (targetEmail && RESEND_API_KEY) {
+        try {
+          const emailResponse = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${RESEND_API_KEY}`,
+            },
+            body: JSON.stringify({
+              from: 'POVODYR <onboarding@resend.dev>',
+              to: [targetEmail],
+              subject: `Нова можливість: ${item.title}`,
+              html: `<div style="font-family: sans-serif; padding: 20px;">
+                <h2>${item.title}</h2>
+                <p>${item.message}</p>
+                <a href="${item.link_url || 'https://povodyr.vercel.app/dashboard'}" style="background: #2563eb; color: #fff; padding: 10px 15px; text-decoration: none; border-radius: 8px;">Переглянути деталі</a>
+              </div>`,
+            }),
+          });
+
+          if (emailResponse.ok) {
+            await supabase
+              .from('notifications')
+              .update({ sent_email: true })
+              .eq('id', item.id);
+            emailCount++;
+          }
+        } catch (eErr) {
+          console.error('Помилка відправки email:', eErr);
+        }
+      } else if (!RESEND_API_KEY) {
+        await supabase
+          .from('notifications')
+          .update({ sent_email: true })
+          .eq('id', item.id);
       }
     }
 
