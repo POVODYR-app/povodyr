@@ -8,53 +8,82 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 function isForArtists(title: string, description: string): boolean {
   const text = (title + ' ' + description).toLowerCase();
 
-  // Обов'язкові мистецькі слова
-  const mustHave = [
-    'художник', 'художниц', 'artist', 'живопис', 'painting', 'картин',
-    'скульптур', 'мистецтв', 'арт-', 'art ', 'виставка', 'exhibition',
-    'галере', 'gallery', 'бієнале', 'open call', 'opencall',
-    'резиденція', 'residence', 'арт-резиденція'
+  // Слова, які вказують на мистецтво / художників
+  const artistWords = [
+    'художник', 'художниц', 'artist', 'artists',
+    'живопис', 'painting', 'картин', 'sculpture', 'скульптур',
+    'мистецтв', 'art ', 'арт', 'виставка', 'exhibition',
+    'галере', 'gallery', 'музей', 'museum',
+    'бієнале', 'biennale', 'open call', 'opencall',
+    'резиденція', 'residence', 'residency', 'арт-резиденція',
+    'call for artists', 'для художників'
   ];
 
-  // Слова, які точно НЕ підходять (відсікаємо)
-  const exclude = [
-    'тендер', 'закупівля', 'перепідготовки', 'водіїв', 'транспорт',
-    'харчування', 'логістич', 'гігієніч', 'навчання з працевлаштуванням',
-    'програми проекту', 'водопостачання', 'санітарії'
+  // Слова, які точно відсікаємо
+  const badWords = [
+    'тендер', 'закупівля', 'водіїв', 'транспортних засобів',
+    'харчування', 'логістичн', 'гігієнічн', 'працевлаштуванням',
+    'водопостачання', 'санітарії', 'перепідготовки водіїв'
   ];
 
-  const hasArtistWord = mustHave.some(word => text.includes(word));
-  const hasExcludeWord = exclude.some(word => text.includes(word));
+  const hasGood = artistWords.some(w => text.includes(w));
+  const hasBad = badWords.some(w => text.includes(w));
 
-  return hasArtistWord && !hasExcludeWord;
+  return hasGood && !hasBad;
 }
 
 function detectType(title: string, description: string): string {
   const text = (title + ' ' + description).toLowerCase();
 
-  if (text.includes('horeca') || text.includes('готель') || text.includes('ресторан') || 
-      text.includes('кафе') || text.includes('інтер\'єр') || text.includes('interior') ||
-      text.includes('hotel') || text.includes('restaurant')) {
+  if (
+    text.includes('horeca') ||
+    text.includes('готель') ||
+    text.includes('ресторан') ||
+    text.includes('кафе') ||
+    text.includes('інтер\'єр') ||
+    text.includes('interior') ||
+    text.includes('hotel') ||
+    text.includes('restaurant') ||
+    text.includes('cafe')
+  ) {
     return 'horeca';
   }
-  if (text.includes('grant') || text.includes('грант') || text.includes('фінансування') || text.includes('стипендія')) {
+
+  if (
+    text.includes('grant') ||
+    text.includes('грант') ||
+    text.includes('фінансування') ||
+    text.includes('стипендія') ||
+    text.includes('funding')
+  ) {
     return 'grant';
   }
-  if (text.includes('residence') || text.includes('резиденція') || text.includes('art residence')) {
+
+  if (
+    text.includes('residence') ||
+    text.includes('резиденція') ||
+    text.includes('арт-резиденція') ||
+    text.includes('art residence') ||
+    text.includes('residency')
+  ) {
     return 'art_residence';
   }
+
   return 'open_call';
 }
 
 async function fetchOpportunities() {
   const targetHashtags = [
-    '#opencall', 'open call', 'opencall',
-    'конкурс для художників', 'грант для художників',
-    'арт-резиденція', 'art residency', 'artist residence',
-    'виставка', 'exhibition call', 'call for artists'
+    'open call', 'opencall', '#opencall',
+    'конкурс', 'грант', 'grant',
+    'резиденція', 'residence', 'residency',
+    'виставка', 'exhibition',
+    'художник', 'artist', 'artists',
+    'мистецтв', 'арт'
   ];
 
   const results: any[] = [];
+
   const sources = [
     { url: 'https://prostir.ua/feed/', name: 'Громадський Простір' },
     { url: 'https://biggggidea.com/rss/', name: 'Велика Ідея' }
@@ -63,9 +92,10 @@ async function fetchOpportunities() {
   for (const source of sources) {
     try {
       const res = await fetch(source.url, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
         next: { revalidate: 0 }
       });
+
       if (!res.ok) continue;
 
       const xml = await res.text();
@@ -120,6 +150,7 @@ async function saveToDb(items: any[]) {
     }
 
     const type = detectType(item.title, item.description);
+
     let category = 'Open Call';
     if (type === 'grant') category = 'Grant';
     if (type === 'art_residence') category = 'Art Residence';
@@ -131,7 +162,7 @@ async function saveToDb(items: any[]) {
       link_url: item.link_url,
       source: item.source_name,
       source_name: item.source_name,
-      source_url: item.source_url,          // ← обов'язкове поле
+      source_url: item.source_url,
       category,
       type,
       is_active: true,
