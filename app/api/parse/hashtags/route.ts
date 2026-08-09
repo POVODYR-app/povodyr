@@ -7,13 +7,26 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 function isForArtists(title: string, description: string): boolean {
   const text = (title + ' ' + description).toLowerCase();
-  const keywords = [
-    'художник', 'artist', 'живопис', 'painting', 'картин', 'мистецтв', 'арт',
-    'виставка', 'exhibition', 'галере', 'gallery', 'open call', 'opencall',
-    'резиденція', 'residence', 'grant', 'грант', 'horeca', 'готель', 'ресторан',
-    'кафе', 'інтер\'єр', 'interior', 'hotel', 'restaurant'
+
+  // Обов'язкові мистецькі слова
+  const mustHave = [
+    'художник', 'художниц', 'artist', 'живопис', 'painting', 'картин',
+    'скульптур', 'мистецтв', 'арт-', 'art ', 'виставка', 'exhibition',
+    'галере', 'gallery', 'бієнале', 'open call', 'opencall',
+    'резиденція', 'residence', 'арт-резиденція'
   ];
-  return keywords.some(k => text.includes(k));
+
+  // Слова, які точно НЕ підходять (відсікаємо)
+  const exclude = [
+    'тендер', 'закупівля', 'перепідготовки', 'водіїв', 'транспорт',
+    'харчування', 'логістич', 'гігієніч', 'навчання з працевлаштуванням',
+    'програми проекту', 'водопостачання', 'санітарії'
+  ];
+
+  const hasArtistWord = mustHave.some(word => text.includes(word));
+  const hasExcludeWord = exclude.some(word => text.includes(word));
+
+  return hasArtistWord && !hasExcludeWord;
 }
 
 function detectType(title: string, description: string): string {
@@ -21,10 +34,10 @@ function detectType(title: string, description: string): string {
 
   if (text.includes('horeca') || text.includes('готель') || text.includes('ресторан') || 
       text.includes('кафе') || text.includes('інтер\'єр') || text.includes('interior') ||
-      text.includes('hotel') || text.includes('restaurant') || text.includes('cafe')) {
+      text.includes('hotel') || text.includes('restaurant')) {
     return 'horeca';
   }
-  if (text.includes('grant') || text.includes('грант') || text.includes('фінансування')) {
+  if (text.includes('grant') || text.includes('грант') || text.includes('фінансування') || text.includes('стипендія')) {
     return 'grant';
   }
   if (text.includes('residence') || text.includes('резиденція') || text.includes('art residence')) {
@@ -35,8 +48,10 @@ function detectType(title: string, description: string): string {
 
 async function fetchOpportunities() {
   const targetHashtags = [
-    '#opencall', 'open call', 'конкурс', 'grant', 'грант', 'residence', 'резиденція',
-    'художник', 'artist', 'horeca', 'готель', 'ресторан', 'кафе', 'інтер\'єр', 'interior'
+    '#opencall', 'open call', 'opencall',
+    'конкурс для художників', 'грант для художників',
+    'арт-резиденція', 'art residency', 'artist residence',
+    'виставка', 'exhibition call', 'call for artists'
   ];
 
   const results: any[] = [];
@@ -59,15 +74,16 @@ async function fetchOpportunities() {
       for (let i = 1; i < items.length; i++) {
         const item = items[i];
         const lower = item.toLowerCase();
+
         if (!targetHashtags.some(tag => lower.includes(tag.toLowerCase()))) continue;
 
         const titleMatch = item.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
         const linkMatch = item.match(/<link>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/i);
         const descMatch = item.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i);
 
-        const title = titleMatch ? titleMatch[1].trim().substring(0, 120) : 'Нова можливість';
+        const title = titleMatch ? titleMatch[1].trim().substring(0, 150) : 'Нова можливість';
         const link = linkMatch ? linkMatch[1].trim() : source.url;
-        const desc = descMatch ? descMatch[1].replace(/<[^>]+>/g, '').trim().substring(0, 500) : '';
+        const desc = descMatch ? descMatch[1].replace(/<[^>]+>/g, '').trim().substring(0, 600) : '';
 
         if (!isForArtists(title, desc)) continue;
 
@@ -75,7 +91,8 @@ async function fetchOpportunities() {
           title,
           description: desc,
           link_url: link,
-          source_platform: source.name
+          source_name: source.name,
+          source_url: source.url
         });
       }
     } catch (err) {
@@ -112,7 +129,9 @@ async function saveToDb(items: any[]) {
       title: item.title,
       description: item.description,
       link_url: item.link_url,
-      source: item.source_platform,
+      source: item.source_name,
+      source_name: item.source_name,
+      source_url: item.source_url,          // ← обов'язкове поле
       category,
       type,
       is_active: true,
