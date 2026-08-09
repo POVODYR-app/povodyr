@@ -103,10 +103,11 @@ async function saveHashtagOpportunitiesToDb(items: HashtagOpportunity[]) {
         link_url: item.link_url,
         source: item.source_platform,
         category: 'Open Call',
+        type: 'open_call',          // ← одне значення
         is_active: true,
         created_at: new Date().toISOString(),
       });
-
+      
       if (!insertErr) {
         insertedCount++;
         logs.push({ title: item.title, status: 'inserted' });
