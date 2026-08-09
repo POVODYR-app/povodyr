@@ -8,22 +8,18 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 function isForArtists(title: string, description: string): boolean {
   const text = (title + ' ' + description).toLowerCase();
 
-  // Слова, які вказують на мистецтво / художників
   const artistWords = [
-    'художник', 'художниц', 'artist', 'artists',
-    'живопис', 'painting', 'картин', 'sculpture', 'скульптур',
-    'мистецтв', 'art ', 'арт', 'виставка', 'exhibition',
-    'галере', 'gallery', 'музей', 'museum',
-    'бієнале', 'biennale', 'open call', 'opencall',
-    'резиденція', 'residence', 'residency', 'арт-резиденція',
-    'call for artists', 'для художників'
+    'artist', 'artists', 'художник', 'художниц',
+    'painting', 'живопис', 'sculpture', 'скульптур',
+    'exhibition', 'виставка', 'gallery', 'галере',
+    'residency', 'резиденція', 'open call', 'opencall',
+    'grant', 'грант', 'call for artists', 'visual art',
+    'contemporary art', 'fine art', 'арт'
   ];
 
-  // Слова, які точно відсікаємо
   const badWords = [
-    'тендер', 'закупівля', 'водіїв', 'транспортних засобів',
-    'харчування', 'логістичн', 'гігієнічн', 'працевлаштуванням',
-    'водопостачання', 'санітарії', 'перепідготовки водіїв'
+    'тендер', 'закупівля', 'водіїв', 'транспорт',
+    'харчування', 'логістич', 'гігієніч', 'працевлаштуванням'
   ];
 
   const hasGood = artistWords.some(w => text.includes(w));
@@ -35,86 +31,55 @@ function isForArtists(title: string, description: string): boolean {
 function detectType(title: string, description: string): string {
   const text = (title + ' ' + description).toLowerCase();
 
-  if (
-    text.includes('horeca') ||
-    text.includes('готель') ||
-    text.includes('ресторан') ||
-    text.includes('кафе') ||
-    text.includes('інтер\'єр') ||
-    text.includes('interior') ||
-    text.includes('hotel') ||
-    text.includes('restaurant') ||
-    text.includes('cafe')
-  ) {
+  if (text.includes('horeca') || text.includes('hotel') || text.includes('restaurant') || text.includes('interior') || text.includes('готель') || text.includes('ресторан') || text.includes('інтер\'єр')) {
     return 'horeca';
   }
-
-  if (
-    text.includes('grant') ||
-    text.includes('грант') ||
-    text.includes('фінансування') ||
-    text.includes('стипендія') ||
-    text.includes('funding')
-  ) {
+  if (text.includes('grant') || text.includes('грант') || text.includes('funding') || text.includes('стипендія')) {
     return 'grant';
   }
-
-  if (
-    text.includes('residence') ||
-    text.includes('резиденція') ||
-    text.includes('арт-резиденція') ||
-    text.includes('art residence') ||
-    text.includes('residency')
-  ) {
+  if (text.includes('residency') || text.includes('residence') || text.includes('резиденція') || text.includes('art residence')) {
     return 'art_residence';
   }
-
   return 'open_call';
 }
 
 async function fetchOpportunities() {
-  const targetHashtags = [
-    'open call', 'opencall', '#opencall',
-    'конкурс', 'грант', 'grant',
-    'резиденція', 'residence', 'residency',
-    'виставка', 'exhibition',
-    'художник', 'artist', 'artists',
-    'мистецтв', 'арт'
-  ];
-
   const results: any[] = [];
 
+  // Кращі джерела для художників
   const sources = [
-    { url: 'https://prostir.ua/feed/', name: 'Громадський Простір' },
-    { url: 'https://biggggidea.com/rss/', name: 'Велика Ідея' }
+    { url: 'https://www.resartis.org/feed/', name: 'Res Artis' },
+    { url: 'https://www.transartists.org/en/rss.xml', name: 'TransArtists' },
+    // Можна додавати нові сюди
   ];
 
   for (const source of sources) {
     try {
       const res = await fetch(source.url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; POVODYR/1.0)' },
         next: { revalidate: 0 }
       });
 
-      if (!res.ok) continue;
+      if (!res.ok) {
+        console.log(`Джерело ${source.name} недоступне: ${res.status}`);
+        continue;
+      }
 
       const xml = await res.text();
-      const items = xml.split('<item>');
+      const items = xml.split(/<item[\s>]/i);
 
       for (let i = 1; i < items.length; i++) {
         const item = items[i];
-        const lower = item.toLowerCase();
-
-        if (!targetHashtags.some(tag => lower.includes(tag.toLowerCase()))) continue;
 
         const titleMatch = item.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
         const linkMatch = item.match(/<link>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/i);
         const descMatch = item.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i);
 
-        const title = titleMatch ? titleMatch[1].trim().substring(0, 150) : 'Нова можливість';
-        const link = linkMatch ? linkMatch[1].trim() : source.url;
+        const title = titleMatch ? titleMatch[1].trim().substring(0, 150) : '';
+        const link = linkMatch ? linkMatch[1].trim() : '';
         const desc = descMatch ? descMatch[1].replace(/<[^>]+>/g, '').trim().substring(0, 600) : '';
 
+        if (!title || !link) continue;
         if (!isForArtists(title, desc)) continue;
 
         results.push({
@@ -126,7 +91,7 @@ async function fetchOpportunities() {
         });
       }
     } catch (err) {
-      console.error('Помилка джерела:', source.name, err);
+      console.error(`Помилка джерела ${source.name}:`, err);
     }
   }
 
@@ -150,7 +115,6 @@ async function saveToDb(items: any[]) {
     }
 
     const type = detectType(item.title, item.description);
-
     let category = 'Open Call';
     if (type === 'grant') category = 'Grant';
     if (type === 'art_residence') category = 'Art Residence';
