@@ -13,8 +13,35 @@ export interface HashtagOpportunity {
   tags: string[];
 }
 
+// Функція, яка визначає тип можливості
+function detectOpportunityType(title: string, description: string): string {
+  const text = (title + ' ' + description).toLowerCase();
+
+  if (
+    text.includes('grant') ||
+    text.includes('грант') ||
+    text.includes('фінансування') ||
+    text.includes('funding')
+  ) {
+    return 'grant';
+  }
+
+  if (
+    text.includes('residence') ||
+    text.includes('резиденція') ||
+    text.includes('арт-резиденція') ||
+    text.includes('art residence') ||
+    text.includes('residency')
+  ) {
+    return 'art_residence';
+  }
+
+  // За замовчуванням
+  return 'open_call';
+}
+
 async function fetchOpportunitiesByHashtags(): Promise<HashtagOpportunity[]> {
-  const targetHashtags = ['#opencall', '#мистецькийконкурс', 'open call', 'конкурс'];
+  const targetHashtags = ['#opencall', '#мистецькийконкурс', 'open call', 'конкурс', 'grant', 'грант', 'residence', 'резиденція'];
   const results: HashtagOpportunity[] = [];
 
   const sources = [
@@ -47,7 +74,7 @@ async function fetchOpportunitiesByHashtags(): Promise<HashtagOpportunity[]> {
           const linkMatch = itemXml.match(/<link>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/i);
           const descMatch = itemXml.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i);
 
-          const rawTitle = titleMatch ? titleMatch[1].trim() : 'Новий мистецький конкурс';
+          const rawTitle = titleMatch ? titleMatch[1].trim() : 'Нова можливість';
           const linkUrl = linkMatch ? linkMatch[1].trim() : source.url;
           const rawDesc = descMatch ? descMatch[1].replace(/<[^>]+>/g, '').trim() : '';
 
@@ -67,11 +94,11 @@ async function fetchOpportunitiesByHashtags(): Promise<HashtagOpportunity[]> {
 
   if (results.length === 0) {
     results.push({
-      title: 'Моніторинг за хештегами #opencall та #мистецькийконкурс активовано',
-      description: 'Автоматична система POVODYR сканує публічні джерела за хештегами #opencall та #мистецькийконкурс.',
+      title: 'Моніторинг можливостей активовано',
+      description: 'Автоматична система POVODYR сканує джерела за open call, грантами та резиденціями.',
       link_url: `https://povodyr.vercel.app/dashboard?tag_check=${Date.now()}`,
       source_platform: 'Hashtag System Monitor',
-      tags: ['#opencall', '#мистецькийконкурс']
+      tags: ['#opencall']
     });
   }
 
@@ -97,20 +124,22 @@ async function saveHashtagOpportunitiesToDb(items: HashtagOpportunity[]) {
     }
 
     if (!existing) {
+      const detectedType = detectOpportunityType(item.title, item.description);
+
       const { error: insertErr } = await supabase.from('opportunities').insert({
         title: item.title,
         description: item.description,
         link_url: item.link_url,
         source: item.source_platform,
-        category: 'Open Call',
-        type: 'open_call',          // ← одне значення
+        category: detectedType === 'grant' ? 'Grant' : detectedType === 'art_residence' ? 'Art Residence' : 'Open Call',
+        type: detectedType,                     // ← тепер динамічно: open_call / grant / art_residence
         is_active: true,
         created_at: new Date().toISOString(),
       });
       
       if (!insertErr) {
         insertedCount++;
-        logs.push({ title: item.title, status: 'inserted' });
+        logs.push({ title: item.title, status: 'inserted', type: detectedType });
       } else {
         logs.push({ title: item.title, status: 'error_insert', error: insertErr.message });
       }
@@ -131,7 +160,7 @@ export async function GET() {
       success: true,
       found: fetchedItems.length,
       saved: insertedCount,
-      hashtags: ['#opencall', '#мистецькийконкурс'],
+      hashtags: ['#opencall', '#мистецькийконкурс', 'grant', 'residence'],
       details: logs
     });
   } catch (err: any) {
