@@ -14,7 +14,7 @@ function isForArtists(title: string, description: string): boolean {
     'exhibition', 'виставка', 'gallery', 'галере',
     'residency', 'резиденція', 'open call', 'opencall',
     'grant', 'грант', 'call for artists', 'visual art',
-    'contemporary art', 'fine art', 'арт'
+    'contemporary art', 'fine art', 'арт', 'funding'
   ];
 
   const badWords = [
@@ -31,13 +31,17 @@ function isForArtists(title: string, description: string): boolean {
 function detectType(title: string, description: string): string {
   const text = (title + ' ' + description).toLowerCase();
 
-  if (text.includes('horeca') || text.includes('hotel') || text.includes('restaurant') || text.includes('interior') || text.includes('готель') || text.includes('ресторан') || text.includes('інтер\'єр')) {
+  if (text.includes('horeca') || text.includes('hotel') || text.includes('restaurant') || 
+      text.includes('interior') || text.includes('готель') || text.includes('ресторан') || 
+      text.includes('інтер\'єр')) {
     return 'horeca';
   }
-  if (text.includes('grant') || text.includes('грант') || text.includes('funding') || text.includes('стипендія')) {
+  if (text.includes('grant') || text.includes('грант') || text.includes('funding') || 
+      text.includes('стипендія') || text.includes('fellowship')) {
     return 'grant';
   }
-  if (text.includes('residency') || text.includes('residence') || text.includes('резиденція') || text.includes('art residence')) {
+  if (text.includes('residency') || text.includes('residence') || text.includes('резиденція') || 
+      text.includes('art residence')) {
     return 'art_residence';
   }
   return 'open_call';
@@ -46,11 +50,11 @@ function detectType(title: string, description: string): string {
 async function fetchOpportunities() {
   const results: any[] = [];
 
-  // Кращі джерела для художників
+  // Джерела грантів + резиденцій + open call для митців
   const sources = [
     { url: 'https://www.resartis.org/feed/', name: 'Res Artis' },
     { url: 'https://www.transartists.org/en/rss.xml', name: 'TransArtists' },
-    // Можна додавати нові сюди
+    // Можна додавати нові RSS сюди
   ];
 
   for (const source of sources) {
