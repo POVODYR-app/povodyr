@@ -13,7 +13,6 @@ export interface HashtagOpportunity {
   tags: string[];
 }
 
-// Перевірка, чи можливість для художників
 function isForArtists(title: string, description: string): boolean {
   const text = (title + ' ' + description).toLowerCase();
 
@@ -30,11 +29,9 @@ function isForArtists(title: string, description: string): boolean {
   return artistKeywords.some(keyword => text.includes(keyword));
 }
 
-// Визначення типу можливості
 function detectOpportunityType(title: string, description: string): string {
   const text = (title + ' ' + description).toLowerCase();
 
-  // 1. HoReCa / продаж в інтер'єр
   if (
     text.includes('horeca') ||
     text.includes('готель') ||
@@ -55,7 +52,6 @@ function detectOpportunityType(title: string, description: string): string {
     return 'horeca';
   }
 
-  // 2. Грант
   if (
     text.includes('grant') ||
     text.includes('грант') ||
@@ -66,7 +62,6 @@ function detectOpportunityType(title: string, description: string): string {
     return 'grant';
   }
 
-  // 3. Резиденція
   if (
     text.includes('residence') ||
     text.includes('резиденція') ||
@@ -77,11 +72,59 @@ function detectOpportunityType(title: string, description: string): string {
     return 'art_residence';
   }
 
-  // 4. За замовчуванням
   return 'open_call';
 }
 
 async function fetchOpportunitiesByHashtags(): Promise<HashtagOpportunity[]> {
   const targetHashtags = [
-    // Мистецькі
-    '#opencall', '#мистецькийконкурс', 'open call', 'конкурс
+    '#opencall',
+    '#мистецькийконкурс',
+    'open call',
+    'конкурс',
+    'grant',
+    'грант',
+    'residence',
+    'резиденція',
+    'artist',
+    'художник',
+    '#horeca',
+    'horeca',
+    'готель',
+    'ресторан',
+    'кафе',
+    'інтер\'єр',
+    'interior',
+    'дизайн інтер\'єру',
+    'картини для готелю',
+    'картини для ресторану',
+    'закупівлі мистецтва',
+    'art for hotels',
+    'art for restaurants'
+  ];
+
+  const results: HashtagOpportunity[] = [];
+
+  const sources = [
+    { url: 'https://prostir.ua/feed/', name: 'Громадський Простір' },
+    { url: 'https://biggggidea.com/rss/', name: 'Велика Ідея' }
+  ];
+
+  for (const source of sources) {
+    try {
+      const res = await fetch(source.url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        },
+        next: { revalidate: 0 }
+      });
+
+      if (!res.ok) continue;
+
+      const xmlText = await res.text();
+      const items = xmlText.split('<item>');
+
+      for (let i = 1; i < items.length; i++) {
+        const itemXml = items[i];
+        const lowerXml = itemXml.toLowerCase();
+
+        const hasMatch = targetHashtags.some(tag => lowerXml.includes(tag
