@@ -127,4 +127,29 @@ async function fetchOpportunitiesByHashtags(): Promise<HashtagOpportunity[]> {
         const itemXml = items[i];
         const lowerXml = itemXml.toLowerCase();
 
-        const hasMatch = targetHashtags.some(tag => lowerXml.includes(tag
+        const hasMatch = targetHashtags.some(tag => lowerXml.includes(tag.toLowerCase()));
+
+        if (hasMatch) {
+          const titleMatch = itemXml.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
+          const linkMatch = itemXml.match(/<link>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/i);
+          const descMatch = itemXml.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i);
+
+          const rawTitle = titleMatch ? titleMatch[1].trim() : 'Нова можливість';
+          const linkUrl = linkMatch ? linkMatch[1].trim() : source.url;
+          const rawDesc = descMatch ? descMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+
+          if (!isForArtists(rawTitle, rawDesc)) {
+            continue;
+          }
+
+          results.push({
+            title: rawTitle.substring(0, 120),
+            description: rawDesc.substring(0, 500),
+            link_url: linkUrl,
+            source_platform: source.name,
+            tags: ['#opencall', '#дляхудожників']
+          });
+        }
+      }
+    } catch (err) {
+      console.error(`Помилка парсингу джерела ${source
