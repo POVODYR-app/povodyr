@@ -13,7 +13,24 @@ export interface HashtagOpportunity {
   tags: string[];
 }
 
-// Функція, яка визначає тип можливості
+// Перевірка, чи можливість для художників
+function isForArtists(title: string, description: string): boolean {
+  const text = (title + ' ' + description).toLowerCase();
+
+  const artistKeywords = [
+    'художник', 'художниц', 'artist', 'visual artist', 'contemporary art',
+    'живопис', 'painting', 'скульптур', 'sculpture', 'мистецтв', 'арт',
+    'виставка', 'exhibition', 'галере', 'gallery', 'музей', 'museum',
+    'бієнале', 'biennale', 'трієнале', 'open call', 'opencall',
+    'арт-резиденція', 'art residence', 'residency', 'грант для художників',
+    'visual arts', 'fine art', 'contemporary artist'
+  ];
+
+  // Якщо є хоча б одне ключове слово — підходить
+  return artistKeywords.some(keyword => text.includes(keyword));
+}
+
+// Визначення типу можливості
 function detectOpportunityType(title: string, description: string): string {
   const text = (title + ' ' + description).toLowerCase();
 
@@ -21,7 +38,8 @@ function detectOpportunityType(title: string, description: string): string {
     text.includes('grant') ||
     text.includes('грант') ||
     text.includes('фінансування') ||
-    text.includes('funding')
+    text.includes('funding') ||
+    text.includes('стипендія')
   ) {
     return 'grant';
   }
@@ -36,12 +54,15 @@ function detectOpportunityType(title: string, description: string): string {
     return 'art_residence';
   }
 
-  // За замовчуванням
   return 'open_call';
 }
 
 async function fetchOpportunitiesByHashtags(): Promise<HashtagOpportunity[]> {
-  const targetHashtags = ['#opencall', '#мистецькийконкурс', 'open call', 'конкурс', 'grant', 'грант', 'residence', 'резиденція'];
+  const targetHashtags = [
+    '#opencall', '#мистецькийконкурс', 'open call', 'конкурс',
+    'grant', 'грант', 'residence', 'резиденція', 'artist', 'художник'
+  ];
+
   const results: HashtagOpportunity[] = [];
 
   const sources = [
@@ -78,12 +99,17 @@ async function fetchOpportunitiesByHashtags(): Promise<HashtagOpportunity[]> {
           const linkUrl = linkMatch ? linkMatch[1].trim() : source.url;
           const rawDesc = descMatch ? descMatch[1].replace(/<[^>]+>/g, '').trim() : '';
 
+          // Головна перевірка: тільки для художників
+          if (!isForArtists(rawTitle, rawDesc)) {
+            continue; // пропускаємо, якщо не для художників
+          }
+
           results.push({
             title: rawTitle.substring(0, 120),
             description: rawDesc.substring(0, 500),
             link_url: linkUrl,
             source_platform: source.name,
-            tags: ['#opencall', '#мистецькийконкурс']
+            tags: ['#opencall', '#дляхудожників']
           });
         }
       }
@@ -94,8 +120,8 @@ async function fetchOpportunitiesByHashtags(): Promise<HashtagOpportunity[]> {
 
   if (results.length === 0) {
     results.push({
-      title: 'Моніторинг можливостей активовано',
-      description: 'Автоматична система POVODYR сканує джерела за open call, грантами та резиденціями.',
+      title: 'Моніторинг можливостей для художників активовано',
+      description: 'Система POVODYR шукає open call, гранти та резиденції виключно для художників.',
       link_url: `https://povodyr.vercel.app/dashboard?tag_check=${Date.now()}`,
       source_platform: 'Hashtag System Monitor',
       tags: ['#opencall']
@@ -132,42 +158,7 @@ async function saveHashtagOpportunitiesToDb(items: HashtagOpportunity[]) {
         link_url: item.link_url,
         source: item.source_platform,
         category: detectedType === 'grant' ? 'Grant' : detectedType === 'art_residence' ? 'Art Residence' : 'Open Call',
-        type: detectedType,                     // ← тепер динамічно: open_call / grant / art_residence
+        type: detectedType,
         is_active: true,
         created_at: new Date().toISOString(),
       });
-      
-      if (!insertErr) {
-        insertedCount++;
-        logs.push({ title: item.title, status: 'inserted', type: detectedType });
-      } else {
-        logs.push({ title: item.title, status: 'error_insert', error: insertErr.message });
-      }
-    } else {
-      logs.push({ title: item.title, status: 'already_exists' });
-    }
-  }
-
-  return { insertedCount, logs };
-}
-
-export async function GET() {
-  try {
-    const fetchedItems = await fetchOpportunitiesByHashtags();
-    const { insertedCount, logs } = await saveHashtagOpportunitiesToDb(fetchedItems);
-
-    return NextResponse.json({
-      success: true,
-      found: fetchedItems.length,
-      saved: insertedCount,
-      hashtags: ['#opencall', '#мистецькийконкурс', 'grant', 'residence'],
-      details: logs
-    });
-  } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
-  }
-}
-
-export async function POST(request: Request) {
-  return GET();
-}
