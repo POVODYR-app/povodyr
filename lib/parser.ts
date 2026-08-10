@@ -4,6 +4,7 @@ export interface ParsedOpportunity {
   source_name: string
   title: string
   link: string
+  source_url: string
   type: string
   deadline: string | null
   country: string
@@ -100,6 +101,7 @@ export async function parseArtFineNationHTML(): Promise<ParsedOpportunity[]> {
               source_name: 'Art Fine Nation',
               title: text,
               link: fullLink,
+              source_url: fullLink,
               type: 'Open Call',
               deadline: null,
               country: 'Україна',
@@ -155,6 +157,7 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
             source_name: source.name,
             title: title.substring(0, 150),
             link: link,
+            source_url: link,
             type: 'Open Call',
             deadline: null,
             country: 'International',
@@ -185,6 +188,7 @@ function getCoreOpportunities(): ParsedOpportunity[] {
       source_name: 'Art Fine Nation',
       title: 'Всеукраїнський Open Call: Сучасний український живопис та образотворче мистецтво 2026',
       link: 'https://artfinenation.com/open-call-2026',
+      source_url: 'https://artfinenation.com/open-call-2026',
       type: 'Open Call',
       deadline: '2026-11-30T00:00:00.000Z',
       country: 'Україна',
@@ -203,6 +207,7 @@ function getCoreOpportunities(): ParsedOpportunity[] {
       source_name: 'Res Artis',
       title: 'International Visual Artist Residency & Exhibition Grant 2026',
       link: 'https://www.resartis.org/open-call-2026',
+      source_url: 'https://www.resartis.org/open-call-2026',
       type: 'Residency',
       deadline: '2026-12-15T00:00:00.000Z',
       country: 'International',
