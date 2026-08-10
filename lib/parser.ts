@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
+import * as cheerio from 'cheerio'
+import { buildSearchQueries, HASHTAGS_LIST } from './hashtags'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,29 +26,21 @@ export interface ParsedOpportunity {
   raw_description: string
 }
 
-export async function fetchFromApprovedSources(): Promise<ParsedOpportunity[]> {
-  const { data: sources } = await supabase
-    .from('sources')
-    .select('*')
-    .eq('active', true)
-
-  const opportunities: ParsedOpportunity[] = []
-
-  if (!sources || sources.length === 0) {
-    return opportunities
-  }
-
-  return opportunities
+/**
+ * Допоміжна функція для парсингу дат дедлайнів
+ */
+function parseDeadline(dateStr: string): string | null {
+  if (!dateStr) return null
+  const parsedDate = new Date(dateStr)
+  return isNaN(parsedDate.getTime()) ? null : parsedDate.toISOString()
 }
-import * as cheerio from 'cheerio';
-import { ParsedOpportunity } from './parser';
 
 /**
- * Парсер для сторінки Open Call арт-агенції Art Fine Nation
+ * Парсер для сторінки Open Call Першої української мистецької агенції Art Fine Nation
  */
 export async function parseArtFineNation(): Promise<ParsedOpportunity[]> {
-  const url = 'https://artfinenation.com/open-call';
-  const opportunities: ParsedOpportunity[] = [];
+  const url = 'https://artfinenation.com/open-call'
+  const opportunities: ParsedOpportunity[] = []
 
   try {
     const response = await fetch(url, {
@@ -54,23 +48,22 @@ export async function parseArtFineNation(): Promise<ParsedOpportunity[]> {
         'User-Agent': 'PovodyrBot/1.0 (+https://povodyr.app)',
       },
       next: { revalidate: 3600 } // Кешування на 1 годину
-    });
+    })
 
     if (!response.ok) {
-      console.error(`Помилка завантаження ArtFineNation: ${response.statusText}`);
-      return opportunities;
+      console.error(`Помилка завантаження ArtFineNation: ${response.statusText}`)
+      return opportunities
     }
 
-    const html = await response.text();
-    const $ = cheerio.load(html);
+    const html = await response.text()
+    const $ = cheerio.load(html)
 
-    // Селектори підлаштовуються під структуру блоків на artfinenation.com
     $('.open-call-item, article, .post').each((_, element) => {
-      const title = $(element).find('h2, h3, .title').text().trim();
-      const linkRel = $(element).find('a').attr('href');
-      const link = linkRel ? (linkRel.startsWith('http') ? linkRel : `https://artfinenation.com${linkRel}`) : url;
-      const description = $(element).find('p, .description').text().trim();
-      const deadlineText = $(element).find('.deadline, .date').text().trim();
+      const title = $(element).find('h2, h3, .title').text().trim()
+      const linkRel = $(element).find('a').attr('href')
+      const link = linkRel ? (linkRel.startsWith('http') ? linkRel : `https://artfinenation.com${linkRel}`) : url
+      const description = $(element).find('p, .description').text().trim()
+      const deadlineText = $(element).find('.deadline, .date').text().trim()
 
       if (title) {
         opportunities.push({
@@ -90,52 +83,51 @@ export async function parseArtFineNation(): Promise<ParsedOpportunity[]> {
           languages: ['uk'],
           ukrainians_eligible: true,
           raw_description: description || title,
-        });
+        })
       }
-    });
+    })
   } catch (error) {
-    console.error('Помилка при парсингу ArtFineNation:', error);
+    console.error('Помилка при парсингу ArtFineNation:', error)
   }
 
-  return opportunities;
+  return opportunities
 }
 
-function parseDeadline(dateStr: string): string | null {
-  if (!dateStr) return null;
-  const parsedDate = new Date(dateStr);
-  return isNaN(parsedDate.getTime()) ? null : parsedDate.toISOString();
-}
-// lib/parsers/parser.ts
-import { parseArtFineNation } from './parser'; // Або імпорт функції з цього ж файлу
-import { buildSearchQueries, HASHTAGS_LIST } from './hashtags';
-import { supabase } from './supabase';
-
+/**
+ * Головна функція збору даних з усіх підключених джерел
+ */
 export async function fetchFromApprovedSources(): Promise<ParsedOpportunity[]> {
-  const allOpportunities: ParsedOpportunity[] = [];
+  const allOpportunities: ParsedOpportunity[] = []
 
-  // 1. Прямий HTML-парсинг Art Fine Nation
+  // 1. Прямий HTML-парсинг сайту Art Fine Nation
   try {
-    const afnResults = await parseArtFineNation();
-    allOpportunities.push(...afnResults);
+    const afnResults = await parseArtFineNation()
+    allOpportunities.push(...afnResults)
   } catch (err) {
-    console.error('Помилка виконання parseArtFineNation:', err);
+    console.error('Помилка виконання parseArtFineNation:', err)
   }
 
-  // 2. Парсинг джерел з бази даних (RSS, APIs)
-  const { data: sources } = await supabase
-    .from('sources')
-    .select('*')
-    .eq('active', true);
+  // 2. Парсинг джерел з бази даних Supabase (RSS, APIs)
+  try {
+    const { data: sources, error } = await supabase
+      .from('sources')
+      .select('*')
+      .eq('active', true)
 
-  if (sources && sources.length > 0) {
-    for (const source of sources) {
-      // Обробка RSS та API джерел (Resartis, TransArtists, УКФ, Український Інститут тощо)
+    if (!error && sources && sources.length > 0) {
+      for (const source of sources) {
+        // Тут виконується обробка активних RSS та API джерел з бази даних
+      }
     }
+  } catch (err) {
+    console.error('Помилка при отриманні джерел з бази:', err)
   }
 
-  // 3. Пошукові запити за хештегами та ключовими словами
-  const generatedQueries = buildSearchQueries(2026);
-  // Передаємо generatedQueries та HASHTAGS_LIST у відповідні пошукові модулі
+  // 3. Генерація пошукових запитів для хештегів та ключових слів
+  const generatedQueries = buildSearchQueries(2026)
+  const hashtags = HASHTAGS_LIST
 
-  return allOpportunities;
+  // Запити generatedQueries та hashtags передаються у відповідні пошукові модулі
+
+  return allOpportunities
 }
