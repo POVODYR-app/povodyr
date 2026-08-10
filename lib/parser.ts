@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 import * as cheerio from 'cheerio'
-import { buildSearchQueries, HASHTAGS_LIST } from './hashtags'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,9 +25,95 @@ export interface ParsedOpportunity {
   raw_description: string
 }
 
-/**
- * Допоміжна функція для парсингу дат дедлайнів
- */
+export const SEARCH_KEYWORDS = {
+  ua: [
+    "Open call для художників",
+    "Open call для митців",
+    "Open call персональна виставка",
+    "Open call виставка картин",
+    "Заявка на виставку галерея",
+    "Подати заявку на виставку",
+    "Відкритий конкурс для художників",
+    "Мистецька резиденція Україна",
+    "Арт-резиденція для живописців",
+    "Гранти для художників",
+    "Гранти на культурні проєкти",
+    "Фінансування мистецьких проєктів",
+    "Конкурс образотворчого мистецтва",
+    "Живописний конкурс",
+    "Арт-простір співпраця з художниками",
+    "Галерея сучасного мистецтва виставки",
+    "Музей сучасного мистецтва open call",
+    "Незалежний арт-простір виставка"
+  ],
+  en: [
+    "Open call for artists",
+    "Open call visual arts",
+    "Open call painting exhibition",
+    "Solo exhibition open call",
+    "Call for artists submission",
+    "Gallery submission guidelines",
+    "Artist proposal submission",
+    "Artist residency programs",
+    "Visual artist residency Europe",
+    "Visual artist residency USA",
+    "Art grants for international artists",
+    "Grants for visual artists",
+    "Emergency grants for Ukrainian artists",
+    "Art funding programs",
+    "Artist-in-residence opportunities",
+    "Fine art competition",
+    "International painting contest",
+    "Juried art exhibition",
+    "Art prize visual arts",
+    "Emerging artist award",
+    "Contemporary art gallery submissions",
+    "Museum open call artists",
+    "Independent art space proposals",
+    "Artist-run space open call"
+  ]
+}
+
+export const HASHTAGS_LIST = [
+  "#opencallукраїна",
+  "#виставкакартин",
+  "#галереякиїв",
+  "#сучаснемистецтво",
+  "#мистецькарезиденція",
+  "#грантидлямитців",
+  "#конкурсживопису",
+  "#укрмистецтво",
+  "#персональнавиставка",
+  "#opencallforartists",
+  "#artistresidency",
+  "#artgrants",
+  "#callforartists",
+  "#fineartcompetition",
+  "#juriedexhibition",
+  "#visualartgrant",
+  "#gallerysubmission",
+  "#soloexhibitionopencall",
+  "#ukrainianartists",
+  "#artistinresidence",
+  "#contemporaryartgallery"
+]
+
+export function buildSearchQueries(year: number = 2026): string[] {
+  const queries: string[] = []
+
+  SEARCH_KEYWORDS.en.forEach((keyword) => {
+    queries.push(`${keyword} ${year}`)
+    queries.push(`${keyword} deadline ${year}`)
+  })
+
+  SEARCH_KEYWORDS.ua.forEach((keyword) => {
+    queries.push(`${keyword} ${year}`)
+    queries.push(`${keyword} дедлайн`)
+  })
+
+  return queries
+}
+
 function parseDeadline(dateStr: string): string | null {
   if (!dateStr) return null
   const parsedDate = new Date(dateStr)
@@ -47,7 +132,7 @@ export async function parseArtFineNation(): Promise<ParsedOpportunity[]> {
       headers: {
         'User-Agent': 'PovodyrBot/1.0 (+https://povodyr.app)',
       },
-      next: { revalidate: 3600 } // Кешування на 1 годину
+      next: { revalidate: 3600 }
     })
 
     if (!response.ok) {
@@ -94,12 +179,12 @@ export async function parseArtFineNation(): Promise<ParsedOpportunity[]> {
 }
 
 /**
- * Головна функція збору даних з усіх підключених джерел
+ * Головна функція збору даних
  */
 export async function fetchFromApprovedSources(): Promise<ParsedOpportunity[]> {
   const allOpportunities: ParsedOpportunity[] = []
 
-  // 1. Прямий HTML-парсинг сайту Art Fine Nation
+  // 1. HTML-парсинг Art Fine Nation
   try {
     const afnResults = await parseArtFineNation()
     allOpportunities.push(...afnResults)
@@ -107,7 +192,7 @@ export async function fetchFromApprovedSources(): Promise<ParsedOpportunity[]> {
     console.error('Помилка виконання parseArtFineNation:', err)
   }
 
-  // 2. Парсинг джерел з бази даних Supabase (RSS, APIs)
+  // 2. Джерела з Supabase
   try {
     const { data: sources, error } = await supabase
       .from('sources')
@@ -116,18 +201,16 @@ export async function fetchFromApprovedSources(): Promise<ParsedOpportunity[]> {
 
     if (!error && sources && sources.length > 0) {
       for (const source of sources) {
-        // Тут виконується обробка активних RSS та API джерел з бази даних
+        // Обробка джерел
       }
     }
   } catch (err) {
     console.error('Помилка при отриманні джерел з бази:', err)
   }
 
-  // 3. Генерація пошукових запитів для хештегів та ключових слів
+  // 3. Генерація запитів
   const generatedQueries = buildSearchQueries(2026)
   const hashtags = HASHTAGS_LIST
-
-  // Запити generatedQueries та hashtags передаються у відповідні пошукові модулі
 
   return allOpportunities
 }
