@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { fetchFromApprovedSources } from '@/lib/parser'
+import { fetchFromApprovedSources } from '../../../lib/parser'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,13 +9,11 @@ const supabase = createClient(
 
 export async function GET() {
   try {
-    // 1. Отримуємо можливості з усіх джерел (HTML, RSS, Fallback)
     const fetchedItems = await fetchFromApprovedSources()
     const totalFetched = fetchedItems.length
 
     let newInserted = 0
 
-    // 2. Зберігаємо отримані записи в Supabase (перевіряючи унікальність за посиланням)
     for (const item of fetchedItems) {
       const { data: existing } = await supabase
         .from('opportunities')
