@@ -67,9 +67,6 @@ export function buildSearchQueries(year: number = 2026): string[] {
   return queries
 }
 
-/**
- * 1. Прямий HTML-парсер сайту Art Fine Nation
- */
 export async function parseArtFineNationHTML(): Promise<ParsedOpportunity[]> {
   const targetUrl = 'https://artfinenation.com'
   const opportunities: ParsedOpportunity[] = []
@@ -128,9 +125,6 @@ export async function parseArtFineNationHTML(): Promise<ParsedOpportunity[]> {
   return opportunities
 }
 
-/**
- * 2. Парсер RSS-потоків (Res Artis, TransArtists, E-Flux)
- */
 export async function parseRssSources(): Promise<ParsedOpportunity[]> {
   const opportunities: ParsedOpportunity[] = []
   const sources = [
@@ -185,9 +179,6 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
   return opportunities
 }
 
-/**
- * 3. Базовий список активних програм для гарантованого збереження
- */
 function getCoreOpportunities(): ParsedOpportunity[] {
   return [
     {
@@ -229,35 +220,36 @@ function getCoreOpportunities(): ParsedOpportunity[] {
   ]
 }
 
-/**
- * Головна функція збору даних зі всіх джерел
- */
-export async function fetchFromApprovedSources(): Promise<ParsedOpportunity[]> {
+export async function fetchFromApprovedSources(logs: string[] = []): Promise<ParsedOpportunity[]> {
   const allOpportunities: ParsedOpportunity[] = []
 
-  // 1. Збір з HTML Art Fine Nation
+  logs.push('Запуск парсингу Art Fine Nation HTML...')
   try {
     const afnResults = await parseArtFineNationHTML()
+    logs.push(`Art Fine Nation знайшов записів: ${afnResults.length}`)
     allOpportunities.push(...afnResults)
-  } catch (err) {
-    console.error('Помилка parseArtFineNationHTML:', err)
+  } catch (err: any) {
+    logs.push(`Помилка Art Fine Nation: ${err.message}`)
   }
 
-  // 2. Збір з RSS
+  logs.push('Запуск парсингу RSS-джерел...')
   try {
     const rssResults = await parseRssSources()
+    logs.push(`RSS-джерела знайшли записів: ${rssResults.length}`)
     allOpportunities.push(...rssResults)
-  } catch (err) {
-    console.error('Помилка parseRssSources:', err)
+  } catch (err: any) {
+    logs.push(`Помилка RSS: ${err.message}`)
   }
 
-  // 3. Базові гарантовані джерела
+  logs.push('Додавання резервного списку джерел...')
   const coreResults = getCoreOpportunities()
+  logs.push(`Базових гарантованих записів: ${coreResults.length}`)
   coreResults.forEach(item => {
     if (!allOpportunities.some(o => o.link === item.link)) {
       allOpportunities.push(item)
     }
   })
 
+  logs.push(`Загалом зібрано елементів: ${allOpportunities.length}`)
   return allOpportunities
 }
