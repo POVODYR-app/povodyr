@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { fetchFromApprovedSources } from '@/lib/parser'
+import { fetchFromApprovedSources } from '../../../lib/parser'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,7 +13,6 @@ export async function GET() {
     let insertedCount = 0
 
     for (const item of opportunities) {
-      // Перевірка на наявність дубліката за посиланням
       const { data: existing } = await supabase
         .from('opportunities')
         .select('id')
