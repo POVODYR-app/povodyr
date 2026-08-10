@@ -58,3 +58,108 @@ export async function saveHashtagOpportunitiesToDb(items: HashtagOpportunity[]) 
 
   return insertedCount;
 }
+// lib/parsers/hashtags.ts
+
+export const SEARCH_KEYWORDS = {
+  ua: [
+    // Загальні
+    "Open call для художників",
+    "Open call для митців",
+    "Open call персональна виставка",
+    "Open call виставка картин",
+    "Заявка на виставку галерея",
+    "Подати заявку на виставку",
+    "Відкритий конкурс для художників",
+    // Резиденції, гранти та конкурси
+    "Мистецька резиденція Україна",
+    "Арт-резиденція для живописців",
+    "Гранти для художників",
+    "Гранти на культурні проєкти",
+    "Фінансування мистецьких проєктів",
+    "Конкурс образотворчого мистецтва",
+    "Живописний конкурс",
+    // Інституції та майданчики
+    "Арт-простір співпраця з художниками",
+    "Галерея сучасного мистецтва виставки",
+    "Музей сучасного мистецтва open call",
+    "Незалежний арт-простір виставка"
+  ],
+  en: [
+    // General & Open Calls
+    "Open call for artists",
+    "Open call visual arts",
+    "Open call painting exhibition",
+    "Solo exhibition open call",
+    "Call for artists submission",
+    "Gallery submission guidelines",
+    "Artist proposal submission",
+    // Residencies & Grants
+    "Artist residency programs",
+    "Visual artist residency Europe",
+    "Visual artist residency USA",
+    "Art grants for international artists",
+    "Grants for visual artists",
+    "Emergency grants for Ukrainian artists",
+    "Art funding programs",
+    "Artist-in-residence opportunities",
+    // Competitions & Exhibitions
+    "Fine art competition",
+    "International painting contest",
+    "Juried art exhibition",
+    "Art prize visual arts",
+    "Emerging artist award",
+    // Venues & Spaces
+    "Contemporary art gallery submissions",
+    "Museum open call artists",
+    "Independent art space proposals",
+    "Artist-run space open call"
+  ]
+};
+
+export const HASHTAGS_LIST = [
+  // Українські хештеги
+  "#opencallукраїна",
+  "#виставкакартин",
+  "#галереякиїв",
+  "#сучаснемистецтво",
+  "#мистецькарезиденція",
+  "#грантидлямигців",
+  "#конкурсживопису",
+  "#укрмистецтво",
+  "#персональнавиставка",
+  
+  // Міжнародні хештеги
+  "#opencallforartists",
+  "#artistresidency",
+  "#artgrants",
+  "#callforartists",
+  "#fineartcompetition",
+  "#juriedexhibition",
+  "#visualartgrant",
+  "#gallerysubmission",
+  "#soloexhibitionopencall",
+  "#ukrainianartists",
+  "#artistinresidence",
+  "#contemporaryartgallery"
+];
+
+/**
+ * Генератор оптимізованих пошукових запитів з часовими операторами
+ */
+export function buildSearchQueries(year: number = 2026): string[] {
+  const queries: string[] = [];
+
+  // Формування запитів для англійських фраз із часовими операторами
+  SEARCH_KEYWORDS.en.forEach((keyword) => {
+    queries.push(`${keyword} ${year}`);
+    queries.push(`${keyword} deadline ${year}`);
+  });
+
+  // Формування запитів для українських фраз
+  SEARCH_KEYWORDS.ua.forEach((keyword) => {
+    queries.push(`${keyword} ${year}`);
+    queries.push(`${keyword} дедлайн`);
+  });
+
+  return queries;
+}
