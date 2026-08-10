@@ -12,54 +12,6 @@ export interface HashtagOpportunity {
   tags: string[];
 }
 
-export async function fetchOpportunitiesByHashtags(): Promise<HashtagOpportunity[]> {
-  const targetHashtags = ['#opencall', '#мистецькийконкурс'];
-  const results: HashtagOpportunity[] = [];
-
-  for (const tag of targetHashtags) {
-    try {
-      // Логіка запиту до джерел за хештегом
-    } catch (err) {
-      console.error(`Помилка парсингу за хештегом ${tag}:`, err);
-    }
-  }
-
-  return results;
-}
-
-export async function saveHashtagOpportunitiesToDb(items: HashtagOpportunity[]) {
-  if (!items || items.length === 0) return 0;
-
-  let insertedCount = 0;
-
-  for (const item of items) {
-    const { data: existing } = await supabase
-      .from('opportunities')
-      .select('id')
-      .eq('link_url', item.link_url)
-      .maybeSingle();
-
-    if (!existing) {
-      const { error } = await supabase.from('opportunities').insert({
-        title: item.title,
-        description: item.description,
-        link_url: item.link_url,
-        source: item.source_platform,
-        category: 'Open Call',
-        is_active: true,
-        created_at: new Date().toISOString(),
-      });
-
-      if (!error) {
-        insertedCount++;
-      }
-    }
-  }
-
-  return insertedCount;
-}
-// lib/parsers/hashtags.ts
-
 export const SEARCH_KEYWORDS = {
   ua: [
     // Загальні
@@ -123,7 +75,7 @@ export const HASHTAGS_LIST = [
   "#галереякиїв",
   "#сучаснемистецтво",
   "#мистецькарезиденція",
-  "#грантидлямигців",
+  "#грантидлямитців",
   "#конкурсживопису",
   "#укрмистецтво",
   "#персональнавиставка",
@@ -162,4 +114,57 @@ export function buildSearchQueries(year: number = 2026): string[] {
   });
 
   return queries;
+}
+
+/**
+ * Отримання можливостей за хештегами
+ */
+export async function fetchOpportunitiesByHashtags(): Promise<HashtagOpportunity[]> {
+  const targetHashtags = HASHTAGS_LIST;
+  const results: HashtagOpportunity[] = [];
+
+  for (const tag of targetHashtags) {
+    try {
+      // Логіка запиту до джерел / соціальних мереж / парсерів за хештегом
+    } catch (err) {
+      console.error(`Помилка парсингу за хештегом ${tag}:`, err);
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Збереження знайдених за хештегами/ключовими словами позицій у базу Supabase
+ */
+export async function saveHashtagOpportunitiesToDb(items: HashtagOpportunity[]) {
+  if (!items || items.length === 0) return 0;
+
+  let insertedCount = 0;
+
+  for (const item of items) {
+    const { data: existing } = await supabase
+      .from('opportunities')
+      .select('id')
+      .eq('link_url', item.link_url)
+      .maybeSingle();
+
+    if (!existing) {
+      const { error } = await supabase.from('opportunities').insert({
+        title: item.title,
+        description: item.description,
+        link_url: item.link_url,
+        source: item.source_platform,
+        category: 'Open Call',
+        is_active: true,
+        created_at: new Date().toISOString(),
+      });
+
+      if (!error) {
+        insertedCount++;
+      }
+    }
+  }
+
+  return insertedCount;
 }
