@@ -21,6 +21,7 @@ export default function ProfilePage() {
     notifications_enabled: true,
     country: 'Україна',
     city: '',
+    // Бюджети
     org_fee_currency: 'UAH',
     org_fee_max: 0,
     reg_fee_currency: 'UAH',
@@ -139,14 +140,13 @@ export default function ProfilePage() {
     }))
   }
 
-  if (loading) {
-    return <div style={{ padding: 40 }}>Завантаження...</div>
-  }
+  if (loading) return <div style={{ padding: 40 }}>Завантаження...</div>
 
   return (
     <main style={{ padding: '40px 20px', maxWidth: 600, margin: '0 auto', fontFamily: 'sans-serif' }}>
       <h1 style={{ marginBottom: 30 }}>Мій профіль</h1>
 
+      {/* Ім'я */}
       <div style={{ marginBottom: 20 }}>
         <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>Повне ім'я *</label>
         <input
@@ -157,6 +157,7 @@ export default function ProfilePage() {
         />
       </div>
 
+      {/* Рівень митця */}
       <div style={{ marginBottom: 20 }}>
         <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>Рівень митця *</label>
         <select
@@ -170,6 +171,7 @@ export default function ProfilePage() {
         </select>
       </div>
 
+      {/* Країни пошуку */}
       <div style={{ marginBottom: 20 }}>
         <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>Країни пошуку можливостей</label>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -186,6 +188,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Бюджет: Організаційний внесок (виставки) */}
       <div style={{ marginBottom: 20, padding: 16, border: '1px solid #eee', borderRadius: 8 }}>
         <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>
           Організаційний внесок (виставки)
@@ -208,6 +211,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Бюджет: Реєстраційний внесок (конкурси) */}
       <div style={{ marginBottom: 20, padding: 16, border: '1px solid #eee', borderRadius: 8 }}>
         <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>
           Реєстраційний внесок (конкурси)
@@ -230,6 +234,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Техніки */}
       <div style={{ marginBottom: 20 }}>
         <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>Техніки *</label>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -246,6 +251,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Сповіщення */}
       <div style={{ marginBottom: 30 }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
           <input
