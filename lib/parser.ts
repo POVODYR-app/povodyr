@@ -105,3 +105,37 @@ function parseDeadline(dateStr: string): string | null {
   const parsedDate = new Date(dateStr);
   return isNaN(parsedDate.getTime()) ? null : parsedDate.toISOString();
 }
+// lib/parsers/parser.ts
+import { parseArtFineNation } from './parser'; // Або імпорт функції з цього ж файлу
+import { buildSearchQueries, HASHTAGS_LIST } from './hashtags';
+import { supabase } from './supabase';
+
+export async function fetchFromApprovedSources(): Promise<ParsedOpportunity[]> {
+  const allOpportunities: ParsedOpportunity[] = [];
+
+  // 1. Прямий HTML-парсинг Art Fine Nation
+  try {
+    const afnResults = await parseArtFineNation();
+    allOpportunities.push(...afnResults);
+  } catch (err) {
+    console.error('Помилка виконання parseArtFineNation:', err);
+  }
+
+  // 2. Парсинг джерел з бази даних (RSS, APIs)
+  const { data: sources } = await supabase
+    .from('sources')
+    .select('*')
+    .eq('active', true);
+
+  if (sources && sources.length > 0) {
+    for (const source of sources) {
+      // Обробка RSS та API джерел (Resartis, TransArtists, УКФ, Український Інститут тощо)
+    }
+  }
+
+  // 3. Пошукові запити за хештегами та ключовими словами
+  const generatedQueries = buildSearchQueries(2026);
+  // Передаємо generatedQueries та HASHTAGS_LIST у відповідні пошукові модулі
+
+  return allOpportunities;
+}
