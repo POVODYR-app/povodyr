@@ -14,7 +14,6 @@ export interface HashtagOpportunity {
 
 export const SEARCH_KEYWORDS = {
   ua: [
-    // Загальні
     "Open call для художників",
     "Open call для митців",
     "Open call персональна виставка",
@@ -22,7 +21,6 @@ export const SEARCH_KEYWORDS = {
     "Заявка на виставку галерея",
     "Подати заявку на виставку",
     "Відкритий конкурс для художників",
-    // Резиденції, гранти та конкурси
     "Мистецька резиденція Україна",
     "Арт-резиденція для живописців",
     "Гранти для художників",
@@ -30,14 +28,12 @@ export const SEARCH_KEYWORDS = {
     "Фінансування мистецьких проєктів",
     "Конкурс образотворчого мистецтва",
     "Живописний конкурс",
-    // Інституції та майданчики
     "Арт-простір співпраця з художниками",
     "Галерея сучасного мистецтва виставки",
     "Музей сучасного мистецтва open call",
     "Незалежний арт-простір виставка"
   ],
   en: [
-    // General & Open Calls
     "Open call for artists",
     "Open call visual arts",
     "Open call painting exhibition",
@@ -45,7 +41,6 @@ export const SEARCH_KEYWORDS = {
     "Call for artists submission",
     "Gallery submission guidelines",
     "Artist proposal submission",
-    // Residencies & Grants
     "Artist residency programs",
     "Visual artist residency Europe",
     "Visual artist residency USA",
@@ -54,13 +49,11 @@ export const SEARCH_KEYWORDS = {
     "Emergency grants for Ukrainian artists",
     "Art funding programs",
     "Artist-in-residence opportunities",
-    // Competitions & Exhibitions
     "Fine art competition",
     "International painting contest",
     "Juried art exhibition",
     "Art prize visual arts",
     "Emerging artist award",
-    // Venues & Spaces
     "Contemporary art gallery submissions",
     "Museum open call artists",
     "Independent art space proposals",
@@ -69,7 +62,6 @@ export const SEARCH_KEYWORDS = {
 };
 
 export const HASHTAGS_LIST = [
-  // Українські хештеги
   "#opencallукраїна",
   "#виставкакартин",
   "#галереякиїв",
@@ -79,8 +71,6 @@ export const HASHTAGS_LIST = [
   "#конкурсживопису",
   "#укрмистецтво",
   "#персональнавиставка",
-  
-  // Міжнародні хештеги
   "#opencallforartists",
   "#artistresidency",
   "#artgrants",
@@ -95,19 +85,14 @@ export const HASHTAGS_LIST = [
   "#contemporaryartgallery"
 ];
 
-/**
- * Генератор оптимізованих пошукових запитів з часовими операторами
- */
 export function buildSearchQueries(year: number = 2026): string[] {
   const queries: string[] = [];
 
-  // Формування запитів для англійських фраз із часовими операторами
   SEARCH_KEYWORDS.en.forEach((keyword) => {
     queries.push(`${keyword} ${year}`);
     queries.push(`${keyword} deadline ${year}`);
   });
 
-  // Формування запитів для українських фраз
   SEARCH_KEYWORDS.ua.forEach((keyword) => {
     queries.push(`${keyword} ${year}`);
     queries.push(`${keyword} дедлайн`);
@@ -116,16 +101,13 @@ export function buildSearchQueries(year: number = 2026): string[] {
   return queries;
 }
 
-/**
- * Отримання можливостей за хештегами
- */
 export async function fetchOpportunitiesByHashtags(): Promise<HashtagOpportunity[]> {
   const targetHashtags = HASHTAGS_LIST;
   const results: HashtagOpportunity[] = [];
 
   for (const tag of targetHashtags) {
     try {
-      // Логіка запиту до джерел / соціальних мереж / парсерів за хештегом
+      // Логіка запиту до джерел за хештегом
     } catch (err) {
       console.error(`Помилка парсингу за хештегом ${tag}:`, err);
     }
@@ -134,9 +116,6 @@ export async function fetchOpportunitiesByHashtags(): Promise<HashtagOpportunity
   return results;
 }
 
-/**
- * Збереження знайдених за хештегами/ключовими словами позицій у базу Supabase
- */
 export async function saveHashtagOpportunitiesToDb(items: HashtagOpportunity[]) {
   if (!items || items.length === 0) return 0;
 
