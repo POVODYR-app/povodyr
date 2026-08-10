@@ -11,14 +11,19 @@ const supabase = createClient(
 )
 
 export async function GET() {
+  const logs: string[] = []
+
   try {
+    logs.push('Запуск парсингу джерел...')
     const fetchedItems = await fetchFromApprovedSources()
-    const totalFetched = fetchedItems.length
+    logs.push(`Отримано елементів з парсера: ${fetchedItems.length}`)
 
     let newInserted = 0
     const errors: string[] = []
 
     for (const item of fetchedItems) {
+      logs.push(`Обробка: ${item.title} (${item.link})`)
+      
       const { data: existing, error: selectError } = await supabase
         .from('opportunities')
         .select('id')
@@ -26,7 +31,7 @@ export async function GET() {
         .maybeSingle()
 
       if (selectError) {
-        errors.push(`Помилка перевірки: ${selectError.message}`)
+        errors.push(`Помилка перевірки Supabase: ${selectError.message}`)
         continue
       }
 
@@ -37,17 +42,21 @@ export async function GET() {
 
         if (!insertError) {
           newInserted++
+          logs.push(`Успішно збережено: ${item.link}`)
         } else {
-          errors.push(`Помилка запису ${item.link}:${insertError.message}`)
+          errors.push(`Помилка вставки (${item.link}): ${insertError.message}`)
         }
+      } else {
+        logs.push(`Запис вже існує в базі: ${item.link}`)
       }
     }
 
     return NextResponse.json(
       {
         success: true,
-        total_fetched: totalFetched,
+        total_fetched: fetchedItems.length,
         new_inserted: newInserted,
+        execution_logs: logs,
         errors: errors.length > 0 ? errors : undefined,
         timestamp: new Date().toISOString()
       },
@@ -60,7 +69,11 @@ export async function GET() {
 
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, error: error.message },
+      { 
+        success: false, 
+        error: error.message,
+        execution_logs: logs
+      },
       { status: 500 }
     )
   }
