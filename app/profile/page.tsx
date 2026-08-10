@@ -68,15 +68,15 @@ export default function ProfilePage() {
       setForm({
         full_name: data.full_name || '',
         artist_level: data.artist_level || 'початківець',
-        search_countries: data.search_countries || ['Україна'],
+        search_countries: Array.isArray(data.search_countries) ? data.search_countries : ['Україна'],
         techniques: Array.isArray(data.techniques)
           ? data.techniques
           : (data.techniques ? String(data.techniques).split(',').map((t: string) => t.trim()) : []),
         notifications_enabled: data.notifications_enabled ?? true,
         org_fee_currency: data.org_fee_currency || 'UAH',
-        org_fee_max: data.org_fee_max || 0,
+        org_fee_max: data.org_fee_max ?? 0,
         reg_fee_currency: data.reg_fee_currency || 'UAH',
-        reg_fee_max: data.reg_fee_max || 0,
+        reg_fee_max: data.reg_fee_max ?? 0,
       })
     }
 
@@ -238,7 +238,7 @@ export default function ProfilePage() {
           </label>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             {countriesOptions.map(country => (
-              <label key={country} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
+              <label key={country} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={form.search_countries.includes(country)}
@@ -277,8 +277,9 @@ export default function ProfilePage() {
             </select>
             <input
               type="number"
+              min="0"
               value={form.org_fee_max}
-              onChange={e => setForm({ ...form, org_fee_max: Number(e.target.value) })}
+              onChange={e => setForm({ ...form, org_fee_max: e.target.value === '' ? 0 : Number(e.target.value) })}
               placeholder="до ..."
               style={{
                 flex: 1,
@@ -319,8 +320,9 @@ export default function ProfilePage() {
             </select>
             <input
               type="number"
+              min="0"
               value={form.reg_fee_max}
-              onChange={e => setForm({ ...form, reg_fee_max: Number(e.target.value) })}
+              onChange={e => setForm({ ...form, reg_fee_max: e.target.value === '' ? 0 : Number(e.target.value) })}
               placeholder="до ..."
               style={{
                 flex: 1,
@@ -341,7 +343,7 @@ export default function ProfilePage() {
           </label>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {techniquesOptions.map(tech => (
-              <label key={tech} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
+              <label key={tech} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={form.techniques.includes(tech)}
@@ -355,7 +357,7 @@ export default function ProfilePage() {
 
         {/* Сповіщення */}
         <div style={{ marginBottom: 28 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 15, fontWeight: 500 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 15, fontWeight: 500, cursor: 'pointer' }}>
             <input
               type="checkbox"
               checked={form.notifications_enabled}
