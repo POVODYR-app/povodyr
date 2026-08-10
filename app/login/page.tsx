@@ -1,80 +1,140 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react'
+import { supabase } from '../../lib/supabase'
+import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
-    });
+    })
 
     if (error) {
-      setError('Невірний email або пароль');
-      setLoading(false);
+      setError('Невірний email або пароль')
+      setLoading(false)
     } else if (data?.session) {
-      router.push('/dashboard');
-      router.refresh();
+      router.push('/dashboard')
+      router.refresh()
     }
-  };
+  }
 
   return (
-    <main className="flex min-h-[100dvh] flex-col items-center justify-center p-4 bg-slate-900 text-white">
-      <div className="w-full max-w-sm space-y-6 bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-        <h1 className="text-2xl font-bold text-center">Вхід у POVODYR</h1>
-        
+    <main style={{
+      minHeight: '100dvh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 16,
+      backgroundColor: '#0f172a',
+      color: 'white',
+      fontFamily: 'sans-serif'
+    }}>
+      <div style={{
+        width: '100%',
+        maxWidth: 360,
+        backgroundColor: '#1e293b',
+        padding: 24,
+        borderRadius: 12,
+        border: '1px solid #334155',
+        boxShadow: '0 10px 25px rgba(0,0,0,0.3)'
+      }}>
+        <h1 style={{ fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 24 }}>
+          Вхід у POVODYR
+        </h1>
+
         {error && (
-          <div className="p-3 bg-red-500/20 border border-red-500 text-red-200 text-sm rounded text-center">
+          <div style={{
+            padding: 12,
+            backgroundColor: 'rgba(239, 68, 68, 0.2)',
+            border: '1px solid #ef4444',
+            color: '#fecaca',
+            fontSize: 14,
+            borderRadius: 6,
+            textAlign: 'center',
+            marginBottom: 16
+          }}>
             {error}
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Email</label>
+        <form onSubmit={handleLogin}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 14, marginBottom: 6, color: '#cbd5e1' }}>
+              Email
+            </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               autoCapitalize="none"
-              autoCorrect="off"
-              className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500 text-base"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: 6,
+                backgroundColor: '#0f172a',
+                border: '1px solid #334155',
+                color: 'white',
+                fontSize: 16,
+                boxSizing: 'border-box'
+              }}
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Пароль</label>
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ display: 'block', fontSize: 14, marginBottom: 6, color: '#cbd5e1' }}>
+              Пароль
+            </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-blue-500 text-base"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: 6,
+                backgroundColor: '#0f172a',
+                border: '1px solid #334155',
+                color: 'white',
+                fontSize: 16,
+                boxSizing: 'border-box'
+              }}
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 rounded font-medium transition disabled:opacity-50 text-base mt-2"
+            style={{
+              width: '100%',
+              padding: 14,
+              backgroundColor: loading ? '#1e40af' : '#2563eb',
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              fontSize: 16,
+              fontWeight: 500,
+              cursor: loading ? 'not-allowed' : 'pointer'
+            }}
           >
             {loading ? 'Завантаження...' : 'Увійти'}
           </button>
         </form>
       </div>
     </main>
-  );
+  )
 }
