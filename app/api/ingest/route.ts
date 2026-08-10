@@ -1,124 +1,60 @@
-import { NextResponse } from 'next/server';
-import { supabase } from '../../../lib/supabase';
-import OpenAI from 'openai';
+import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+import { fetchFromApprovedSources } from '@/lib/parser'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || '',
-});
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
-interface IngestRequestBody {
-  sourceId?: string;
-  rawText: string;
-  originalUrl: string;
-}
-
-interface ParsedOpportunity {
-  title: string;
-  description_uk: string;
-  category: string;
-  subcategories: string[];
-  country: string;
-  deadline: string | null;
-  is_free: boolean;
-  fee_amount: string | null;
-  genres: string[];
-  techniques: string[];
-  professional_level: string[];
-  languages: string[];
-  accepts_ukrainians: boolean;
-}
-
-export async function POST(request: Request) {
+export async function GET() {
   try {
-    const body: IngestRequestBody = await request.json();
-    const { sourceId, rawText, originalUrl } = body;
+    const opportunities = await fetchFromApprovedSources()
+    let insertedCount = 0
 
-    if (!rawText || !originalUrl) {
-      return NextResponse.json(
-        { error: 'Параметри rawText та originalUrl є обов’язковими' },
-        { status: 400 }
-      );
+    for (const item of opportunities) {
+      // Перевірка на наявність дубліката за посиланням
+      const { data: existing } = await supabase
+        .from('opportunities')
+        .select('id')
+        .eq('link_url', item.link)
+        .maybeSingle()
+
+      if (!existing) {
+        const { error } = await supabase.from('opportunities').insert({
+          title: item.title,
+          description: item.raw_description,
+          link_url: item.link,
+          source: item.source_name,
+          category: item.opportunity_type,
+          deadline: item.deadline,
+          country: item.country,
+          is_free: item.is_free,
+          cost_amount: item.cost_amount,
+          cost_currency: item.cost_currency,
+          is_active: true,
+          created_at: new Date().toISOString(),
+        })
+
+        if (!error) {
+          insertedCount++
+        } else {
+          console.error('Помилка вставки в БД:', error)
+        }
+      }
     }
 
-    if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json(
-        { error: 'Ключ OPENAI_API_KEY не налаштовано у змінних оточення' },
-        { status: 500 }
-      );
-    }
-
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: `Ти — експерт-аналітик у сфері образотворчого мистецтва. Проаналізуй текст оголошення та поверни відповідь СТРОГО у форматі JSON за схемою:
-{
-  "title": "Назва події або гранту",
-  "description_uk": "Стислий виклад умов українською мовою (2-3 речення)",
-  "category": "одне значення: open_call | grants | residencies | contests | commercial | educational",
-  "subcategories": ["виставки", "бієнале"],
-  "country": "Країна проведення або Міжнародний",
-  "deadline": "YYYY-MM-DDTHH:mm:ssZ або null, якщо дедлайн відсутній",
-  "is_free": true/false (чи безкоштовна подача),
-  "fee_amount": "сума оргвнеску або Безкоштовно",
-  "genres": ["живопис", "скульптура"],
-  "techniques": ["олія", "акрил"],
-  "professional_level": ["Початковий", "Професійний / Emerging"],
-  "languages": ["англійська", "українська"],
-  "accepts_ukrainians": true/false
-}`,
-        },
-        {
-          role: 'user',
-          content: `Текст оголошення:\n${rawText}`,
-        },
-      ],
-      response_format: { type: 'json_object' },
-    });
-
-    const parsedContent = completion.choices[0]?.message?.content;
-    if (!parsedContent) {
-      return NextResponse.json(
-        { error: 'Не вдалося отримати відповідь від OpenAI' },
-        { status: 500 }
-      );
-    }
-
-    const parsedData: ParsedOpportunity = JSON.parse(parsedContent);
-
-    const { data: insertedData, error: dbError } = await supabase
-      .from('opportunities')
-      .upsert(
-        {
-          source_id: sourceId || null,
-          title: parsedData.title,
-          description_uk: parsedData.description_uk,
-          original_url: originalUrl,
-          category: parsedData.category,
-          subcategories: parsedData.subcategories,
-          country: parsedData.country,
-          deadline: parsedData.deadline,
-          is_free: parsedData.is_free,
-          fee_amount: parsedData.fee_amount,
-          genres: parsedData.genres,
-          techniques: parsedData.techniques,
-          professional_level: parsedData.professional_level,
-          languages: parsedData.languages,
-          accepts_ukrainians: parsedData.accepts_ukrainians,
-        },
-        { onConflict: 'original_url' }
-      )
-      .select()
-      .single();
-
-    if (dbError) {
-      return NextResponse.json({ error: dbError.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, opportunity: insertedData });
-  } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : 'Невідома помилка';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      total_fetched: opportunities.length,
+      new_inserted: insertedCount,
+      timestamp: new Date().toISOString(),
+    })
+  } catch (error: any) {
+    console.error('Помилка під час виконання ingest:', error)
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    )
   }
 }
