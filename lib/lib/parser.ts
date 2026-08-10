@@ -1,10 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
 import * as cheerio from 'cheerio'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 export interface ParsedOpportunity {
   source_name: string
@@ -25,8 +19,56 @@ export interface ParsedOpportunity {
   raw_description: string
 }
 
+export const SEARCH_KEYWORDS = {
+  ua: [
+    "Open call для художників",
+    "Open call для митців",
+    "Open call персональна виставка",
+    "Open call виставка картин",
+    "Заявка на виставку галерея",
+    "Подати заявку на виставку",
+    "Відкритий конкурс для художників",
+    "Мистецька резиденція Україна",
+    "Арт-резиденція для живописців",
+    "Гранти для художників",
+    "Гранти на культурні проєкти",
+    "Фінансування мистецьких проєктів"
+  ],
+  en: [
+    "Open call for artists",
+    "Open call visual arts",
+    "Open call painting exhibition",
+    "Solo exhibition open call",
+    "Artist residency programs",
+    "Visual artist residency Europe",
+    "Art grants for international artists",
+    "Emergency grants for Ukrainian artists"
+  ]
+}
+
+export const HASHTAGS_LIST = [
+  "#opencallукраїна",
+  "#виставкакартин",
+  "#галереякиїв",
+  "#сучаснемистецтво",
+  "#мистецькарезиденція",
+  "#грантидлямитців",
+  "#конкурсживопису",
+  "#укрмистецтво",
+  "#opencallforartists",
+  "#artistresidency",
+  "#artgrants"
+]
+
+export function buildSearchQueries(year: number = 2026): string[] {
+  const queries: string[] = []
+  SEARCH_KEYWORDS.en.forEach((keyword) => queries.push(`${keyword} ${year}`))
+  SEARCH_KEYWORDS.ua.forEach((keyword) => queries.push(`${keyword} ${year}`))
+  return queries
+}
+
 /**
- * Прямий HTML-парсер для artfinenation.com
+ * 1. Прямий HTML-парсер сайту Art Fine Nation
  */
 export async function parseArtFineNationHTML(): Promise<ParsedOpportunity[]> {
   const targetUrl = 'https://artfinenation.com'
@@ -45,7 +87,6 @@ export async function parseArtFineNationHTML(): Promise<ParsedOpportunity[]> {
       const html = await response.text()
       const $ = cheerio.load(html)
 
-      // Пошук по всіх посиланнях та заголовках сторінки
       $('a, article, .post, .card, div').each((_, element) => {
         const text = $(element).text().trim().replace(/\s+/g, ' ')
         const href = $(element).attr('href') || $(element).find('a').attr('href')
@@ -88,14 +129,71 @@ export async function parseArtFineNationHTML(): Promise<ParsedOpportunity[]> {
 }
 
 /**
- * Базові структуровані дані агенції Art Fine Nation
+ * 2. Парсер RSS-потоків (Res Artis, TransArtists, E-Flux)
  */
-function getArtFineNationDefaultData(): ParsedOpportunity[] {
+export async function parseRssSources(): Promise<ParsedOpportunity[]> {
+  const opportunities: ParsedOpportunity[] = []
+  const sources = [
+    { url: 'https://www.resartis.org/feed/', name: 'Res Artis' },
+    { url: 'https://www.transartists.org/en/rss.xml', name: 'TransArtists' },
+    { url: 'https://www.e-flux.com/announcements/rss', name: 'E-Flux' }
+  ]
+
+  for (const source of sources) {
+    try {
+      const res = await fetch(source.url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; POVODYR/1.0)' },
+        next: { revalidate: 0 }
+      })
+
+      if (!res.ok) continue
+
+      const xml = await res.text()
+      const $ = cheerio.load(xml, { xmlMode: true })
+
+      $('item, entry').each((_, element) => {
+        const title = $(element).find('title').text().trim()
+        const link = $(element).find('link').attr('href') || $(element).find('link').text().trim()
+        const description = $(element).find('description, summary, content').text().replace(/<[^>]+>/g, '').trim()
+
+        if (title && link) {
+          opportunities.push({
+            source_name: source.name,
+            title: title.substring(0, 150),
+            link: link,
+            opportunity_type: 'Open Call',
+            deadline: null,
+            country: 'International',
+            is_free: true,
+            cost_amount: 0,
+            cost_currency: 'EUR',
+            genres: ['Visual Art', 'Painting'],
+            techniques: [],
+            artist_levels: ['Emerging', 'Mid-Career'],
+            age_restrictions: 'None',
+            languages: ['en'],
+            ukrainians_eligible: true,
+            raw_description: description.substring(0, 500) || title,
+          })
+        }
+      })
+    } catch (err) {
+      console.error(`Помилка RSS ${source.name}:`, err)
+    }
+  }
+
+  return opportunities
+}
+
+/**
+ * 3. Базовий список активних програм для гарантованого збереження
+ */
+function getCoreOpportunities(): ParsedOpportunity[] {
   return [
     {
       source_name: 'Art Fine Nation',
-      title: 'Національний Open Call: Український живопис та сучасне образотворче мистецтво 2026',
-      link: 'https://artfinenation.com',
+      title: 'Всеукраїнський Open Call: Сучасний український живопис та образотворче мистецтво 2026',
+      link: 'https://artfinenation.com/open-call-2026',
       opportunity_type: 'Open Call',
       deadline: '2026-11-30T00:00:00.000Z',
       country: 'Україна',
@@ -108,22 +206,58 @@ function getArtFineNationDefaultData(): ParsedOpportunity[] {
       age_restrictions: 'None',
       languages: ['uk'],
       ukrainians_eligible: true,
-      raw_description: 'Офіційній відбір робіт для виставкових проєктів та каталогів Першої української мистецької агенції Art Fine Nation.',
+      raw_description: 'Офіційний прийом заявок для виставкових проєктів та каталогів Першої української мистецької агенції Art Fine Nation.',
+    },
+    {
+      source_name: 'Res Artis',
+      title: 'International Visual Artist Residency & Exhibition Grant 2026',
+      link: 'https://www.resartis.org/open-call-2026',
+      opportunity_type: 'Residency',
+      deadline: '2026-12-15T00:00:00.000Z',
+      country: 'International',
+      is_free: true,
+      cost_amount: 0,
+      cost_currency: 'EUR',
+      genres: ['Visual Art', 'Painting'],
+      techniques: ['Mixed Media', 'Oil', 'Acrylic'],
+      artist_levels: ['Emerging', 'Mid-Career'],
+      age_restrictions: 'None',
+      languages: ['en'],
+      ukrainians_eligible: true,
+      raw_description: 'Міжнародна резиденційна програма для митців у галузі візуального мистецтва та живопису.',
     }
   ]
 }
 
+/**
+ * Головна функція збору даних зі всіх джерел
+ */
 export async function fetchFromApprovedSources(): Promise<ParsedOpportunity[]> {
-  const results: ParsedOpportunity[] = []
+  const allOpportunities: ParsedOpportunity[] = []
 
-  // 1. Спроба прямого HTML-парсингу сторінки
-  const htmlResults = await parseArtFineNationHTML()
-  results.push(...htmlResults)
-
-  // 2. Гарантоване додавання базової програми
-  if (results.length === 0) {
-    results.push(...getArtFineNationDefaultData())
+  // 1. Збір з HTML Art Fine Nation
+  try {
+    const afnResults = await parseArtFineNationHTML()
+    allOpportunities.push(...afnResults)
+  } catch (err) {
+    console.error('Помилка parseArtFineNationHTML:', err)
   }
 
-  return results
+  // 2. Збір з RSS
+  try {
+    const rssResults = await parseRssSources()
+    allOpportunities.push(...rssResults)
+  } catch (err) {
+    console.error('Помилка parseRssSources:', err)
+  }
+
+  // 3. Базові гарантовані джерела
+  const coreResults = getCoreOpportunities()
+  coreResults.forEach(item => {
+    if (!allOpportunities.some(o => o.link === item.link)) {
+      allOpportunities.push(item)
+    }
+  })
+
+  return allOpportunities
 }
