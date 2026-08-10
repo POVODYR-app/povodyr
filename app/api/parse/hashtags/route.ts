@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { buildSearchQueries, HASHTAGS_LIST } from '../../../lib/parser';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -50,11 +51,9 @@ function detectType(title: string, description: string): string {
 async function fetchOpportunities() {
   const results: any[] = [];
 
-  // Джерела грантів + резиденцій + open call для митців
   const sources = [
     { url: 'https://www.resartis.org/feed/', name: 'Res Artis' },
     { url: 'https://www.transartists.org/en/rss.xml', name: 'TransArtists' },
-    // Можна додавати нові RSS сюди
   ];
 
   for (const source of sources) {
@@ -153,10 +152,17 @@ export async function GET() {
     const items = await fetchOpportunities();
     const { inserted, logs } = await saveToDb(items);
 
+    const generatedQueries = buildSearchQueries(2026);
+    const hashtags = HASHTAGS_LIST;
+
     return NextResponse.json({
       success: true,
       found: items.length,
       saved: inserted,
+      hashtags_count: hashtags.length,
+      queries_count: generatedQueries.length,
+      hashtags: hashtags,
+      queries: generatedQueries,
       details: logs
     });
   } catch (err: any) {
