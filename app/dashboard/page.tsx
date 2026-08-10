@@ -328,6 +328,36 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-slate-900 text-white p-6">
       <div className="max-w-md mx-auto space-y-6">
+        
+        {/* Банер встановлення додатку */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-4 shadow-lg">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">📱</span>
+            <div className="flex-1">
+              <h3 className="font-bold text-white text-sm mb-1">
+                Встановити POVODYR на телефон
+              </h3>
+              <p className="text-blue-100 text-xs mb-3 leading-relaxed">
+                Додайте ярлик на робочий стіл, щоб відкривати додаток як звичайний застосунок.
+              </p>
+              
+              <div className="bg-black/20 rounded-xl p-3 text-xs text-blue-50 space-y-2">
+                <p className="font-semibold text-white">Для iPhone (Safari):</p>
+                <ol className="list-decimal list-inside space-y-1 text-blue-100">
+                  <li>Натисніть кнопку «Поділитися» внизу екрана</li>
+                  <li>Прокрутіть і оберіть «На екран “Додому”»</li>
+                  <li>Натисніть «Додати»</li>
+                </ol>
+                
+                <p className="font-semibold text-white mt-2">Для Android (Chrome):</p>
+                <p className="text-blue-100">
+                  Натисніть меню ⋮ → «Встановити додаток» або «Додати на головний екран»
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">
             Вітаємо{userName ? `, ${userName}` : ''}!
@@ -461,6 +491,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Модальне вікно сповіщень */}
       {showNotificationsModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700 space-y-4 max-h-[85vh] flex flex-col">
@@ -531,6 +562,7 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Модальне вікно профілю */}
       {showProfileModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700 space-y-4 max-h-[85vh] overflow-y-auto">
@@ -633,6 +665,7 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Модальне вікно категорій */}
       {showCategoriesModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700 space-y-4">
