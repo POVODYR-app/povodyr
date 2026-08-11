@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
 
       const title = 'POVODYR: нові можливості для вас';
 
-      // 1. Повідомлення для Telegram (з HTML-посиланнями)
+      // 1. Повідомлення для Telegram (з HTML-тегами посилань)
       const oppListTelegram = matchedOpps.slice(0, 5).map(o => {
         const url = o.source_url || o.link || o.link_url || 'https://povodyr.vercel.app/dashboard';
         return `• <a href="${url}">${o.title || 'Мистецька можливість'}</a> (${o.country || 'Онлайн'})`;
@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
 
       const telegramMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppListTelegram}\n\n<a href="https://povodyr.vercel.app/dashboard">Перегляньте деталі в особистому кабінеті</a>.`;
 
-      // 2. Повідомлення для бази даних / додатка (чистий текст)
+      // 2. Повідомлення для бази даних / додатка (чистий текст без HTML-тегів)
       const oppListPlain = matchedOpps.slice(0, 5).map(o => {
         return `• ${o.title || 'Мистецька можливість'} (${o.country || 'Онлайн'})`;
       }).join('\n');
@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
         telegramSent = await sendTelegramMessage(user.telegram_chat_id, `<b>${title}</b>\n\n${telegramMessage}`);
       }
 
-      // Запис у базу даних для кабінету додатка (використовуємо appMessage)
+      // Запис у базу даних Supabase для додатка (використовуємо чистий appMessage)
       const firstUrl = matchedOpps[0]?.source_url || matchedOpps[0]?.link || 'https://povodyr.vercel.app/dashboard';
       const { error: insertError } = await supabase.from('notifications').insert({
         user_id: user.id,
