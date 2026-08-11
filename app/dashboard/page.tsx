@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import TelegramConnect from '@/components/TelegramConnect'
+import TelegramConnect from '../../components/TelegramConnect'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -144,7 +144,7 @@ export default function DashboardPage() {
         {/* Заголовок */}
         <div style={{
           display: 'flex',
-          justify: 'space-between',
+          justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: 24
         }}>
