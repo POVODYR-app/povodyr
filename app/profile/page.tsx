@@ -9,6 +9,27 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+// Допоміжна функція для надійного розбору технік із будь-якого формату
+function parseTechniquesData(raw: any): string[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) {
+    // Якщо масив містить єдиний елемент-рядок, який є JSON-масивом
+    if (raw.length === 1 && typeof raw[0] === 'string' && raw[0].startsWith('[')) {
+      return parseTechniquesData(raw[0])
+    }
+    return raw.map(item => String(item).trim()).filter(Boolean)
+  }
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      return parseTechniquesData(parsed)
+    } catch {
+      return raw.split(',').map(t => t.trim()).filter(Boolean)
+    }
+  }
+  return []
+}
+
 export default function ProfilePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -58,20 +79,20 @@ export default function ProfilePage() {
 
     setUserId(user.id)
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .maybeSingle()
 
     if (data) {
+      const parsedTechniques = parseTechniquesData(data.techniques)
+
       setForm({
         full_name: data.full_name || '',
         artist_level: data.artist_level || 'початківець',
         search_countries: Array.isArray(data.search_countries) ? data.search_countries : ['Україна'],
-        techniques: Array.isArray(data.techniques)
-          ? data.techniques
-          : (data.techniques ? String(data.techniques).split(',').map((t: string) => t.trim()) : []),
+        techniques: parsedTechniques,
         notifications_enabled: data.notifications_enabled ?? true,
         org_fee_currency: data.org_fee_currency || 'UAH',
         org_fee_max: data.org_fee_max ?? 0,
@@ -101,7 +122,7 @@ export default function ProfilePage() {
         full_name: form.full_name,
         artist_level: form.artist_level,
         search_countries: form.search_countries,
-        techniques: form.techniques,
+        techniques: form.techniques, // Відправляємо чистий масив
         notifications_enabled: form.notifications_enabled,
         org_fee_currency: form.org_fee_currency,
         org_fee_max: form.org_fee_max,
