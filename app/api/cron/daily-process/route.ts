@@ -1,168 +1,214 @@
-import { NextResponse } from 'next/server';
-import { supabase } from '../../../../lib/supabase';
-import * as webpush from 'web-push';
+import { NextResponse, NextRequest } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { Resend } from 'resend';
+import webpush from 'web-push';
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-export async function GET() {
+const resendApiKey = process.env.RESEND_API_KEY || '';
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
+
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT || 'mailto:support@povodyr.app',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+}
+
+function parseArrayField(raw: any): string[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.map(i => String(i).toLowerCase().trim());
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(i => String(i).toLowerCase().trim());
+    } catch {
+      return raw.split(',').map(i => i.toLowerCase().trim());
+    }
+  }
+  return [];
+}
+
+async function sendTelegramMessage(chatId: string | number, text: string) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token || !chatId) return false;
   try {
-    // Ініціалізація VAPID ключів
-    if (
-      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY &&
-      process.env.VAPID_PRIVATE_KEY &&
-      process.env.VAPID_SUBJECT
-    ) {
-      try {
-        webpush.setVapidDetails(
-          process.env.VAPID_SUBJECT,
-          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-          process.env.VAPID_PRIVATE_KEY
-        );
-      } catch (vError) {
-        console.error('Помилка конфігурації VAPID ключів:', vError);
-      }
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' })
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 1. Отримуємо всі активні профілі користувачів
-    const { data: profiles, error: profileError } = await supabase
+    // 1. Отримуємо активних користувачів
+    const { data: users, error: usersError } = await supabase
       .from('profiles')
-      .select('id, full_name');
+      .select('*')
+      .eq('notifications_enabled', true);
 
-    if (profileError || !profiles) {
-      return NextResponse.json({ error: 'Не вдалося отримати профілі' }, { status: 500 });
+    if (usersError) {
+      return NextResponse.json({ success: false, error: usersError.message }, { status: 500 });
     }
 
-    let totalNotificationsSent = 0;
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+    if (!users || users.length === 0) {
+      return NextResponse.json({ success: true, message: 'Немає користувачів для розсилки', sent: 0 });
+    }
 
-    for (const user of profiles) {
-      // 2. Запускаємо AI Match
-      try {
-        await fetch(`${baseUrl}/api/match`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id }),
-        });
-      } catch (e) {
-        console.error(`Помилка match для ${user.id}:`, e);
+    // 2. Отримуємо актуальні можливості
+    const { data: opportunities, error: oppError } = await supabase
+      .from('opportunities')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (oppError) {
+      return NextResponse.json({ success: false, error: oppError.message }, { status: 500 });
+    }
+
+    let sentCount = 0;
+    const logs: any[] = [];
+
+    // 3. Обробка кожного користувача
+    for (const user of users) {
+      const userCountries = parseArrayField(user.search_countries);
+      const userTechniques = parseArrayField(user.techniques);
+      const orgFeeMax = Number(user.org_fee_max || user.max_fee_amount) || 0;
+
+      // Зіставлення за критеріями
+      const matchedOpps = (opportunities || []).filter(opp => {
+        if (userCountries.length > 0 && opp.country) {
+          const oppCountry = String(opp.country).toLowerCase();
+          const countryMatch = userCountries.some(c => oppCountry.includes(c) || c.includes(oppCountry));
+          if (!countryMatch && !oppCountry.includes('онлайн') && !oppCountry.includes('світ') && !oppCountry.includes('international')) {
+            return false;
+          }
+        }
+
+        if (userTechniques.length > 0 && opp.techniques) {
+          const oppTechs = parseArrayField(opp.techniques);
+          if (oppTechs.length > 0) {
+            const techMatch = userTechniques.some(ut => oppTechs.some(ot => ot.includes(ut) || ut.includes(ot)));
+            if (!techMatch) return false;
+          }
+        }
+
+        const fee = Number(opp.cost_amount || opp.fee_amount || opp.org_fee) || 0;
+        if (fee > orgFeeMax && orgFeeMax > 0 && !opp.is_free) return false;
+
+        return true;
+      });
+
+      // Тексти сповіщень
+      let title = 'POVODYR: нові можливості для вас';
+      let textMessage = '';
+      let emailHtml = '';
+
+      if (matchedOpps.length > 0) {
+        const oppList = matchedOpps.slice(0, 3).map(o => `• ${o.title || 'Мистецька можливість'}`).join('\n');
+        textMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppList}\n\nПерегляньте деталі в особистому кабінеті.`;
+        
+        const htmlItems = matchedOpps.slice(0, 5).map(o => `<li><strong>${o.title}</strong> (${o.country || 'Онлайн'})</li>`).join('');
+        emailHtml = `<p>Привіт${user.full_name ? ', ' + user.full_name : ''}!</p><p>Знайдено ${matchedOpps.length} нових можливостей під ваш профіль:</p><ul>${htmlItems}</ul><p><a href="https://povodyr.vercel.app/dashboard">Переглянути всі в кабінеті</a></p>`;
+      } else {
+        title = 'POVODYR сьогодні перевірив можливості';
+        textMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗа вашими параметрами нових оновлень сьогодні не знайдено. Пошук триває.`;
+        emailHtml = `<p>Привіт${user.full_name ? ', ' + user.full_name : ''}!</p><p>POVODYR сьогодні перевірив бази. Нових пропозицій під ваш профіль поки немає.</p>`;
       }
 
-      // 3. Отримуємо збережені збіги з деталями та датами дедлайнів
-      const { data: matches } = await supabase
-        .from('user_opportunity_matches')
-        .select(`
-          id,
-          opportunity_id,
-          match_score,
-          opportunities (
+      let emailSent = false;
+      let pushSent = false;
+      let telegramSent = false;
+
+      // Канал 1: Email (Resend)
+      if (resend && user.email) {
+        try {
+          const res = await resend.emails.send({
+            from: process.env.EMAIL_FROM || 'POVODYR <notifications@povodyr.app>',
+            to: [user.email],
+            subject: title,
+            html: emailHtml
+          });
+          if (res.data?.id) emailSent = true;
+        } catch (e) {
+          console.error('Resend error:', e);
+        }
+      }
+
+      // Канал 2: Web Push
+      if (user.push_subscription && process.env.VAPID_PRIVATE_KEY) {
+        try {
+          const sub = typeof user.push_subscription === 'string' 
+            ? JSON.parse(user.push_subscription) 
+            : user.push_subscription;
+          await webpush.sendNotification(sub, JSON.stringify({
             title,
-            description,
-            link,
-            deadline
-          )
-        `)
-        .eq('user_id', user.id)
-        .gte('match_score', 70);
-
-      if (matches && matches.length > 0) {
-        const today = new Date();
-        
-        for (const match of matches) {
-          const opp = match.opportunities as any;
-          if (!opp) continue;
-
-          // Збереження нового збігу
-          await supabase.from('notifications').insert([
-            {
-              user_id: user.id,
-              title: opp.title || 'Нова арт-можливість',
-              message: opp.description || `Відповідність профілю: ${match.match_score}%`,
-              link_url: opp.link || '',
-              is_read: false,
-            },
-          ]);
-
-          // 4. Перевірка наближення дедлайнів (3 дні та 1 день)
-          if (opp.deadline) {
-            const deadlineDate = new Date(opp.deadline);
-            const timeDiff = deadlineDate.getTime() - today.getTime();
-            const daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
-
-            if (daysLeft === 3 || daysLeft === 1) {
-              const deadlineMessage = daysLeft === 1
-                ? `⚠️ Завтра дедлайн подачі на "${opp.title}"!`
-                : `⏳ Залишилося 3 дні до дедлайну на "${opp.title}"!`;
-
-              // Запис нагадування про дедлайн у внутрішню базу сповіщень
-              await supabase.from('notifications').insert([
-                {
-                  user_id: user.id,
-                  title: '⏰ Нагадування про дедлайн',
-                  message: deadlineMessage,
-                  link_url: opp.link || '',
-                  is_read: false,
-                },
-              ]);
-
-              // Надсилання Push-сповіщення на пристрій
-              const { data: subData } = await supabase
-                .from('push_subscriptions')
-                .select('subscription')
-                .eq('user_id', user.id)
-                .single();
-
-              if (subData?.subscription) {
-                try {
-                  await webpush.sendNotification(
-                    subData.subscription as any,
-                    JSON.stringify({
-                      title: '⏰ Дедлайн наближається!',
-                      body: deadlineMessage,
-                      url: '/dashboard',
-                    })
-                  );
-                  totalNotificationsSent++;
-                } catch (pushErr) {
-                  console.error('Помилка відправки push-нагадування:', pushErr);
-                }
-              }
-            }
-          }
+            body: textMessage.slice(0, 120),
+            url: 'https://povodyr.vercel.app/dashboard'
+          }));
+          pushSent = true;
+        } catch (e) {
+          console.error('Web Push error:', e);
         }
+      }
 
-        // 5. Загальне Push-сповіщення про нові пропозиції
-        const { data: subData } = await supabase
-          .from('push_subscriptions')
-          .select('subscription')
-          .eq('user_id', user.id)
-          .single();
+      // Канал 3: Telegram
+      if (user.telegram_chat_id) {
+        telegramSent = await sendTelegramMessage(user.telegram_chat_id, `<b>${title}</b>\n\n${textMessage}`);
+      }
 
-        if (subData?.subscription) {
-          try {
-            await webpush.sendNotification(
-              subData.subscription as any,
-              JSON.stringify({
-                title: 'Нові арт-можливості!',
-                body: `Доброго ранку! Знайдено ${matches.length} нових пропозицій з високим відсотком відповідності.`,
-                url: '/dashboard',
-              })
-            );
-            totalNotificationsSent++;
-          } catch (pushErr) {
-            console.error('Помилка відправки push:', pushErr);
-          }
-        }
+      // Канал 4: Запис сповіщення в базу даних для додатка
+      const { error: insertError } = await supabase.from('notifications').insert({
+        user_id: user.id,
+        title,
+        message: textMessage,
+        link_url: 'https://povodyr.vercel.app/dashboard',
+        is_read: false,
+        sent_push: pushSent,
+        sent_email: emailSent,
+        created_at: new Date().toISOString()
+      });
+
+      if (!insertError) {
+        sentCount++;
+        logs.push({ 
+          user: user.full_name || user.id, 
+          matched: matchedOpps.length, 
+          email: emailSent, 
+          push: pushSent, 
+          telegram: telegramSent 
+        });
+      } else {
+        logs.push({ user: user.full_name || user.id, status: 'error', error: insertError.message });
       }
     }
 
     return NextResponse.json({
       success: true,
-      processedUsers: profiles.length,
-      notificationsSent: totalNotificationsSent,
+      sent: sentCount,
+      total_users: users.length,
+      details: logs
     });
-  } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : 'Невідома помилка';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
+}
+
+export async function POST(request: NextRequest) {
+  return GET(request);
 }
