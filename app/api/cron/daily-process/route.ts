@@ -59,7 +59,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Режим тестування для одного email (наприклад: ?test_email=art.vandaorlova@gmail.com)
     const testEmail = request.nextUrl.searchParams.get('test_email');
 
     let query = supabase.from('profiles').select('*').eq('notifications_enabled', true);
@@ -119,26 +118,34 @@ export async function GET(request: NextRequest) {
         return true;
       });
 
-      // Якщо збігів немає, переходимо до наступного профілю
       if (matchedOpps.length === 0) {
         logs.push({ user: user.full_name || user.id, matched: 0, status: 'skipped_no_matches' });
         continue;
       }
 
-      // Формуємо список з клікабельними посиланнями на першоджерело
+      // 1. Формат для TELEGRAM (з HTML-тегами)
       const oppListTelegram = matchedOpps.slice(0, 5).map(o => {
         const url = o.source_url || o.link || o.link_url || 'https://povodyr.vercel.app/dashboard';
         return `• <a href="${url}">${o.title || 'Мистецька можливість'}</a> (${o.country || 'Онлайн'})`;
       }).join('\n');
 
-      const title = 'POVODYR: нові можливості для вас';
-      const textMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppListTelegram}\n\n<a href="https://povodyr.vercel.app/dashboard">Перегляньте деталі в особистому кабінеті</a>.`;
+      const telegramMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppListTelegram}\n\n<a href="https://povodyr.vercel.app/dashboard">Перегляньте деталі в особистому кабінеті</a>.`;
 
+      // 2. Формат для ДОДАТКА / БАЗИ ДАНИХ (чистий текст без HTML-тегів)
+      const oppListPlain = matchedOpps.slice(0, 5).map(o => {
+        return `• ${o.title || 'Мистецька можливість'} (${o.country || 'Онлайн'})`;
+      }).join('\n');
+
+      const appMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppListPlain}\n\nПерегляньте деталі в особистому кабінеті.`;
+
+      // 3. Формат для EMAIL
       const htmlItems = matchedOpps.slice(0, 5).map(o => {
         const url = o.source_url || o.link || o.link_url || 'https://povodyr.vercel.app/dashboard';
         return `<li><a href="${url}"><strong>${o.title}</strong></a> (${o.country || 'Онлайн'})</li>`;
       }).join('');
       const emailHtml = `<p>Привіт${user.full_name ? ', ' + user.full_name : ''}!</p><p>Знайдено ${matchedOpps.length} нових можливостей під ваш профіль:</p><ul>${htmlItems}</ul><p><a href="https://povodyr.vercel.app/dashboard">Переглянути в кабінеті</a></p>`;
+
+      const title = 'POVODYR: нові можливості для вас';
 
       let emailSent = false;
       let pushSent = false;
@@ -178,15 +185,15 @@ export async function GET(request: NextRequest) {
 
       // Telegram
       if (user.telegram_chat_id) {
-        telegramSent = await sendTelegramMessage(user.telegram_chat_id, `<b>${title}</b>\n\n${textMessage}`);
+        telegramSent = await sendTelegramMessage(user.telegram_chat_id, `<b>${title}</b>\n\n${telegramMessage}`);
       }
 
-      // Запис сповіщення в базу даних
+      // Запис у базу даних для ДОДАТКА (використовуємо appMessage)
       const firstUrl = matchedOpps[0]?.source_url || matchedOpps[0]?.link || 'https://povodyr.vercel.app/dashboard';
       const { error: insertError } = await supabase.from('notifications').insert({
         user_id: user.id,
         title,
-        message: textMessage,
+        message: appMessage,
         link_url: firstUrl,
         is_read: false,
         sent_push: pushSent,
