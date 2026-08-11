@@ -17,7 +17,6 @@ export default function DashboardPage() {
   const [showNotifications, setShowNotifications] = useState(false)
 
   useEffect(() => {
-    // Перевіряємо, чи користувач вже закривав банер
     const bannerClosed = localStorage.getItem('povodyr_install_banner_closed')
     if (!bannerClosed) {
       setShowInstallBanner(true)
@@ -30,7 +29,6 @@ export default function DashboardPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // Профіль
     const { data: profile } = await supabase
       .from('profiles')
       .select('full_name, telegram_chat_id')
@@ -46,7 +44,6 @@ export default function DashboardPage() {
       telegram_chat_id: profile?.telegram_chat_id || null,
     })
 
-    // Сповіщення
     const { data: notifs } = await supabase
       .from('notifications')
       .select('*')
@@ -82,7 +79,6 @@ export default function DashboardPage() {
     }}>
       <div style={{ maxWidth: 420, margin: '0 auto' }}>
 
-        {/* Банер встановлення (показується тільки один раз) */}
         {showInstallBanner && (
           <div style={{
             background: 'linear-gradient(135deg, #2563eb, #4f46e5)',
@@ -141,7 +137,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Заголовок */}
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -181,7 +176,7 @@ export default function DashboardPage() {
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
-                  justify: 'center'
+                  justifyContent: 'center'
                 }}>
                   {unreadCount}
                 </span>
@@ -205,10 +200,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Блок підключення Telegram */}
         {userObj && <TelegramConnect user={userObj} />}
 
-        {/* Статус пошуку */}
         <div style={{
           backgroundColor: '#1e293b',
           border: '1px solid #334155',
@@ -228,7 +221,6 @@ export default function DashboardPage() {
           Усього знайдено матеріалів у базі: {notifications.length}
         </p>
 
-        {/* Кнопки */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <button
             onClick={() => setShowNotifications(true)}
@@ -268,7 +260,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Модальне вікно сповіщень */}
       {showNotifications && (
         <div style={{
           position: 'fixed',
@@ -276,7 +267,7 @@ export default function DashboardPage() {
           backgroundColor: 'rgba(0,0,0,0.7)',
           display: 'flex',
           alignItems: 'center',
-          justify: 'center',
+          justifyContent: 'center',
           padding: 16,
           zIndex: 50
         }}>
@@ -292,7 +283,7 @@ export default function DashboardPage() {
           }}>
             <div style={{
               display: 'flex',
-              justify: 'space-between',
+              justifyContent: 'space-between',
               alignItems: 'center',
               padding: 16,
               borderBottom: '1px solid #334155'
