@@ -4,398 +4,261 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// Гнучка функція для розбору технік із будь-якого формату Postgres / JSON / String / Array
-function parseTechniquesData(raw: any): string[] {
-  if (!raw) return []
-
-  // Якщо це вже JS-масив
-  if (Array.isArray(raw)) {
-    if (raw.length === 1 && typeof raw[0] === 'string') {
-      return parseTechniquesData(raw[0])
-    }
-    return raw.map(item => String(item).trim()).filter(Boolean)
-  }
-
-  if (typeof raw === 'string') {
-    const trimmed = raw.trim()
-
-    // Формат PostgreSQL Array: {Акрил,"Олійний живопис",Графіка}
-    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-      const content = trimmed.slice(1, -1)
-      if (!content) return []
-      // Регулярний вираз для розбору елементів у лапках або без них
-      const matches = content.match(/("([^"]|"")*"|[^,]+)/g)
-      if (!matches) return []
-      return matches.map(item => {
-        let clean = item.trim()
-        if (clean.startsWith('"') && clean.endsWith('"')) {
-          clean = clean.slice(1, -1).replace(/""/g, '"')
-        }
-        return clean
-      }).filter(Boolean)
-    }
-
-    // Формат JSON Array: ["Акрил", "Імпасто"]
-    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-      try {
-        const parsed = JSON.parse(trimmed)
-        return parseTechniquesData(parsed)
-      } catch {
-        // Якщо JSON.parse не спрацював, розбираємо як звичайний рядок
-      }
-    }
-
-    // Звичайний рядок з розділювачем-комою
-    return trimmed.split(',').map(t => t.trim()).filter(Boolean)
-  }
-
-  return []
-}
+const TECHNIQUES_LIST = [
+  'Акрил', 'Олійний живопис', 'Графіка', 'Імпасто', 
+  'Колаж', 'Акварель', 'Пастель', 'Цифровий живопис', 'Змішана техніка'
+]
 
 export default function ProfilePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
   const [userId, setUserId] = useState<string | null>(null)
 
-  const [form, setForm] = useState({
-    full_name: '',
-    artist_level: 'початківець',
-    search_countries: ['Україна'] as string[],
-    techniques: [] as string[],
-    notifications_enabled: true,
-    org_fee_currency: 'UAH',
-    org_fee_max: 0,
-    reg_fee_currency: 'UAH',
-    reg_fee_max: 0,
-  })
+  const [fullName, setFullName] = useState('')
+  const [artistLevel, setArtistLevel] = useState('вільний художник')
+  const [countries, setCountries] = useState<string[]>(['Україна', 'ЄС'])
+  const [techniques, setTechniques] = useState<string[]>([])
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
 
-  const artistLevels = [
-    'початківець',
-    'вільний художник',
-    'професійний художник',
-    'відомий художник'
-  ]
+  // Поля сум за регіонами та валютами
+  const [orgFeeUa, setOrgFeeUa] = useState<number | string>(0)
+  const [orgFeeEu, setOrgFeeEu] = useState<number | string>(0)
+  const [orgFeeUs, setOrgFeeUs] = useState<number | string>(0)
 
-  const countriesOptions = ['Україна', 'ЄС', 'США']
-  const currencyOptions = ['UAH', 'EUR', 'USD']
-  const techniquesOptions = [
-    'Акрил', 'Олійний живопис', 'Графіка', 'Імпасто',
-    'Колаж', 'Акварель', 'Пастель', 'Цифровий живопис', 'Змішана техніка'
-  ]
+  const [regFeeUa, setRegFeeUa] = useState<number | string>(0)
+  const [regFeeEu, setRegFeeEu] = useState<number | string>(0)
+  const [regFeeUs, setRegFeeUs] = useState<number | string>(0)
 
   useEffect(() => {
-    loadProfile()
-  }, [])
+    async function loadProfile() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/login')
+        return
+      }
 
-  async function loadProfile() {
-    setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
+      setUserId(user.id)
 
-    if (!user) {
-      setMessage('Спочатку увійдіть в акаунт')
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      if (profile) {
+        setFullName(profile.full_name || '')
+        setArtistLevel(profile.artist_level || 'вільний художник')
+        setNotificationsEnabled(profile.notifications_enabled ?? true)
+        
+        if (profile.search_countries) {
+          setCountries(Array.isArray(profile.search_countries) ? profile.search_countries : [])
+        }
+        if (profile.techniques) {
+          setTechniques(Array.isArray(profile.techniques) ? profile.techniques : [])
+        }
+
+        setOrgFeeUa(profile.org_fee_ua ?? 0)
+        setOrgFeeEu(profile.org_fee_eu ?? 0)
+        setOrgFeeUs(profile.org_fee_us ?? 0)
+
+        setRegFeeUa(profile.reg_fee_ua ?? 0)
+        setRegFeeEu(profile.reg_fee_eu ?? 0)
+        setRegFeeUs(profile.reg_fee_us ?? 0)
+      }
       setLoading(false)
-      return
     }
 
-    setUserId(user.id)
+    loadProfile()
+  }, [router])
 
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (data) {
-      const parsedTechniques = parseTechniquesData(data.techniques)
-
-      setForm({
-        full_name: data.full_name || '',
-        artist_level: data.artist_level || 'початківець',
-        search_countries: Array.isArray(data.search_countries) ? data.search_countries : ['Україна'],
-        techniques: parsedTechniques,
-        notifications_enabled: data.notifications_enabled ?? true,
-        org_fee_currency: data.org_fee_currency || 'UAH',
-        org_fee_max: data.org_fee_max ? Number(data.org_fee_max) : 0,
-        reg_fee_currency: data.reg_fee_currency || 'UAH',
-        reg_fee_max: data.reg_fee_max ? Number(data.reg_fee_max) : 0,
-      })
-    }
-
-    setLoading(false)
-  }
-
-  async function handleSave() {
-    if (!userId) {
-      setMessage('Помилка: користувач не авторизований')
-      return
-    }
-
-    setSaving(true)
-    setMessage('')
-
-    const profileCompleted = !!(form.full_name && form.artist_level && form.techniques.length > 0)
-
-    const { error } = await supabase
-      .from('profiles')
-      .upsert({
-        id: userId,
-        full_name: form.full_name,
-        artist_level: form.artist_level,
-        search_countries: form.search_countries,
-        techniques: form.techniques,
-        notifications_enabled: form.notifications_enabled,
-        org_fee_currency: form.org_fee_currency,
-        org_fee_max: form.org_fee_max,
-        reg_fee_currency: form.reg_fee_currency,
-        reg_fee_max: form.reg_fee_max,
-        profile_completed: profileCompleted,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'id' })
-
-    if (error) {
-      console.error(error)
-      setMessage('Помилка збереження: ' + error.message)
-    } else {
-      setMessage(profileCompleted
-        ? 'Профіль успішно збережено! Тепер ви отримуватимете сповіщення.'
-        : 'Профіль збережено. Заповніть обовʼязкові поля для отримання сповіщень.')
-    }
-
-    setSaving(false)
-  }
-
-  function toggleCountry(country: string) {
-    setForm(prev => ({
-      ...prev,
-      search_countries: prev.search_countries.includes(country)
-        ? prev.search_countries.filter(c => c !== country)
-        : [...prev.search_countries, country]
-    }))
-  }
-
-  function toggleTechnique(tech: string) {
-    setForm(prev => ({
-      ...prev,
-      techniques: prev.techniques.includes(tech)
-        ? prev.techniques.filter(t => t !== tech)
-        : [...prev.techniques, tech]
-    }))
-  }
-
-  if (loading) {
-    return (
-      <div style={{
-        minHeight: '100dvh',
-        backgroundColor: '#0f172a',
-        color: 'white',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontFamily: 'sans-serif'
-      }}>
-        Завантаження...
-      </div>
+  const handleCountryToggle = (country: string) => {
+    setCountries(prev => 
+      prev.includes(country) ? prev.filter(c => c !== country) : [...prev, country]
     )
   }
 
+  const handleTechniqueToggle = (tech: string) => {
+    setTechniques(prev => 
+      prev.includes(tech) ? prev.filter(t => t !== tech) : [...prev, tech]
+    )
+  }
+
+  const handleSave = async () => {
+    if (!userId) return
+    setSaving(true)
+
+    const updates = {
+      id: userId,
+      full_name: fullName,
+      artist_level: artistLevel,
+      search_countries: countries,
+      techniques: techniques,
+      notifications_enabled: notificationsEnabled,
+      org_fee_ua: Number(orgFeeUa) || 0,
+      org_fee_eu: Number(orgFeeEu) || 0,
+      org_fee_us: Number(orgFeeUs) || 0,
+      reg_fee_ua: Number(regFeeUa) || 0,
+      reg_fee_eu: Number(regFeeEu) || 0,
+      reg_fee_us: Number(regFeeUs) || 0,
+      updated_at: new Date().toISOString(),
+    }
+
+    const { error } = await supabase.from('profiles').upsert(updates)
+
+    setSaving(false)
+    if (!error) {
+      router.push('/dashboard')
+    } else {
+      alert('Помилка збереження: ' + error.message)
+    }
+  }
+
+  if (loading) {
+    return <div style={{ color: '#fff', padding: 20 }}>Завантаження...</div>
+  }
+
   return (
-    <div style={{
-      minHeight: '100dvh',
-      backgroundColor: '#0f172a',
-      color: 'white',
-      padding: '24px 16px',
-      fontFamily: 'sans-serif'
-    }}>
-      <div style={{ maxWidth: 480, margin: '0 auto' }}>
+    <div style={{ maxWidth: 520, margin: '0 auto', padding: '20px 16px', color: '#ffffff', fontFamily: 'sans-serif' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Мій профіль</h1>
+        <button 
+          onClick={() => router.push('/dashboard')}
+          style={{ backgroundColor: '#334155', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer' }}
+        >
+          ← Назад
+        </button>
+      </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>Мій профіль</h1>
-          <button
-            onClick={() => router.push('/dashboard')}
-            style={{
-              backgroundColor: '#1e293b',
-              border: '1px solid #334155',
-              borderRadius: 8,
-              padding: '8px 14px',
-              color: 'white',
-              fontSize: 14,
-              cursor: 'pointer'
-            }}
-          >
-            ← Назад
-          </button>
-        </div>
-
-        {/* Ім'я */}
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
-            Повне ім'я *
-          </label>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {/* Повне ім'я */}
+        <div>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Повне ім'я *</label>
           <input
             type="text"
-            value={form.full_name}
-            onChange={e => setForm({ ...form, full_name: e.target.value })}
-            style={{
-              width: '100%',
-              padding: '12px 14px',
-              borderRadius: 8,
-              border: '1px solid #334155',
-              backgroundColor: '#1e293b',
-              color: 'white',
-              fontSize: 15,
-              boxSizing: 'border-box'
-            }}
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
           />
         </div>
 
         {/* Рівень митця */}
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
-            Рівень митця *
-          </label>
+        <div>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Рівень митця *</label>
           <select
-            value={form.artist_level}
-            onChange={e => setForm({ ...form, artist_level: e.target.value })}
-            style={{
-              width: '100%',
-              padding: '12px 14px',
-              borderRadius: 8,
-              border: '1px solid #334155',
-              backgroundColor: '#1e293b',
-              color: 'white',
-              fontSize: 15
-            }}
+            value={artistLevel}
+            onChange={(e) => setArtistLevel(e.target.value)}
+            style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
           >
-            {artistLevels.map(level => (
-              <option key={level} value={level}>{level}</option>
-            ))}
+            <option value="вільний художник">вільний художник</option>
+            <option value="початківець">початківець</option>
+            <option value="професіонал">професіонал</option>
           </select>
         </div>
 
         {/* Країни пошуку */}
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>
-            Країни пошуку можливостей
-          </label>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {countriesOptions.map(country => (
-              <label key={country} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
+        <div>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Країни пошуку можливостей</label>
+          <div style={{ display: 'flex', gap: 16 }}>
+            {['Україна', 'ЄС', 'США'].map((c) => (
+              <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                 <input
                   type="checkbox"
-                  checked={form.search_countries.includes(country)}
-                  onChange={() => toggleCountry(country)}
+                  checked={countries.includes(c)}
+                  onChange={() => handleCountryToggle(c)}
                 />
-                {country}
+                {c}
               </label>
             ))}
           </div>
         </div>
 
-        {/* Організаційний внесок */}
-        <div style={{
-          marginBottom: 16,
-          padding: 14,
-          border: '1px solid #334155',
-          borderRadius: 10,
-          backgroundColor: '#1e293b'
-        }}>
-          <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>
+        {/* Організаційні внески (виставки) */}
+        <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 16 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 12, color: '#f8fafc' }}>
             Організаційний внесок (виставки)
-          </label>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <select
-              value={form.org_fee_currency}
-              onChange={e => setForm({ ...form, org_fee_currency: e.target.value })}
-              style={{
-                padding: '10px 12px',
-                borderRadius: 8,
-                border: '1px solid #475569',
-                backgroundColor: '#0f172a',
-                color: 'white'
-              }}
-            >
-              {currencyOptions.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <input
-              type="number"
-              min="0"
-              value={form.org_fee_max}
-              onChange={e => setForm({ ...form, org_fee_max: e.target.value === '' ? 0 : Number(e.target.value) })}
-              placeholder="до ..."
-              style={{
-                flex: 1,
-                padding: '10px 12px',
-                borderRadius: 8,
-                border: '1px solid #475569',
-                backgroundColor: '#0f172a',
-                color: 'white'
-              }}
-            />
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 13, color: '#94a3b8' }}>Україна (UAH)</span>
+              <input
+                type="number"
+                value={orgFeeUa}
+                onChange={(e) => setOrgFeeUa(e.target.value)}
+                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff' }}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 13, color: '#94a3b8' }}>ЄС (EUR)</span>
+              <input
+                type="number"
+                value={orgFeeEu}
+                onChange={(e) => setOrgFeeEu(e.target.value)}
+                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff' }}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 13, color: '#94a3b8' }}>США (USD)</span>
+              <input
+                type="number"
+                value={orgFeeUs}
+                onChange={(e) => setOrgFeeUs(e.target.value)}
+                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff' }}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Реєстраційний внесок */}
-        <div style={{
-          marginBottom: 20,
-          padding: 14,
-          border: '1px solid #334155',
-          borderRadius: 10,
-          backgroundColor: '#1e293b'
-        }}>
-          <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>
+        {/* Реєстраційні внески (конкурси) */}
+        <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 16 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 12, color: '#f8fafc' }}>
             Реєстраційний внесок (конкурси)
-          </label>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <select
-              value={form.reg_fee_currency}
-              onChange={e => setForm({ ...form, reg_fee_currency: e.target.value })}
-              style={{
-                padding: '10px 12px',
-                borderRadius: 8,
-                border: '1px solid #475569',
-                backgroundColor: '#0f172a',
-                color: 'white'
-              }}
-            >
-              {currencyOptions.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <input
-              type="number"
-              min="0"
-              value={form.reg_fee_max}
-              onChange={e => setForm({ ...form, reg_fee_max: e.target.value === '' ? 0 : Number(e.target.value) })}
-              placeholder="до ..."
-              style={{
-                flex: 1,
-                padding: '10px 12px',
-                borderRadius: 8,
-                border: '1px solid #475569',
-                backgroundColor: '#0f172a',
-                color: 'white'
-              }}
-            />
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 13, color: '#94a3b8' }}>Україна (UAH)</span>
+              <input
+                type="number"
+                value={regFeeUa}
+                onChange={(e) => setRegFeeUa(e.target.value)}
+                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff' }}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 13, color: '#94a3b8' }}>ЄС (EUR)</span>
+              <input
+                type="number"
+                value={regFeeEu}
+                onChange={(e) => setRegFeeEu(e.target.value)}
+                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff' }}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 13, color: '#94a3b8' }}>США (USD)</span>
+              <input
+                type="number"
+                value={regFeeUs}
+                onChange={(e) => setRegFeeUs(e.target.value)}
+                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff' }}
+              />
+            </div>
           </div>
         </div>
 
         {/* Техніки */}
-        <div style={{ marginBottom: 24 }}>
-          <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>
-            Техніки *
-          </label>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {techniquesOptions.map(tech => (
-              <label key={tech} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
+        <div>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Техніки *</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {TECHNIQUES_LIST.map((tech) => (
+              <label key={tech} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
                 <input
                   type="checkbox"
-                  checked={form.techniques.includes(tech)}
-                  onChange={() => toggleTechnique(tech)}
+                  checked={techniques.includes(tech)}
+                  onChange={() => handleTechniqueToggle(tech)}
                 />
                 {tech}
               </label>
@@ -403,48 +266,34 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Сповіщення */}
-        <div style={{ marginBottom: 28 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 15, fontWeight: 500, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={form.notifications_enabled}
-              onChange={e => setForm({ ...form, notifications_enabled: e.target.checked })}
-            />
-            Отримувати щоденні сповіщення від POVODYR
-          </label>
-        </div>
+        {/* Чекбокс сповіщень */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer', marginTop: 6 }}>
+          <input
+            type="checkbox"
+            checked={notificationsEnabled}
+            onChange={(e) => setNotificationsEnabled(e.target.checked)}
+          />
+          Отримувати щоденні сповіщення від POVODYR
+        </label>
 
+        {/* Кнопка збереження */}
         <button
           onClick={handleSave}
           disabled={saving}
           style={{
-            width: '100%',
-            padding: 15,
-            backgroundColor: saving ? '#1e40af' : '#2563eb',
-            color: 'white',
+            backgroundColor: '#3b82f6',
+            color: '#fff',
+            fontWeight: 700,
+            padding: '14px',
+            borderRadius: 12,
             border: 'none',
-            borderRadius: 10,
             fontSize: 16,
-            fontWeight: 600,
-            cursor: saving ? 'not-allowed' : 'pointer'
+            cursor: 'pointer',
+            marginTop: 10
           }}
         >
           {saving ? 'Збереження...' : 'Зберегти профіль'}
         </button>
-
-        {message && (
-          <p style={{
-            marginTop: 18,
-            padding: 12,
-            borderRadius: 8,
-            backgroundColor: message.includes('Помилка') ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)',
-            color: message.includes('Помилка') ? '#fca5a5' : '#86efac',
-            fontSize: 14
-          }}>
-            {message}
-          </p>
-        )}
       </div>
     </div>
   )
