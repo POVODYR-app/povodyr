@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
       }).join('\n');
 
       const title = 'POVODYR: нові можливості для вас';
-      const textMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppListTelegram}\n\nНатисніть на назву для переходу до першоджерела.`;
+      const textMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppListTelegram}\n\n<a href="https://povodyr.vercel.app/dashboard">Перегляньте деталі в особистому кабінеті</a>.`;
 
       const htmlItems = matchedOpps.slice(0, 5).map(o => {
         const url = o.source_url || o.link || o.link_url || 'https://povodyr.vercel.app/dashboard';
