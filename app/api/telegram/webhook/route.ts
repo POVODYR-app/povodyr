@@ -1,65 +1,72 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+'use client'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-const botToken = process.env.TELEGRAM_BOT_TOKEN || ''
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-async function sendTelegramMessage(chatId: number | string, text: string) {
-  if (!botToken) return
-  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: text,
-      parse_mode: 'HTML',
-    }),
-  })
+interface TelegramConnectProps {
+  user: {
+    id: string
+    telegram_chat_id?: string | null
+  }
 }
 
-export async function POST(req: Request) {
-  try {
-    const update = await req.json()
+export default function TelegramConnect({ user }: TelegramConnectProps) {
+  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'povodyr_bot'
+  const isConnected = Boolean(user?.telegram_chat_id)
+  const telegramLink = `https://t.me/${botUsername}?start=${user.id}`
 
-    if (update?.message?.text) {
-      const chatId = update.message.chat.id
-      const text = update.message.text.trim()
+  return (
+    <div style={{
+      backgroundColor: '#1e293b',
+      border: '1px solid #334155',
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 20
+    }}>
+      <h3 style={{ margin: '0 0 6px 0', fontSize: 16, fontWeight: 700, color: '#ffffff' }}>
+        Сповіщення в Telegram
+      </h3>
+      <p style={{ margin: '0 0 14px 0', fontSize: 13, color: '#94a3b8', lineHeight: 1.4 }}>
+        Отримуйте оперативні добірки можливостей безпосередньо у ваш приватний чат.
+      </p>
 
-      if (text.startsWith('/start')) {
-        const parts = text.split(' ')
-        const userId = parts[1]
-
-        if (userId) {
-          const { error } = await supabase
-            .from('profiles')
-            .update({ telegram_chat_id: String(chatId) })
-            .eq('id', userId)
-
-          if (!error) {
-            await sendTelegramMessage(
-              chatId,
-              '✅ Ваш акаунт POVODYR успішно підключено! Тепер ви отримуватимете персональні сповіщення сюди.'
-            )
-          } else {
-            await sendTelegramMessage(
-              chatId,
-              '⚠️ Не вдалося прив’язати акаунт. Спробуйте ще раз за посиланням із дашборду.'
-            )
-          }
-        } else {
-          await sendTelegramMessage(
-            chatId,
-            'Вітаємо! Щоб підключити сповіщення, перейдіть за посиланням із вашого особистого кабінету POVODYR.'
-          )
-        }
-      }
-    }
-
-    return NextResponse.json({ ok: true })
-  } catch (err) {
-    return NextResponse.json({ ok: false, error: 'Internal server error' }, { status: 500 })
-  }
+      {isConnected ? (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          backgroundColor: 'rgba(34, 197, 94, 0.1)',
+          border: '1px solid #22c55e',
+          color: '#4ade80',
+          padding: '12px 16px',
+          borderRadius: 12,
+          fontSize: 14,
+          fontWeight: 600
+        }}>
+          <span style={{ fontSize: 18 }}>✅</span>
+          <span>Персональні сповіщення в Telegram підключено</span>
+        </div>
+      ) : (
+        <a
+          href={telegramLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            width: '100%',
+            backgroundColor: '#0088cc',
+            color: '#ffffff',
+            padding: '12px 20px',
+            borderRadius: 12,
+            fontSize: 14,
+            fontWeight: 600,
+            textDecoration: 'none',
+            boxShadow: '0 4px 12px rgba(0, 136, 204, 0.3)'
+          }}
+        >
+          <span>✈️</span> Підключити Telegram-бота
+        </a>
+      )}
+    </div>
+  )
 }
