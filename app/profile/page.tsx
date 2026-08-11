@@ -9,24 +9,51 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-// Допоміжна функція для надійного розбору технік із будь-якого формату
+// Гнучка функція для розбору технік із будь-якого формату Postgres / JSON / String / Array
 function parseTechniquesData(raw: any): string[] {
   if (!raw) return []
+
+  // Якщо це вже JS-масив
   if (Array.isArray(raw)) {
-    // Якщо масив містить єдиний елемент-рядок, який є JSON-масивом
-    if (raw.length === 1 && typeof raw[0] === 'string' && raw[0].startsWith('[')) {
+    if (raw.length === 1 && typeof raw[0] === 'string') {
       return parseTechniquesData(raw[0])
     }
     return raw.map(item => String(item).trim()).filter(Boolean)
   }
+
   if (typeof raw === 'string') {
-    try {
-      const parsed = JSON.parse(raw)
-      return parseTechniquesData(parsed)
-    } catch {
-      return raw.split(',').map(t => t.trim()).filter(Boolean)
+    const trimmed = raw.trim()
+
+    // Формат PostgreSQL Array: {Акрил,"Олійний живопис",Графіка}
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      const content = trimmed.slice(1, -1)
+      if (!content) return []
+      // Регулярний вираз для розбору елементів у лапках або без них
+      const matches = content.match(/("([^"]|"")*"|[^,]+)/g)
+      if (!matches) return []
+      return matches.map(item => {
+        let clean = item.trim()
+        if (clean.startsWith('"') && clean.endsWith('"')) {
+          clean = clean.slice(1, -1).replace(/""/g, '"')
+        }
+        return clean
+      }).filter(Boolean)
     }
+
+    // Формат JSON Array: ["Акрил", "Імпасто"]
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        return parseTechniquesData(parsed)
+      } catch {
+        // Якщо JSON.parse не спрацював, розбираємо як звичайний рядок
+      }
+    }
+
+    // Звичайний рядок з розділювачем-комою
+    return trimmed.split(',').map(t => t.trim()).filter(Boolean)
   }
+
   return []
 }
 
@@ -95,9 +122,9 @@ export default function ProfilePage() {
         techniques: parsedTechniques,
         notifications_enabled: data.notifications_enabled ?? true,
         org_fee_currency: data.org_fee_currency || 'UAH',
-        org_fee_max: data.org_fee_max ?? 0,
+        org_fee_max: data.org_fee_max ? Number(data.org_fee_max) : 0,
         reg_fee_currency: data.reg_fee_currency || 'UAH',
-        reg_fee_max: data.reg_fee_max ?? 0,
+        reg_fee_max: data.reg_fee_max ? Number(data.reg_fee_max) : 0,
       })
     }
 
@@ -122,7 +149,7 @@ export default function ProfilePage() {
         full_name: form.full_name,
         artist_level: form.artist_level,
         search_countries: form.search_countries,
-        techniques: form.techniques, // Відправляємо чистий масив
+        techniques: form.techniques,
         notifications_enabled: form.notifications_enabled,
         org_fee_currency: form.org_fee_currency,
         org_fee_max: form.org_fee_max,
