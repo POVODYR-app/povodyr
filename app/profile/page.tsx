@@ -21,7 +21,7 @@ export default function ProfilePage() {
 
   const [fullName, setFullName] = useState('')
   const [artistLevel, setArtistLevel] = useState('вільний художник')
-  const [countries, setCountries] = useState<string[]>(['Україна', 'ЄС'])
+  const [countries, setCountries] = useState<string[]>([])
   const [techniques, setTechniques] = useState<string[]>([])
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
 
@@ -54,12 +54,30 @@ export default function ProfilePage() {
         setArtistLevel(profile.artist_level || 'вільний художник')
         setNotificationsEnabled(profile.notifications_enabled ?? true)
         
-        if (profile.search_countries) {
-          setCountries(Array.isArray(profile.search_countries) ? profile.search_countries : [])
+        // Перевірка та приведення типів для масивів
+        let parsedCountries: string[] = []
+        if (Array.isArray(profile.search_countries)) {
+          parsedCountries = profile.search_countries
+        } else if (typeof profile.search_countries === 'string') {
+          try {
+            parsedCountries = JSON.parse(profile.search_countries)
+          } catch {
+            parsedCountries = profile.search_countries.split(',').map((s: string) => s.trim())
+          }
         }
-        if (profile.techniques) {
-          setTechniques(Array.isArray(profile.techniques) ? profile.techniques : [])
+        setCountries(parsedCountries)
+
+        let parsedTechniques: string[] = []
+        if (Array.isArray(profile.techniques)) {
+          parsedTechniques = profile.techniques
+        } else if (typeof profile.techniques === 'string') {
+          try {
+            parsedTechniques = JSON.parse(profile.techniques)
+          } catch {
+            parsedTechniques = profile.techniques.split(',').map((s: string) => s.trim())
+          }
         }
+        setTechniques(parsedTechniques)
 
         setOrgFeeUa(profile.org_fee_ua ?? 0)
         setOrgFeeEu(profile.org_fee_eu ?? 0)
