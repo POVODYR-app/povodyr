@@ -39,7 +39,12 @@ async function sendTelegramMessage(chatId: string | number, text: string) {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' })
+      body: JSON.stringify({ 
+        chat_id: chatId, 
+        text, 
+        parse_mode: 'HTML',
+        disable_web_page_preview: true 
+      })
     });
     return res.ok;
   } catch {
@@ -54,11 +59,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 1. Отримуємо активних користувачів
-    const { data: users, error: usersError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('notifications_enabled', true);
+    // Режим тестування для одного email (наприклад: ?test_email=art.vandaorlova@gmail.com)
+    const testEmail = request.nextUrl.searchParams.get('test_email');
+
+    let query = supabase.from('profiles').select('*').eq('notifications_enabled', true);
+    if (testEmail) {
+      query = query.eq('email', testEmail);
+    }
+
+    const { data: users, error: usersError } = await query;
 
     if (usersError) {
       return NextResponse.json({ success: false, error: usersError.message }, { status: 500 });
@@ -68,7 +77,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, message: 'Немає користувачів для розсилки', sent: 0 });
     }
 
-    // 2. Отримуємо актуальні можливості
     const { data: opportunities, error: oppError } = await supabase
       .from('opportunities')
       .select('*')
@@ -83,13 +91,11 @@ export async function GET(request: NextRequest) {
     let sentCount = 0;
     const logs: any[] = [];
 
-    // 3. Обробка кожного користувача
     for (const user of users) {
       const userCountries = parseArrayField(user.search_countries);
       const userTechniques = parseArrayField(user.techniques);
       const orgFeeMax = Number(user.org_fee_max || user.max_fee_amount) || 0;
 
-      // Зіставлення за критеріями
       const matchedOpps = (opportunities || []).filter(opp => {
         if (userCountries.length > 0 && opp.country) {
           const oppCountry = String(opp.country).toLowerCase();
@@ -113,28 +119,32 @@ export async function GET(request: NextRequest) {
         return true;
       });
 
-      // Тексти сповіщень
-      let title = 'POVODYR: нові можливості для вас';
-      let textMessage = '';
-      let emailHtml = '';
-
-      if (matchedOpps.length > 0) {
-        const oppList = matchedOpps.slice(0, 3).map(o => `• ${o.title || 'Мистецька можливість'}`).join('\n');
-        textMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppList}\n\nПерегляньте деталі в особистому кабінеті.`;
-        
-        const htmlItems = matchedOpps.slice(0, 5).map(o => `<li><strong>${o.title}</strong> (${o.country || 'Онлайн'})</li>`).join('');
-        emailHtml = `<p>Привіт${user.full_name ? ', ' + user.full_name : ''}!</p><p>Знайдено ${matchedOpps.length} нових можливостей під ваш профіль:</p><ul>${htmlItems}</ul><p><a href="https://povodyr.vercel.app/dashboard">Переглянути всі в кабінеті</a></p>`;
-      } else {
-        title = 'POVODYR сьогодні перевірив можливості';
-        textMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗа вашими параметрами нових оновлень сьогодні не знайдено. Пошук триває.`;
-        emailHtml = `<p>Привіт${user.full_name ? ', ' + user.full_name : ''}!</p><p>POVODYR сьогодні перевірив бази. Нових пропозицій під ваш профіль поки немає.</p>`;
+      // Якщо збігів немає, переходимо до наступного профілю
+      if (matchedOpps.length === 0) {
+        logs.push({ user: user.full_name || user.id, matched: 0, status: 'skipped_no_matches' });
+        continue;
       }
+
+      // Формуємо список з клікабельними посиланнями на першоджерело
+      const oppListTelegram = matchedOpps.slice(0, 5).map(o => {
+        const url = o.source_url || o.link || o.link_url || 'https://povodyr.vercel.app/dashboard';
+        return `• <a href="${url}">${o.title || 'Мистецька можливість'}</a> (${o.country || 'Онлайн'})`;
+      }).join('\n');
+
+      const title = 'POVODYR: нові можливості для вас';
+      const textMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppListTelegram}\n\nНатисніть на назву для переходу до першоджерела.`;
+
+      const htmlItems = matchedOpps.slice(0, 5).map(o => {
+        const url = o.source_url || o.link || o.link_url || 'https://povodyr.vercel.app/dashboard';
+        return `<li><a href="${url}"><strong>${o.title}</strong></a> (${o.country || 'Онлайн'})</li>`;
+      }).join('');
+      const emailHtml = `<p>Привіт${user.full_name ? ', ' + user.full_name : ''}!</p><p>Знайдено ${matchedOpps.length} нових можливостей під ваш профіль:</p><ul>${htmlItems}</ul><p><a href="https://povodyr.vercel.app/dashboard">Переглянути в кабінеті</a></p>`;
 
       let emailSent = false;
       let pushSent = false;
       let telegramSent = false;
 
-      // Канал 1: Email (Resend)
+      // Email (Resend)
       if (resend && user.email) {
         try {
           const res = await resend.emails.send({
@@ -149,7 +159,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Канал 2: Web Push
+      // Web Push
       if (user.push_subscription && process.env.VAPID_PRIVATE_KEY) {
         try {
           const sub = typeof user.push_subscription === 'string' 
@@ -157,7 +167,7 @@ export async function GET(request: NextRequest) {
             : user.push_subscription;
           await webpush.sendNotification(sub, JSON.stringify({
             title,
-            body: textMessage.slice(0, 120),
+            body: `Знайдено ${matchedOpps.length} нових можливостей!`,
             url: 'https://povodyr.vercel.app/dashboard'
           }));
           pushSent = true;
@@ -166,17 +176,18 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Канал 3: Telegram
+      // Telegram
       if (user.telegram_chat_id) {
         telegramSent = await sendTelegramMessage(user.telegram_chat_id, `<b>${title}</b>\n\n${textMessage}`);
       }
 
-      // Канал 4: Запис сповіщення в базу даних для додатка
+      // Запис сповіщення в базу даних
+      const firstUrl = matchedOpps[0]?.source_url || matchedOpps[0]?.link || 'https://povodyr.vercel.app/dashboard';
       const { error: insertError } = await supabase.from('notifications').insert({
         user_id: user.id,
         title,
         message: textMessage,
-        link_url: 'https://povodyr.vercel.app/dashboard',
+        link_url: firstUrl,
         is_read: false,
         sent_push: pushSent,
         sent_email: emailSent,
