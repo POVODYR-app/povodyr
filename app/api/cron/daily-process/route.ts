@@ -123,7 +123,9 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      // 1. Формат для TELEGRAM (з HTML-тегами)
+      const title = 'POVODYR: нові можливості для вас';
+
+      // 1. Повідомлення для Telegram (з HTML-посиланнями)
       const oppListTelegram = matchedOpps.slice(0, 5).map(o => {
         const url = o.source_url || o.link || o.link_url || 'https://povodyr.vercel.app/dashboard';
         return `• <a href="${url}">${o.title || 'Мистецька можливість'}</a> (${o.country || 'Онлайн'})`;
@@ -131,27 +133,25 @@ export async function GET(request: NextRequest) {
 
       const telegramMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppListTelegram}\n\n<a href="https://povodyr.vercel.app/dashboard">Перегляньте деталі в особистому кабінеті</a>.`;
 
-      // 2. Формат для ДОДАТКА / БАЗИ ДАНИХ (чистий текст без HTML-тегів)
+      // 2. Повідомлення для бази даних / додатка (чистий текст)
       const oppListPlain = matchedOpps.slice(0, 5).map(o => {
         return `• ${o.title || 'Мистецька можливість'} (${o.country || 'Онлайн'})`;
       }).join('\n');
 
       const appMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppListPlain}\n\nПерегляньте деталі в особистому кабінеті.`;
 
-      // 3. Формат для EMAIL
+      // 3. Шаблон для Email
       const htmlItems = matchedOpps.slice(0, 5).map(o => {
         const url = o.source_url || o.link || o.link_url || 'https://povodyr.vercel.app/dashboard';
         return `<li><a href="${url}"><strong>${o.title}</strong></a> (${o.country || 'Онлайн'})</li>`;
       }).join('');
       const emailHtml = `<p>Привіт${user.full_name ? ', ' + user.full_name : ''}!</p><p>Знайдено ${matchedOpps.length} нових можливостей під ваш профіль:</p><ul>${htmlItems}</ul><p><a href="https://povodyr.vercel.app/dashboard">Переглянути в кабінеті</a></p>`;
 
-      const title = 'POVODYR: нові можливості для вас';
-
       let emailSent = false;
       let pushSent = false;
       let telegramSent = false;
 
-      // Email (Resend)
+      // Відправка Email
       if (resend && user.email) {
         try {
           const res = await resend.emails.send({
@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Web Push
+      // Відправка Push
       if (user.push_subscription && process.env.VAPID_PRIVATE_KEY) {
         try {
           const sub = typeof user.push_subscription === 'string' 
@@ -183,12 +183,12 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Telegram
+      // Відправка Telegram
       if (user.telegram_chat_id) {
         telegramSent = await sendTelegramMessage(user.telegram_chat_id, `<b>${title}</b>\n\n${telegramMessage}`);
       }
 
-      // Запис у базу даних для ДОДАТКА (використовуємо appMessage)
+      // Запис у базу даних для кабінету додатка (використовуємо appMessage)
       const firstUrl = matchedOpps[0]?.source_url || matchedOpps[0]?.link || 'https://povodyr.vercel.app/dashboard';
       const { error: insertError } = await supabase.from('notifications').insert({
         user_id: user.id,
