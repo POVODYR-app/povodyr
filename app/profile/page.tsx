@@ -118,189 +118,195 @@ export default function ProfilePage() {
   }
 
   if (loading) {
-    return <div style={{ color: '#ffffff', padding: 20 }}>Завантаження...</div>
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', color: '#ffffff', padding: 20 }}>
+        Завантаження...
+      </div>
+    )
   }
 
   return (
-    <div style={{ maxWidth: 520, margin: '0 auto', padding: '20px 16px', color: '#ffffff', fontFamily: 'sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#ffffff' }}>Мій профіль</h1>
-        <button 
-          onClick={() => router.push('/dashboard')}
-          style={{ backgroundColor: '#334155', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
-        >
-          ← Назад
-        </button>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-        {/* Повне ім'я */}
-        <div>
-          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: '#f8fafc' }}>
-            Повне ім'я *
-          </label>
-          <input
-            type="text"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#1e293b', color: '#ffffff', outline: 'none' }}
-          />
-        </div>
-
-        {/* Рівень митця */}
-        <div>
-          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: '#f8fafc' }}>
-            Рівень митця *
-          </label>
-          <select
-            value={artistLevel}
-            onChange={(e) => setArtistLevel(e.target.value)}
-            style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#1e293b', color: '#ffffff', outline: 'none' }}
+    <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', padding: '24px 16px', color: '#ffffff', fontFamily: 'sans-serif' }}>
+      <div style={{ maxWidth: 520, margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#ffffff' }}>Мій профіль</h1>
+          <button 
+            onClick={() => router.push('/dashboard')}
+            style={{ backgroundColor: '#334155', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
           >
-            <option value="вільний художник" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>вільний художник</option>
-            <option value="початківець" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>початківець</option>
-            <option value="професіонал" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>професіонал</option>
-          </select>
+            ← Назад
+          </button>
         </div>
 
-        {/* Країни пошуку */}
-        <div>
-          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#f8fafc' }}>
-            Країни пошуку можливостей
-          </label>
-          <div style={{ display: 'flex', gap: 16 }}>
-            {['Україна', 'ЄС', 'США'].map((c) => (
-              <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* Повне ім'я */}
+          <div>
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: '#ffffff' }}>
+              Повне ім'я *
+            </label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#1e293b', color: '#ffffff', outline: 'none' }}
+            />
+          </div>
+
+          {/* Рівень митця */}
+          <div>
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: '#ffffff' }}>
+              Рівень митця *
+            </label>
+            <select
+              value={artistLevel}
+              onChange={(e) => setArtistLevel(e.target.value)}
+              style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#1e293b', color: '#ffffff', outline: 'none' }}
+            >
+              <option value="вільний художник" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>вільний художник</option>
+              <option value="початківець" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>початківець</option>
+              <option value="професіонал" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>професіонал</option>
+            </select>
+          </div>
+
+          {/* Країни пошуку */}
+          <div>
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#ffffff' }}>
+              Країни пошуку можливостей
+            </label>
+            <div style={{ display: 'flex', gap: 16 }}>
+              {['Україна', 'ЄС', 'США'].map((c) => (
+                <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={countries.includes(c)}
+                    onChange={() => handleCountryToggle(c)}
+                  />
+                  <span style={{ color: '#ffffff', fontSize: 14 }}>{c}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Організаційні внески (виставки) */}
+          <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 16 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 12, color: '#ffffff' }}>
+              Організаційний внесок (виставки)
+            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, color: '#cbd5e1' }}>Україна (UAH)</span>
                 <input
-                  type="checkbox"
-                  checked={countries.includes(c)}
-                  onChange={() => handleCountryToggle(c)}
+                  type="number"
+                  value={orgFeeUa}
+                  onChange={(e) => setOrgFeeUa(e.target.value)}
+                  style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
                 />
-                <span style={{ color: '#ffffff', fontSize: 14 }}>{c}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* Організаційні внески (виставки) */}
-        <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 16 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 12, color: '#ffffff' }}>
-            Організаційний внесок (виставки)
-          </span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, color: '#cbd5e1' }}>Україна (UAH)</span>
-              <input
-                type="number"
-                value={orgFeeUa}
-                onChange={(e) => setOrgFeeUa(e.target.value)}
-                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, color: '#cbd5e1' }}>ЄС (EUR)</span>
-              <input
-                type="number"
-                value={orgFeeEu}
-                onChange={(e) => setOrgFeeEu(e.target.value)}
-                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, color: '#cbd5e1' }}>США (USD)</span>
-              <input
-                type="number"
-                value={orgFeeUs}
-                onChange={(e) => setOrgFeeUs(e.target.value)}
-                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Реєстраційні внески (конкурси) */}
-        <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 16 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 12, color: '#ffffff' }}>
-            Реєстраційний внесок (конкурси)
-          </span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, color: '#cbd5e1' }}>Україна (UAH)</span>
-              <input
-                type="number"
-                value={regFeeUa}
-                onChange={(e) => setRegFeeUa(e.target.value)}
-                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, color: '#cbd5e1' }}>ЄС (EUR)</span>
-              <input
-                type="number"
-                value={regFeeEu}
-                onChange={(e) => setRegFeeEu(e.target.value)}
-                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, color: '#cbd5e1' }}>США (USD)</span>
-              <input
-                type="number"
-                value={regFeeUs}
-                onChange={(e) => setRegFeeUs(e.target.value)}
-                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Техніки */}
-        <div>
-          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#f8fafc' }}>
-            Техніки *
-          </label>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {TECHNIQUES_LIST.map((tech) => (
-              <label key={tech} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, color: '#cbd5e1' }}>ЄС (EUR)</span>
                 <input
-                  type="checkbox"
-                  checked={techniques.includes(tech)}
-                  onChange={() => handleTechniqueToggle(tech)}
+                  type="number"
+                  value={orgFeeEu}
+                  onChange={(e) => setOrgFeeEu(e.target.value)}
+                  style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
                 />
-                <span style={{ color: '#ffffff', fontSize: 13 }}>{tech}</span>
-              </label>
-            ))}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, color: '#cbd5e1' }}>США (USD)</span>
+                <input
+                  type="number"
+                  value={orgFeeUs}
+                  onChange={(e) => setOrgFeeUs(e.target.value)}
+                  style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
+                />
+              </div>
+            </div>
           </div>
+
+          {/* Реєстраційні внески (конкурси) */}
+          <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 16 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 12, color: '#ffffff' }}>
+              Реєстраційний внесок (конкурси)
+            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, color: '#cbd5e1' }}>Україна (UAH)</span>
+                <input
+                  type="number"
+                  value={regFeeUa}
+                  onChange={(e) => setRegFeeUa(e.target.value)}
+                  style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, color: '#cbd5e1' }}>ЄС (EUR)</span>
+                <input
+                  type="number"
+                  value={regFeeEu}
+                  onChange={(e) => setRegFeeEu(e.target.value)}
+                  style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, color: '#cbd5e1' }}>США (USD)</span>
+                <input
+                  type="number"
+                  value={regFeeUs}
+                  onChange={(e) => setRegFeeUs(e.target.value)}
+                  style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Техніки */}
+          <div>
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#ffffff' }}>
+              Техніки *
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {TECHNIQUES_LIST.map((tech) => (
+                <label key={tech} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={techniques.includes(tech)}
+                    onChange={() => handleTechniqueToggle(tech)}
+                  />
+                  <span style={{ color: '#ffffff', fontSize: 13 }}>{tech}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Чекбокс сповіщень */}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 6 }}>
+            <input
+              type="checkbox"
+              checked={notificationsEnabled}
+              onChange={(e) => setNotificationsEnabled(e.target.checked)}
+            />
+            <span style={{ color: '#ffffff', fontSize: 14 }}>Отримувати щоденні сповіщення від POVODYR</span>
+          </label>
+
+          {/* Кнопка збереження */}
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              backgroundColor: '#3b82f6',
+              color: '#ffffff',
+              fontWeight: 700,
+              padding: '14px',
+              borderRadius: 12,
+              border: 'none',
+              fontSize: 16,
+              cursor: 'pointer',
+              marginTop: 10
+            }}
+          >
+            {saving ? 'Збереження...' : 'Зберегти профіль'}
+          </button>
         </div>
-
-        {/* Чекбокс сповіщень */}
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 6 }}>
-          <input
-            type="checkbox"
-            checked={notificationsEnabled}
-            onChange={(e) => setNotificationsEnabled(e.target.checked)}
-          />
-          <span style={{ color: '#ffffff', fontSize: 14 }}>Отримувати щоденні сповіщення від POVODYR</span>
-        </label>
-
-        {/* Кнопка збереження */}
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          style={{
-            backgroundColor: '#3b82f6',
-            color: '#ffffff',
-            fontWeight: 700,
-            padding: '14px',
-            borderRadius: 12,
-            border: 'none',
-            fontSize: 16,
-            cursor: 'pointer',
-            marginTop: 10
-          }}
-        >
-          {saving ? 'Збереження...' : 'Зберегти профіль'}
-        </button>
       </div>
     </div>
   )
