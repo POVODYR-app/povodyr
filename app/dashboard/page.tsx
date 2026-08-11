@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import TelegramConnect from '@/components/TelegramConnect'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -9,6 +10,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export default function DashboardPage() {
   const [userName, setUserName] = useState('')
+  const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
   const [notifications, setNotifications] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [showInstallBanner, setShowInstallBanner] = useState(false)
@@ -31,13 +33,18 @@ export default function DashboardPage() {
     // Профіль
     const { data: profile } = await supabase
       .from('profiles')
-      .select('full_name')
+      .select('full_name, telegram_chat_id')
       .eq('id', user.id)
       .maybeSingle()
 
     if (profile?.full_name) {
       setUserName(profile.full_name)
     }
+
+    setUserObj({
+      id: user.id,
+      telegram_chat_id: profile?.telegram_chat_id || null,
+    })
 
     // Сповіщення
     const { data: notifs } = await supabase
@@ -137,7 +144,7 @@ export default function DashboardPage() {
         {/* Заголовок */}
         <div style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justify: 'space-between',
           alignItems: 'center',
           marginBottom: 24
         }}>
@@ -174,7 +181,7 @@ export default function DashboardPage() {
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justify: 'center'
                 }}>
                   {unreadCount}
                 </span>
@@ -197,6 +204,9 @@ export default function DashboardPage() {
             </a>
           </div>
         </div>
+
+        {/* Блок підключення Telegram */}
+        {userObj && <TelegramConnect user={userObj} />}
 
         {/* Статус пошуку */}
         <div style={{
@@ -266,7 +276,7 @@ export default function DashboardPage() {
           backgroundColor: 'rgba(0,0,0,0.7)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
+          justify: 'center',
           padding: 16,
           zIndex: 50
         }}>
@@ -282,7 +292,7 @@ export default function DashboardPage() {
           }}>
             <div style={{
               display: 'flex',
-              justifyContent: 'space-between',
+              justify: 'space-between',
               alignItems: 'center',
               padding: 16,
               borderBottom: '1px solid #334155'
