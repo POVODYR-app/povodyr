@@ -25,7 +25,6 @@ export default function ProfilePage() {
   const [techniques, setTechniques] = useState<string[]>([])
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
 
-  // Поля сум за регіонами та валютами
   const [orgFeeUa, setOrgFeeUa] = useState<number | string>(0)
   const [orgFeeEu, setOrgFeeEu] = useState<number | string>(0)
   const [orgFeeUs, setOrgFeeUs] = useState<number | string>(0)
@@ -119,16 +118,16 @@ export default function ProfilePage() {
   }
 
   if (loading) {
-    return <div style={{ color: '#fff', padding: 20 }}>Завантаження...</div>
+    return <div style={{ color: '#ffffff', padding: 20 }}>Завантаження...</div>
   }
 
   return (
     <div style={{ maxWidth: 520, margin: '0 auto', padding: '20px 16px', color: '#ffffff', fontFamily: 'sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Мій профіль</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#ffffff' }}>Мій профіль</h1>
         <button 
           onClick={() => router.push('/dashboard')}
-          style={{ backgroundColor: '#334155', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer' }}
+          style={{ backgroundColor: '#334155', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
         >
           ← Назад
         </button>
@@ -137,32 +136,38 @@ export default function ProfilePage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         {/* Повне ім'я */}
         <div>
-          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Повне ім'я *</label>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: '#f8fafc' }}>
+            Повне ім'я *
+          </label>
           <input
             type="text"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
+            style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#1e293b', color: '#ffffff', outline: 'none' }}
           />
         </div>
 
         {/* Рівень митця */}
         <div>
-          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Рівень митця *</label>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: '#f8fafc' }}>
+            Рівень митця *
+          </label>
           <select
             value={artistLevel}
             onChange={(e) => setArtistLevel(e.target.value)}
-            style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
+            style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#1e293b', color: '#ffffff', outline: 'none' }}
           >
-            <option value="вільний художник">вільний художник</option>
-            <option value="початківець">початківець</option>
-            <option value="професіонал">професіонал</option>
+            <option value="вільний художник" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>вільний художник</option>
+            <option value="початківець" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>початківець</option>
+            <option value="професіонал" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>професіонал</option>
           </select>
         </div>
 
         {/* Країни пошуку */}
         <div>
-          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Країни пошуку можливостей</label>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#f8fafc' }}>
+            Країни пошуку можливостей
+          </label>
           <div style={{ display: 'flex', gap: 16 }}>
             {['Україна', 'ЄС', 'США'].map((c) => (
               <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
@@ -171,7 +176,7 @@ export default function ProfilePage() {
                   checked={countries.includes(c)}
                   onChange={() => handleCountryToggle(c)}
                 />
-                {c}
+                <span style={{ color: '#ffffff', fontSize: 14 }}>{c}</span>
               </label>
             ))}
           </div>
@@ -179,35 +184,35 @@ export default function ProfilePage() {
 
         {/* Організаційні внески (виставки) */}
         <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 16 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 12, color: '#f8fafc' }}>
+          <span style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 12, color: '#ffffff' }}>
             Організаційний внесок (виставки)
           </span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, color: '#94a3b8' }}>Україна (UAH)</span>
+              <span style={{ fontSize: 13, color: '#cbd5e1' }}>Україна (UAH)</span>
               <input
                 type="number"
                 value={orgFeeUa}
                 onChange={(e) => setOrgFeeUa(e.target.value)}
-                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff' }}
+                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
               />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, color: '#94a3b8' }}>ЄС (EUR)</span>
+              <span style={{ fontSize: 13, color: '#cbd5e1' }}>ЄС (EUR)</span>
               <input
                 type="number"
                 value={orgFeeEu}
                 onChange={(e) => setOrgFeeEu(e.target.value)}
-                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff' }}
+                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
               />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, color: '#94a3b8' }}>США (USD)</span>
+              <span style={{ fontSize: 13, color: '#cbd5e1' }}>США (USD)</span>
               <input
                 type="number"
                 value={orgFeeUs}
                 onChange={(e) => setOrgFeeUs(e.target.value)}
-                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff' }}
+                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
               />
             </div>
           </div>
@@ -215,35 +220,35 @@ export default function ProfilePage() {
 
         {/* Реєстраційні внески (конкурси) */}
         <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 16 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 12, color: '#f8fafc' }}>
+          <span style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 12, color: '#ffffff' }}>
             Реєстраційний внесок (конкурси)
           </span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, color: '#94a3b8' }}>Україна (UAH)</span>
+              <span style={{ fontSize: 13, color: '#cbd5e1' }}>Україна (UAH)</span>
               <input
                 type="number"
                 value={regFeeUa}
                 onChange={(e) => setRegFeeUa(e.target.value)}
-                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff' }}
+                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
               />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, color: '#94a3b8' }}>ЄС (EUR)</span>
+              <span style={{ fontSize: 13, color: '#cbd5e1' }}>ЄС (EUR)</span>
               <input
                 type="number"
                 value={regFeeEu}
                 onChange={(e) => setRegFeeEu(e.target.value)}
-                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff' }}
+                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
               />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, color: '#94a3b8' }}>США (USD)</span>
+              <span style={{ fontSize: 13, color: '#cbd5e1' }}>США (USD)</span>
               <input
                 type="number"
                 value={regFeeUs}
                 onChange={(e) => setRegFeeUs(e.target.value)}
-                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff' }}
+                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
               />
             </div>
           </div>
@@ -251,29 +256,31 @@ export default function ProfilePage() {
 
         {/* Техніки */}
         <div>
-          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Техніки *</label>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#f8fafc' }}>
+            Техніки *
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {TECHNIQUES_LIST.map((tech) => (
-              <label key={tech} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+              <label key={tech} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={techniques.includes(tech)}
                   onChange={() => handleTechniqueToggle(tech)}
                 />
-                {tech}
+                <span style={{ color: '#ffffff', fontSize: 13 }}>{tech}</span>
               </label>
             ))}
           </div>
         </div>
 
         {/* Чекбокс сповіщень */}
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer', marginTop: 6 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 6 }}>
           <input
             type="checkbox"
             checked={notificationsEnabled}
             onChange={(e) => setNotificationsEnabled(e.target.checked)}
           />
-          Отримувати щоденні сповіщення від POVODYR
+          <span style={{ color: '#ffffff', fontSize: 14 }}>Отримувати щоденні сповіщення від POVODYR</span>
         </label>
 
         {/* Кнопка збереження */}
@@ -282,7 +289,7 @@ export default function ProfilePage() {
           disabled={saving}
           style={{
             backgroundColor: '#3b82f6',
-            color: '#fff',
+            color: '#ffffff',
             fontWeight: 700,
             padding: '14px',
             borderRadius: 12,
