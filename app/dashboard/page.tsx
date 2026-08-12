@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import Image from 'next/image'
 import TelegramConnect from '../../components/TelegramConnect'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
@@ -207,7 +208,7 @@ export default function DashboardPage() {
 
         <div style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justify: 'space-between',
           alignItems: 'center',
           marginBottom: 24
         }}>
@@ -244,7 +245,7 @@ export default function DashboardPage() {
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justify: 'center'
                 }}>
                   {unreadCount}
                 </span>
@@ -329,6 +330,55 @@ export default function DashboardPage() {
             ✏️ Мій профіль
           </a>
         </div>
+
+        {/* Блок з логотипом, оком та підписом у нижній частині */}
+        <div style={{
+          marginTop: 40,
+          paddingTop: 24,
+          borderTop: '1px solid #334155',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justify: 'center',
+          gap: 10,
+          textAlign: 'center'
+        }}>
+          <div style={{ position: 'relative', width: 60, height: 60 }}>
+            {/* Шлях до файлу логотипа в папці public (/logo.png, /eye.png або /eye-logo.svg) */}
+            <img 
+              src="/logo.png" 
+              alt="POVODYR Logo" 
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              onError={(e) => {
+                // Запасний варіант (SVG-іконка ока), якщо зображення за посиланням ще відсутнє
+                e.currentTarget.style.display = 'none';
+                if (e.currentTarget.parentElement) {
+                  e.currentTarget.parentElement.innerHTML = '👁️';
+                  e.currentTarget.parentElement.style.fontSize = '36px';
+                }
+              }}
+            />
+          </div>
+          <div>
+            <span style={{ 
+              fontSize: 18, 
+              fontWeight: 800, 
+              letterSpacing: '0.08em', 
+              color: '#ffffff',
+              display: 'block' 
+            }}>
+              POVODYR
+            </span>
+            <span style={{ 
+              fontSize: 12, 
+              color: '#94a3b8',
+              letterSpacing: '0.04em'
+            }}>
+              Ваш інтелектуальний орієнтир у світі можливостей
+            </span>
+          </div>
+        </div>
+
       </div>
 
       {showNotifications && (
@@ -338,7 +388,7 @@ export default function DashboardPage() {
           backgroundColor: 'rgba(0,0,0,0.7)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
+          justify: 'center',
           padding: 16,
           zIndex: 50
         }}>
@@ -354,7 +404,7 @@ export default function DashboardPage() {
           }}>
             <div style={{
               display: 'flex',
-              justifyContent: 'space-between',
+              justify: 'space-between',
               alignItems: 'center',
               padding: 16,
               borderBottom: '1px solid #334155'
