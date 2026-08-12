@@ -207,7 +207,7 @@ export default function DashboardPage() {
 
         <div style={{
           display: 'flex',
-          justify: 'space-between',
+          justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: 24
         }}>
@@ -354,7 +354,7 @@ export default function DashboardPage() {
           }}>
             <div style={{
               display: 'flex',
-              justify: 'space-between',
+              justifyContent: 'space-between',
               alignItems: 'center',
               padding: 16,
               borderBottom: '1px solid #334155'
