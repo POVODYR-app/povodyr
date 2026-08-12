@@ -1,12 +1,11 @@
 {
   "name": "POVODYR",
   "short_name": "POVODYR",
-  "description": "Цифровий асистент для українських художників. POVODYR бачить можливості. Художник обирає шлях.",
-  "start_url": "/",
+  "description": "Персональний помічник пошуку можливостей",
+  "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
-  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "icons": [
     {
       "src": "/Logo(192x192).png",
