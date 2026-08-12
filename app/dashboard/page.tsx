@@ -34,8 +34,11 @@ export default function DashboardPage() {
   const [matchedCount, setMatchedCount] = useState<number>(0)
 
   useEffect(() => {
+    // Перевірка режиму standalone (якщо додаток уже відкритий через PWA/ярлик)
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone
     const bannerClosed = localStorage.getItem('povodyr_install_banner_closed')
-    if (!bannerClosed) {
+    
+    if (!bannerClosed && !isPWA) {
       setShowInstallBanner(true)
     }
 
@@ -46,12 +49,29 @@ export default function DashboardPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // 1. Отримання профілю
-    const { data: profile } = await supabase
+    // 1. Отримання профілю та паралельний виклик інших даних
+    const profilePromise = supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .maybeSingle()
+
+    const opportunitiesPromise = supabase
+      .from('opportunities')
+      .select('*')
+      .eq('is_active', true)
+
+    const notificationsPromise = supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+
+    const [
+      { data: profile },
+      { data: opportunities },
+      { data: notifs }
+    ] = await Promise.all([profilePromise, opportunitiesPromise, notificationsPromise])
 
     if (profile?.full_name) {
       setUserName(profile.full_name)
@@ -62,12 +82,7 @@ export default function DashboardPage() {
       telegram_chat_id: profile?.telegram_chat_id || null,
     })
 
-    // 2. Отримання та фільтрація можливостей з бази даних
-    const { data: opportunities } = await supabase
-      .from('opportunities')
-      .select('*')
-      .eq('is_active', true)
-
+    // 2. Фільтрація можливостей
     const allOpps = opportunities || []
     setTotalOpportunities(allOpps.length)
 
@@ -102,13 +117,7 @@ export default function DashboardPage() {
       setMatchedCount(matched.length)
     }
 
-    // 3. Отримання сповіщень
-    const { data: notifs } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-
+    // 3. Обробка сповіщень
     if (notifs) {
       setNotifications(notifs)
       setUnreadCount(notifs.filter((n: any) => !n.is_read).length)
@@ -198,7 +207,7 @@ export default function DashboardPage() {
 
         <div style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justify: 'space-between',
           alignItems: 'center',
           marginBottom: 24
         }}>
@@ -274,7 +283,7 @@ export default function DashboardPage() {
             <p style={{ margin: 0, fontSize: 15, color: matchedCount > 0 ? '#ffffff' : '#cbd5e1' }}>
               {matchedCount > 0
                 ? `Знайдено ${matchedCount} нових можливостей під ваш профіль!`
-                : 'Сьогодні нових можливостей немає. Я продовжую шукати.'}
+                : 'Сьогодні нових можливостей немає. Пошук триває.'}
             </p>
           </div>
         </div>
@@ -345,7 +354,7 @@ export default function DashboardPage() {
           }}>
             <div style={{
               display: 'flex',
-              justifyContent: 'space-between',
+              justify: 'space-between',
               alignItems: 'center',
               padding: 16,
               borderBottom: '1px solid #334155'
