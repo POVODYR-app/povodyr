@@ -244,7 +244,7 @@ export default function DashboardPage() {
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justify: 'center'
                 }}>
                   {unreadCount}
                 </span>
@@ -330,44 +330,41 @@ export default function DashboardPage() {
           </a>
         </div>
 
-        {/* Блок з логотипом, оком та підписом у нижній частині */}
-<div style={{
-  marginTop: 40,
-  paddingTop: 24,
-  borderTop: '1px solid #334155',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 12,
-  textAlign: 'center'
-}}>
-  <div style={{ position: 'relative', width: 70, height: 70, borderRadius: 12, overflow: 'hidden' }}>
-    <img 
-      src="/icon-192.jpg" 
-      alt="POVODYR Logo" 
-      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-    />
-  </div>
-  <div>
-    <span style={{ 
-      fontSize: 18, 
-      fontWeight: 800, 
-      letterSpacing: '0.08em', 
-      color: '#ffffff',
-      display: 'block' 
-    }}>
-      POVODYR
-    </span>
-    <span style={{ 
-      fontSize: 12, 
-      color: '#94a3b8',
-      letterSpacing: '0.04em'
-    }}>
-      Ви створюєте картини. POVODYR допомагає їм знайти свій шлях
-    </span>
-  </div>
-</div>
+        {/* Блок з логотипом із папки public (/icon-192.jpg) */}
+        <div style={{
+          marginTop: 40,
+          paddingTop: 24,
+          borderTop: '1px solid #334155',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 12,
+          textAlign: 'center'
+        }}>
+          <div style={{ position: 'relative', width: 70, height: 70, borderRadius: 12, overflow: 'hidden' }}>
+            <img 
+              src="/icon-192.jpg" 
+              alt="POVODYR Logo" 
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
+          </div>
+          <div>
+            <span style={{ 
+              fontSize: 18, 
+              fontWeight: 800, 
+              letterSpacing: '0.08em', 
+              color: '#ffffff',
+              display: 'block' 
+            }}>
+              POVODYR
+            </span>
+            <span style={{ 
+              fontSize: 12, 
+              color: '#94a3b8',
+              letterSpacing: '0.04em'
+            }}>
+              Ви створюєте картини. POVODYR допомагає їм знайти свій шлях
             </span>
           </div>
         </div>
@@ -381,7 +378,7 @@ export default function DashboardPage() {
           backgroundColor: 'rgba(0,0,0,0.7)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
+          justify: 'center',
           padding: 16,
           zIndex: 50
         }}>
@@ -397,7 +394,7 @@ export default function DashboardPage() {
           }}>
             <div style={{
               display: 'flex',
-              justifyContent: 'space-between',
+              justify: 'space-between',
               alignItems: 'center',
               padding: 16,
               borderBottom: '1px solid #334155'
