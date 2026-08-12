@@ -338,7 +338,7 @@ export default function DashboardPage() {
         }}>
           <div style={{ position: 'relative', width: 70, height: 70, borderRadius: 12, overflow: 'hidden' }}>
             <img 
-              src="/icon-192.jpg" 
+              src="/favicon.png" 
               alt="POVODYR Logo" 
               style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
