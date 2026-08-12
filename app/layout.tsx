@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next'
-import './globals.css'
 
 export const viewport: Viewport = {
   themeColor: '#0f172a',
@@ -39,7 +38,9 @@ export default function RootLayout({
       <head>
         <link rel="apple-touch-icon" href="/Logo(192x192).png" />
       </head>
-      <body>{children}</body>
+      <body style={{ margin: 0, padding: 0, backgroundColor: '#0f172a' }}>
+        {children}
+      </body>
     </html>
   )
 }
