@@ -8,6 +8,20 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+function parseArrayField(raw: any): string[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw.map(i => String(i).toLowerCase().trim())
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed.map(i => String(i).toLowerCase().trim())
+    } catch {
+      return raw.split(',').map(i => i.toLowerCase().trim())
+    }
+  }
+  return []
+}
+
 export default function DashboardPage() {
   const [userName, setUserName] = useState('')
   const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
@@ -15,6 +29,9 @@ export default function DashboardPage() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [showInstallBanner, setShowInstallBanner] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
+  
+  const [totalOpportunities, setTotalOpportunities] = useState<number>(0)
+  const [matchedCount, setMatchedCount] = useState<number>(0)
 
   useEffect(() => {
     const bannerClosed = localStorage.getItem('povodyr_install_banner_closed')
@@ -29,9 +46,10 @@ export default function DashboardPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
+    // 1. Отримання профілю
     const { data: profile } = await supabase
       .from('profiles')
-      .select('full_name, telegram_chat_id')
+      .select('*')
       .eq('id', user.id)
       .maybeSingle()
 
@@ -44,6 +62,47 @@ export default function DashboardPage() {
       telegram_chat_id: profile?.telegram_chat_id || null,
     })
 
+    // 2. Отримання та фільтрація можливостей з бази даних
+    const { data: opportunities } = await supabase
+      .from('opportunities')
+      .select('*')
+      .eq('is_active', true)
+
+    const allOpps = opportunities || []
+    setTotalOpportunities(allOpps.length)
+
+    if (profile) {
+      const userCountries = parseArrayField(profile.search_countries)
+      const userTechniques = parseArrayField(profile.techniques)
+      const orgFeeMax = Number(profile.org_fee_max || profile.max_fee_amount) || 0
+
+      const matched = allOpps.filter(opp => {
+        if (userCountries.length > 0 && opp.country) {
+          const oppCountry = String(opp.country).toLowerCase()
+          const countryMatch = userCountries.some(c => oppCountry.includes(c) || c.includes(oppCountry))
+          if (!countryMatch && !oppCountry.includes('онлайн') && !oppCountry.includes('світ') && !oppCountry.includes('international')) {
+            return false
+          }
+        }
+
+        if (userTechniques.length > 0 && opp.techniques) {
+          const oppTechs = parseArrayField(opp.techniques)
+          if (oppTechs.length > 0) {
+            const techMatch = userTechniques.some(ut => oppTechs.some(ot => ot.includes(ut) || ut.includes(ot)))
+            if (!techMatch) return false
+          }
+        }
+
+        const fee = Number(opp.cost_amount || opp.fee_amount || opp.org_fee) || 0
+        if (fee > orgFeeMax && orgFeeMax > 0 && !opp.is_free) return false
+
+        return true
+      })
+
+      setMatchedCount(matched.length)
+    }
+
+    // 3. Отримання сповіщень
     const { data: notifs } = await supabase
       .from('notifications')
       .select('*')
@@ -202,23 +261,26 @@ export default function DashboardPage() {
 
         {userObj && <TelegramConnect user={userObj} />}
 
+        {/* Динамічний блок стану підбору можливостей */}
         <div style={{
-          backgroundColor: '#1e293b',
-          border: '1px solid #334155',
+          backgroundColor: matchedCount > 0 ? '#1e3a8a' : '#1e293b',
+          border: matchedCount > 0 ? '1px solid #3b82f6' : '1px solid #334155',
           borderRadius: 16,
           padding: 16,
           marginBottom: 20
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 24 }}>🔍</span>
-            <p style={{ margin: 0, fontSize: 15, color: '#cbd5e1' }}>
-              Сьогодні нових можливостей немає. Я продовжую шукати.
+            <p style={{ margin: 0, fontSize: 15, color: matchedCount > 0 ? '#ffffff' : '#cbd5e1' }}>
+              {matchedCount > 0
+                ? `Знайдено ${matchedCount} нових можливостей під ваш профіль!`
+                : 'Сьогодні нових можливостей немає. Я продовжую шукати.'}
             </p>
           </div>
         </div>
 
         <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 20 }}>
-          Усього знайдено матеріалів у базі: {notifications.length}
+          Усього знайдено матеріалів у базі: {totalOpportunities}
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -236,7 +298,7 @@ export default function DashboardPage() {
               cursor: 'pointer'
             }}
           >
-            📋 Центр можливостей ({notifications.length})
+            📋 Центр можливостей ({totalOpportunities})
           </button>
 
           <a
@@ -326,7 +388,13 @@ export default function DashboardPage() {
                       {item.title}
                     </h3>
                     {item.message && (
-                      <p style={{ margin: '0 0 8px 0', fontSize: 13, color: '#cbd5e1' }}>
+                      <p style={{ 
+                        margin: '0 0 8px 0', 
+                        fontSize: 13, 
+                        color: '#cbd5e1',
+                        whiteSpace: 'pre-line',
+                        lineHeight: 1.5
+                      }}>
                         {item.message}
                       </p>
                     )}
