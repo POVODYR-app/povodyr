@@ -34,7 +34,6 @@ export default function DashboardPage() {
   const [matchedCount, setMatchedCount] = useState<number>(0)
 
   useEffect(() => {
-    // Перевірка режиму standalone (якщо додаток уже відкритий через PWA/ярлик)
     const isPWA = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone
     const bannerClosed = localStorage.getItem('povodyr_install_banner_closed')
     
@@ -49,7 +48,6 @@ export default function DashboardPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // 1. Отримання профілю та паралельний виклик інших даних
     const profilePromise = supabase
       .from('profiles')
       .select('*')
@@ -82,7 +80,6 @@ export default function DashboardPage() {
       telegram_chat_id: profile?.telegram_chat_id || null,
     })
 
-    // 2. Фільтрація можливостей
     const allOpps = opportunities || []
     setTotalOpportunities(allOpps.length)
 
@@ -117,7 +114,6 @@ export default function DashboardPage() {
       setMatchedCount(matched.length)
     }
 
-    // 3. Обробка сповіщень
     if (notifs) {
       setNotifications(notifs)
       setUnreadCount(notifs.filter((n: any) => !n.is_read).length)
@@ -244,7 +240,7 @@ export default function DashboardPage() {
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
-                  justify: 'center'
+                  justifyContent: 'center'
                 }}>
                   {unreadCount}
                 </span>
@@ -270,7 +266,6 @@ export default function DashboardPage() {
 
         {userObj && <TelegramConnect user={userObj} />}
 
-        {/* Динамічний блок стану підбору можливостей */}
         <div style={{
           backgroundColor: matchedCount > 0 ? '#1e3a8a' : '#1e293b',
           border: matchedCount > 0 ? '1px solid #3b82f6' : '1px solid #334155',
@@ -330,7 +325,6 @@ export default function DashboardPage() {
           </a>
         </div>
 
-        {/* Блок з логотипом із папки public (/icon-192.jpg) */}
         <div style={{
           marginTop: 40,
           paddingTop: 24,
@@ -378,7 +372,7 @@ export default function DashboardPage() {
           backgroundColor: 'rgba(0,0,0,0.7)',
           display: 'flex',
           alignItems: 'center',
-          justify: 'center',
+          justifyContent: 'center',
           padding: 16,
           zIndex: 50
         }}>
