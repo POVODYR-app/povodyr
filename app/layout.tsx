@@ -13,12 +13,12 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   icons: {
     icon: [
-      { url: '/Logo(192x192).png', sizes: '192x192', type: 'image/png' },
-      { url: '/Logo(512x512).png', sizes: '512x512', type: 'image/png' },
+      { url: '/icon-192.jpg', sizes: '192x192', type: 'image/jpeg' },
+      { url: '/icon-512.jpg.jpg', sizes: '512x512', type: 'image/jpeg' },
     ],
-    shortcut: '/Logo(192x192).png',
+    shortcut: '/icon-192.jpg.jpg',
     apple: [
-      { url: '/Logo(192x192).png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-192.jpg.jpg', sizes: '192x192', type: 'image/jpeg' },
     ],
   },
   appleWebApp: {
@@ -36,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="uk">
       <head>
-        <link rel="apple-touch-icon" href="/Logo(192x192).png" />
+        <link rel="apple-touch-icon" href="/icon-192.jpg.jpg" />
       </head>
       <body style={{ margin: 0, padding: 0, backgroundColor: '#0f172a' }}>
         {children}
