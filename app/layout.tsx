@@ -1,11 +1,30 @@
-export const metadata = {
-  title: 'POVODYR',
-  description: 'Цифровий асистент для українських художників',
+import type { Metadata, Viewport } from 'next'
+import './globals.css'
+
+export const viewport: Viewport = {
+  themeColor: '#0f172a',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+}
+
+export const metadata: Metadata = {
+  title: 'POVODYR — Персональний помічник',
+  description: 'Персональний помічник пошуку можливостей',
   manifest: '/manifest.json',
-  themeColor: '#000000',
+  icons: {
+    icon: [
+      { url: '/Logo(192x192).png', sizes: '192x192', type: 'image/png' },
+      { url: '/Logo(512x512).png', sizes: '512x512', type: 'image/png' },
+    ],
+    shortcut: '/Logo(192x192).png',
+    apple: [
+      { url: '/Logo(192x192).png', sizes: '192x192', type: 'image/png' },
+    ],
+  },
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'POVODYR',
   },
 }
@@ -18,11 +37,7 @@ export default function RootLayout({
   return (
     <html lang="uk">
       <head>
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="POVODYR" />
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="apple-touch-icon" href="/Logo(192x192).png" />
       </head>
       <body>{children}</body>
     </html>
