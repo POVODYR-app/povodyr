@@ -331,47 +331,43 @@ export default function DashboardPage() {
         </div>
 
         {/* Блок з логотипом, оком та підписом у нижній частині */}
-        <div style={{
-          marginTop: 40,
-          paddingTop: 24,
-          borderTop: '1px solid #334155',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 10,
-          textAlign: 'center'
-        }}>
-          <div style={{ position: 'relative', width: 60, height: 60 }}>
-            <img 
-              src="/logo.png" 
-              alt="POVODYR Logo" 
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                if (e.currentTarget.parentElement) {
-                  e.currentTarget.parentElement.innerHTML = '👁️';
-                  e.currentTarget.parentElement.style.fontSize = '36px';
-                }
-              }}
-            />
-          </div>
-          <div>
-            <span style={{ 
-              fontSize: 18, 
-              fontWeight: 800, 
-              letterSpacing: '0.08em', 
-              color: '#ffffff',
-              display: 'block' 
-            }}>
-              POVODYR
-            </span>
-            <span style={{ 
-              fontSize: 12, 
-              color: '#94a3b8',
-              letterSpacing: '0.04em'
-            }}>
-              Ваш інтелектуальний орієнтир у світі можливостей
+<div style={{
+  marginTop: 40,
+  paddingTop: 24,
+  borderTop: '1px solid #334155',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 12,
+  textAlign: 'center'
+}}>
+  <div style={{ position: 'relative', width: 70, height: 70, borderRadius: 12, overflow: 'hidden' }}>
+    <img 
+      src="/icon-192.jpg" 
+      alt="POVODYR Logo" 
+      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+    />
+  </div>
+  <div>
+    <span style={{ 
+      fontSize: 18, 
+      fontWeight: 800, 
+      letterSpacing: '0.08em', 
+      color: '#ffffff',
+      display: 'block' 
+    }}>
+      POVODYR
+    </span>
+    <span style={{ 
+      fontSize: 12, 
+      color: '#94a3b8',
+      letterSpacing: '0.04em'
+    }}>
+      Ви створюєте картини. POVODYR допомагає їм знайти свій шлях
+    </span>
+  </div>
+</div>
             </span>
           </div>
         </div>
