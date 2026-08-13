@@ -68,9 +68,8 @@ export function buildSearchQueries(year: number = 2026): string[] {
   return queries
 }
 
-export async function parseArtFineNationHTML(): Promise<ParsedOpportunity[]> {
+export async function parseArtFineNationHTML(logs: string[] = []): Promise<ParsedOpportunity[]> {
   const targetUrl = 'https://artfinenation.com'
-  // Використовуємо corsproxy.io для швидкого отримання HTML без затримок
   const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
   const opportunities: ParsedOpportunity[] = []
 
@@ -88,15 +87,17 @@ export async function parseArtFineNationHTML(): Promise<ParsedOpportunity[]> {
 
     if (response.ok) {
       const html = await response.text()
+      logs.push(`Art Fine Nation HTML отримано. Довжина: ${html.length} символів`)
+
       const $ = cheerio.load(html)
 
-      $('a, article, .post, .card, div').each((_, element) => {
+      $('a, article, .post, .card, h1, h2, h3').each((_, element) => {
         const text = $(element).text().trim().replace(/\s+/g, ' ')
         const href = $(element).attr('href') || $(element).find('a').attr('href')
 
-        const isRelevant = /open\s*call|конкурс|виставка|грант|резиденція/i.test(text)
+        const isRelevant = /open\s*call|конкурс|виставка|грант|резиденція|митці|художники/i.test(text)
 
-        if (isRelevant && text.length >= 15 && text.length <= 200) {
+        if (isRelevant && text.length >= 15 && text.length <= 250) {
           const fullLink = href 
             ? (href.startsWith('http') ? href : `${targetUrl}${href.startsWith('/') ? '' : '/'}${href}`)
             : targetUrl
@@ -119,14 +120,17 @@ export async function parseArtFineNationHTML(): Promise<ParsedOpportunity[]> {
               age_restrictions: 'None',
               languages: ['uk'],
               ukrainians_eligible: true,
-              raw_description: `Опубліковано на платформі Першої української мистецької агенції Art Fine Nation: ${text}`,
+              raw_description: `Опубліковано на платформі Art Fine Nation: ${text}`,
             })
           }
         }
       })
+    } else {
+      logs.push(`Art Fine Nation проксі повернув статус: ${response.status}`)
     }
   } catch (error) {
-    console.error('Помилка виконання parseArtFineNationHTML:', error)
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    logs.push(`Помилка Art Fine Nation HTML: ${errorMsg}`)
   }
 
   return opportunities
@@ -244,7 +248,7 @@ export async function fetchFromApprovedSources(logs: string[] = []): Promise<Par
 
   logs.push('Запуск парсингу Art Fine Nation HTML...')
   try {
-    const afnResults = await parseArtFineNationHTML()
+    const afnResults = await parseArtFineNationHTML(logs)
     logs.push(`Art Fine Nation знайшов записів: ${afnResults.length}`)
     allOpportunities.push(...afnResults)
   } catch (err: any) {
