@@ -72,7 +72,6 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
   const targetUrl = 'https://artfinenation.com'
   const apiKey = process.env.SCRAPER_API_KEY
 
-  // Прибрано render=true для швидкого отримання HTML за 1-3 секунди
   const apiUrl = apiKey
     ? `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}`
     : `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
@@ -81,7 +80,8 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
 
   try {
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 25000)
+    // Збільшено таймаут чекання від ScraperAPI до 30 секунд
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
 
     const response = await fetch(apiUrl, {
       method: 'GET',
