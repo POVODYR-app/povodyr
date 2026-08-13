@@ -87,68 +87,47 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
 
 export async function parseArtFineNationHTML(logs: string[] = []): Promise<ParsedOpportunity[]> {
   const targetUrl = 'https://artfinenation.com'
+  const jinaUrl = `https://r.jina.ai/${targetUrl}`
   const opportunities: ParsedOpportunity[] = []
 
-  let html = ''
-
-  // Допоміжна функція зі строгим таймаутом
-  const fetchWithTimeout = async (url: string, timeoutMs = 4000) => {
-    const controller = new AbortController()
-    const id = setTimeout(() => controller.abort(), timeoutMs)
-    try {
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
-        },
-        signal: controller.signal,
-        next: { revalidate: 0 }
-      })
-      clearTimeout(id)
-      if (!res.ok) throw new Error(`Status ${res.status}`)
-      return await res.text()
-    } catch (e) {
-      clearTimeout(id)
-      throw e
-    }
-  }
-
-  // Паралельний запуск через кілька швидких каналів
   try {
-    html = await Promise.any([
-      // Канал 1: Прямий запит
-      fetchWithTimeout(targetUrl, 3500),
-      // Канал 2: Швидкий публічний проксі AllOrigins
-      fetchWithTimeout(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, 4000),
-      // Канал 3: Jina Reader (обходить Cloudflare)
-      fetchWithTimeout(`https://r.jina.ai/${targetUrl}`, 4500)
-    ])
-    logs.push(`Art Fine Nation HTML отримано. Довжина: ${html.length} символів`)
-  } catch (err) {
-    logs.push('Art Fine Nation не відповів протягом 4.5s. Пропущено для збереження швидкості.')
-  }
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 7000)
 
-  // Розбір отриманого контенту через Cheerio
-  if (html && html.length > 200) {
-    try {
-      const $ = cheerio.load(html)
+    const response = await fetch(jinaUrl, {
+      headers: {
+        'Accept': 'text/plain',
+        'X-No-Cache': 'true'
+      },
+      signal: controller.signal,
+      next: { revalidate: 0 }
+    })
 
-      $('a, article, .post, .card, h1, h2, h3').each((_, element) => {
-        const text = $(element).text().trim().replace(/\s+/g, ' ')
-        const href = $(element).attr('href') || $(element).find('a').attr('href')
+    clearTimeout(timeoutId)
 
-        const isRelevant = /open\s*call|конкурс|виставка|грант|резиденція|митці|художники/i.test(text)
+    if (response.ok) {
+      const text = await response.text()
+      logs.push(`Отримано контент Google Sites через Jina Reader. Довжина: ${text.length} символів`)
 
-        if (isRelevant && text.length >= 15 && text.length <= 250) {
-          const fullLink = href 
-            ? (href.startsWith('http') ? href : `${targetUrl}${href.startsWith('/') ? '' : '/'}${href}`)
-            : targetUrl
+      // Розбиваємо оброблений текст на окремі абзаци
+      const lines = text.split('\n').map(line => line.trim()).filter(Boolean)
 
-          if (!opportunities.some(item => item.title === text || item.link === fullLink)) {
+      lines.forEach((line) => {
+        const isRelevant = /open\s*call|конкурс|виставка|грант|резиденція|митці|художники/i.test(line)
+
+        if (isRelevant && line.length >= 15 && line.length <= 250) {
+          // Очищаємо текст від размітки Markdown (посилань, заголовків)
+          const cleanTitle = line
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+            .replace(/^#+\s*/, '')
+            .trim()
+
+          if (!opportunities.some(item => item.title === cleanTitle)) {
             opportunities.push({
               source_name: 'Art Fine Nation',
-              title: text,
-              link: fullLink,
-              source_url: fullLink,
+              title: cleanTitle,
+              link: targetUrl,
+              source_url: targetUrl,
               type: 'Open Call',
               deadline: null,
               country: 'Україна',
@@ -161,14 +140,16 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
               age_restrictions: 'None',
               languages: ['uk'],
               ukrainians_eligible: true,
-              raw_description: `Опубліковано на платформі Art Fine Nation: ${text}`,
+              raw_description: `Опубліковано на платформі Art Fine Nation: ${cleanTitle}`,
             })
           }
         }
       })
-    } catch (parseError) {
-      logs.push(`Помилка аналізу HTML: ${parseError}`)
+    } else {
+      logs.push(`Jina Reader повернув статус: ${response.status}`)
     }
+  } catch (err: any) {
+    logs.push(`Помилка зчитування Google Sites: ${err.message}`)
   }
 
   return opportunities
