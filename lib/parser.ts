@@ -71,20 +71,21 @@ export function buildSearchQueries(year: number = 2026): string[] {
 export async function parseArtFineNationHTML(logs: string[] = []): Promise<ParsedOpportunity[]> {
   const targetUrl = 'https://artfinenation.com'
   const apiKey = process.env.SCRAPER_API_KEY
-
-  const apiUrl = apiKey
-    ? `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}`
-    : `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
-
   const opportunities: ParsedOpportunity[] = []
 
+  let html = ''
+
+  // Спроба 1: Прямий швидкий запит (без ScraperAPI)
   try {
     const controller = new AbortController()
-    // Збільшено таймаут чекання від ScraperAPI до 30 секунд
-    const timeoutId = setTimeout(() => controller.abort(), 30000)
+    const timeoutId = setTimeout(() => controller.abort(), 8000)
 
-    const response = await fetch(apiUrl, {
+    const response = await fetch(targetUrl, {
       method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      },
       signal: controller.signal,
       next: { revalidate: 0 }
     })
@@ -92,9 +93,46 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
     clearTimeout(timeoutId)
 
     if (response.ok) {
-      const html = await response.text()
-      logs.push(`Art Fine Nation HTML отримано. Довжина: ${html.length} символів`)
+      html = await response.text()
+      logs.push(`Art Fine Nation HTML отримано через прямий запит. Довжина: ${html.length} символів`)
+    }
+  } catch (err) {
+    logs.push('Прямий запит до Art Fine Nation не вдався або вичерпав тайм-аут. Перехід на ScraperAPI...')
+  }
 
+  // Спроба 2: Якщо прямий запит не вдався, використовуємо ScraperAPI
+  if (!html) {
+    try {
+      const apiUrl = apiKey
+        ? `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}`
+        : `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
+
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 20000)
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        signal: controller.signal,
+        next: { revalidate: 0 }
+      })
+
+      clearTimeout(timeoutId)
+
+      if (response.ok) {
+        html = await response.text()
+        logs.push(`Art Fine Nation HTML отримано через ScraperAPI. Довжина: ${html.length} символів`)
+      } else {
+        logs.push(`Scraping API повернув статус: ${response.status}`)
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      logs.push(`Помилка Art Fine Nation через Scraping API: ${errorMsg}`)
+    }
+  }
+
+  // Розбір HTML за допомогою Cheerio
+  if (html) {
+    try {
       const $ = cheerio.load(html)
 
       $('a, article, .post, .card, h1, h2, h3').each((_, element) => {
@@ -131,12 +169,9 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
           }
         }
       })
-    } else {
-      logs.push(`Scraping API повернув статус: ${response.status}`)
+    } catch (parseError) {
+      logs.push(`Помилка парсингу HTML Art Fine Nation: ${parseError}`)
     }
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error)
-    logs.push(`Помилка Art Fine Nation через Scraping API: ${errorMsg}`)
   }
 
   return opportunities
