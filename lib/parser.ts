@@ -71,42 +71,20 @@ export function buildSearchQueries(year: number = 2026): string[] {
 export async function parseArtFineNationHTML(logs: string[] = []): Promise<ParsedOpportunity[]> {
   const targetUrl = 'https://artfinenation.com'
   const opportunities: ParsedOpportunity[] = []
-  let textContent = ''
+  let htmlOrText = ''
 
-  // 1. Спроба через Jina Reader
-  try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 7000)
+  // Спроба зчитати Google Sites через проксі-обхід
+  const proxyEndpoints = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+    `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
+  ]
 
-    const res = await fetch(`https://r.jina.ai/${targetUrl}`, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
-      },
-      signal: controller.signal,
-      next: { revalidate: 0 }
-    })
-
-    clearTimeout(timeoutId)
-
-    if (res.ok) {
-      textContent = await res.text()
-      logs.push(`Контент Art Fine Nation отримано через Jina. Довжина: ${textContent.length} символів`)
-    } else {
-      logs.push(`Jina Reader повернув статус: ${res.status}`)
-    }
-  } catch (e) {
-    logs.push('Jina Reader не відповів вчасно. Перехід на Microlink...')
-  }
-
-  // 2. Резервна спроба через Microlink API (ідеально підходить для Google Sites)
-  if (!textContent) {
+  for (const endpoint of proxyEndpoints) {
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 7000)
+      const timeoutId = setTimeout(() => controller.abort(), 6000)
 
-      const microUrl = `https://api.microlink.io?url=${encodeURIComponent(targetUrl)}&prerender=true`
-      const res = await fetch(microUrl, {
+      const res = await fetch(endpoint, {
         signal: controller.signal,
         next: { revalidate: 0 }
       })
@@ -114,53 +92,58 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
       clearTimeout(timeoutId)
 
       if (res.ok) {
-        const json = await res.json()
-        const title = json.data?.title || ''
-        const description = json.data?.description || ''
-        textContent = `${title}\n${description}`
-        logs.push(`Отримано метадані Google Sites через Microlink`)
+        htmlOrText = await res.text()
+        if (htmlOrText.length > 200) {
+          logs.push(`Отримано контент Art Fine Nation через проксі. Довжина: ${htmlOrText.length}`)
+          break
+        }
       }
     } catch (e) {
-      logs.push('Резервний сервіс Microlink не відповів.')
+      // Перехід до наступного дзеркала
     }
   }
 
-  // Парсинг отриманого тексту
-  if (textContent && textContent.length > 50) {
-    const lines = textContent.split('\n').map(l => l.trim()).filter(Boolean)
+  if (htmlOrText && htmlOrText.length > 100) {
+    try {
+      const $ = cheerio.load(htmlOrText)
 
-    lines.forEach((line) => {
-      const isRelevant = /open\s*call|конкурс|виставка|грант|резиденція|митці|художники/i.test(line)
+      $('a, h1, h2, h3, p, div').each((_, element) => {
+        const text = $(element).text().trim().replace(/\s+/g, ' ')
+        const href = $(element).attr('href') || $(element).find('a').attr('href')
 
-      if (isRelevant && line.length >= 15 && line.length <= 250) {
-        const cleanTitle = line
-          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-          .replace(/^#+\s*/, '')
-          .trim()
+        const isRelevant = /open\s*call|конкурс|виставка|грант|резиденція|митці|художники/i.test(text)
 
-        if (!opportunities.some(item => item.title === cleanTitle)) {
-          opportunities.push({
-            source_name: 'Art Fine Nation',
-            title: cleanTitle,
-            link: targetUrl,
-            source_url: targetUrl,
-            type: 'Open Call',
-            deadline: null,
-            country: 'Україна',
-            is_free: true,
-            cost_amount: 0,
-            cost_currency: 'UAH',
-            genres: ['Образотворче мистецтво', 'Живопис'],
-            techniques: [],
-            artist_levels: ['Emerging', 'Mid-Career', 'Established'],
-            age_restrictions: 'None',
-            languages: ['uk'],
-            ukrainians_eligible: true,
-            raw_description: `Опубліковано на платформі Art Fine Nation: ${cleanTitle}`,
-          })
+        if (isRelevant && text.length >= 15 && text.length <= 250) {
+          const fullLink = href 
+            ? (href.startsWith('http') ? href : `${targetUrl}${href.startsWith('/') ? '' : '/'}${href}`)
+            : targetUrl
+
+          if (!opportunities.some(item => item.title === text || item.link === fullLink)) {
+            opportunities.push({
+              source_name: 'Art Fine Nation',
+              title: text,
+              link: fullLink,
+              source_url: fullLink,
+              type: 'Open Call',
+              deadline: null,
+              country: 'Україна',
+              is_free: true,
+              cost_amount: 0,
+              cost_currency: 'UAH',
+              genres: ['Образотворче мистецтво', 'Живопис'],
+              techniques: [],
+              artist_levels: ['Emerging', 'Mid-Career', 'Established'],
+              age_restrictions: 'None',
+              languages: ['uk'],
+              ukrainians_eligible: true,
+              raw_description: `Опубліковано на Art Fine Nation: ${text}`,
+            })
+          }
         }
-      }
-    })
+      })
+    } catch (err) {
+      logs.push('Помилка обробки вмісту Art Fine Nation.')
+    }
   }
 
   return opportunities
@@ -175,14 +158,17 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
   ]
 
   for (const source of sources) {
+    let xml = ''
+
+    // 1. Прямий запит
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 12000)
+      const timeoutId = setTimeout(() => controller.abort(), 8000)
 
       const res = await fetch(source.url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+          'Accept': 'application/rss+xml, application/xml, text/xml, */*'
         },
         signal: controller.signal,
         next: { revalidate: 0 }
@@ -190,43 +176,70 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
 
       clearTimeout(timeoutId)
 
-      if (!res.ok) {
-        console.error(`RSS ${source.name} повернув статус: ${res.status}`)
-        continue
+      if (res.ok) {
+        xml = await res.text()
       }
+    } catch (e) {
+      // Ігноруємо помилку та переходимо до проксі
+    }
 
-      const xml = await res.text()
-      const $ = cheerio.load(xml, { xmlMode: true })
+    // 2. Резервний запит через AllOrigins (якщо Vercel заблоковано)
+    if (!xml) {
+      try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 8000)
 
-      $('item, entry').each((_, element) => {
-        const title = $(element).find('title').text().trim()
-        const link = $(element).find('link').attr('href') || $(element).find('link').text().trim()
-        const description = $(element).find('description, summary, content').text().replace(/<[^>]+>/g, '').trim()
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(source.url)}`
+        const res = await fetch(proxyUrl, {
+          signal: controller.signal,
+          next: { revalidate: 0 }
+        })
 
-        if (title && link) {
-          opportunities.push({
-            source_name: source.name,
-            title: title.substring(0, 150),
-            link: link,
-            source_url: link,
-            type: 'Open Call',
-            deadline: null,
-            country: 'International',
-            is_free: true,
-            cost_amount: 0,
-            cost_currency: 'EUR',
-            genres: ['Visual Art', 'Painting'],
-            techniques: [],
-            artist_levels: ['Emerging', 'Mid-Career'],
-            age_restrictions: 'None',
-            languages: ['en'],
-            ukrainians_eligible: true,
-            raw_description: description.substring(0, 500) || title,
-          })
+        clearTimeout(timeoutId)
+
+        if (res.ok) {
+          xml = await res.text()
         }
-      })
-    } catch (err: any) {
-      console.error(`Помилка RSS ${source.name}: ${err.message}`)
+      } catch (e) {
+        console.error(`Не вдалося завантажити RSS ${source.name}`)
+      }
+    }
+
+    // Обробка XML
+    if (xml && xml.length > 50) {
+      try {
+        const $ = cheerio.load(xml, { xmlMode: true })
+
+        $('item, entry').each((_, element) => {
+          const title = $(element).find('title').text().trim()
+          const link = $(element).find('link').attr('href') || $(element).find('link').text().trim()
+          const description = $(element).find('description, summary, content').text().replace(/<[^>]+>/g, '').trim()
+
+          if (title && link) {
+            opportunities.push({
+              source_name: source.name,
+              title: title.substring(0, 150),
+              link: link,
+              source_url: link,
+              type: 'Open Call',
+              deadline: null,
+              country: 'International',
+              is_free: true,
+              cost_amount: 0,
+              cost_currency: 'EUR',
+              genres: ['Visual Art', 'Painting'],
+              techniques: [],
+              artist_levels: ['Emerging', 'Mid-Career'],
+              age_restrictions: 'None',
+              languages: ['en'],
+              ukrainians_eligible: true,
+              raw_description: description.substring(0, 500) || title,
+            })
+          }
+        })
+      } catch (err) {
+        console.error(`Помилка парсингу XML для ${source.name}`)
+      }
     }
   }
 
