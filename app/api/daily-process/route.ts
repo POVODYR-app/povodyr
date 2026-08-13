@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchFromApprovedSources } from '@/lib/parser';
+import { fetchFromApprovedSources } from '../../../lib/parser';
 
 export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
