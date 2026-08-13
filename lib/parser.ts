@@ -75,40 +75,15 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
 
   let html = ''
 
-  // Спроба 1: Прямий швидкий запит (без ScraperAPI)
-  try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 8000)
-
-    const response = await fetch(targetUrl, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-      },
-      signal: controller.signal,
-      next: { revalidate: 0 }
-    })
-
-    clearTimeout(timeoutId)
-
-    if (response.ok) {
-      html = await response.text()
-      logs.push(`Art Fine Nation HTML отримано через прямий запит. Довжина: ${html.length} символів`)
-    }
-  } catch (err) {
-    logs.push('Прямий запит до Art Fine Nation не вдався або вичерпав тайм-аут. Перехід на ScraperAPI...')
-  }
-
-  // Спроба 2: Якщо прямий запит не вдався, використовуємо ScraperAPI
-  if (!html) {
+  // 1. Спроба через ScrapingAnt / ScraperAPI / CorsProxy з оптимальними параметрами
+  if (apiKey) {
     try {
-      const apiUrl = apiKey
-        ? `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}`
-        : `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
-
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 20000)
+      // Збільшуємо таймаут лише для ScraperAPI до 25s
+      const timeoutId = setTimeout(() => controller.abort(), 25000)
+
+      // Додаємо country_code=eu або keep_headers для стабілізації
+      const apiUrl = `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}&country_code=eu`
 
       const response = await fetch(apiUrl, {
         method: 'GET',
@@ -120,18 +95,41 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
 
       if (response.ok) {
         html = await response.text()
-        logs.push(`Art Fine Nation HTML отримано через ScraperAPI. Довжина: ${html.length} символів`)
+        logs.push(`Art Fine Nation HTML отримано через ScraperAPI. Довжина: ${html.length}`)
       } else {
         logs.push(`Scraping API повернув статус: ${response.status}`)
       }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error)
-      logs.push(`Помилка Art Fine Nation через Scraping API: ${errorMsg}`)
+    } catch (err: any) {
+      logs.push(`ScraperAPI не відповів вчасно (${err.message}). Перехід на резервний публічний proxy...`)
     }
   }
 
-  // Розбір HTML за допомогою Cheerio
-  if (html) {
+  // 2. Резервний спосіб через публічний CORS-проксі
+  if (!html) {
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+      const fallbackUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
+      const response = await fetch(fallbackUrl, {
+        method: 'GET',
+        signal: controller.signal,
+        next: { revalidate: 0 }
+      })
+
+      clearTimeout(timeoutId)
+
+      if (response.ok) {
+        html = await response.text()
+        logs.push(`Art Fine Nation HTML отримано через резервний проксі. Довжина: ${html.length}`)
+      }
+    } catch (fallbackErr) {
+      logs.push('Не вдалося завантажити HTML Art Fine Nation через резервні канали.')
+    }
+  }
+
+  // 3. Парсинг збереженого HTML
+  if (html && html.length > 500) {
     try {
       const $ = cheerio.load(html)
 
@@ -170,7 +168,7 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
         }
       })
     } catch (parseError) {
-      logs.push(`Помилка парсингу HTML Art Fine Nation: ${parseError}`)
+      logs.push(`Помилка парсингу Cheerio: ${parseError}`)
     }
   }
 
