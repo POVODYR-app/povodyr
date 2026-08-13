@@ -151,7 +151,7 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
     try {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 7000)
-      const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}`
+      const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}&count=50`
 
       const res = await fetch(rss2jsonUrl, {
         signal: controller.signal,
