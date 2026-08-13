@@ -71,46 +71,33 @@ export function buildSearchQueries(year: number = 2026): string[] {
 export async function parseArtFineNationHTML(logs: string[] = []): Promise<ParsedOpportunity[]> {
   const targetUrl = 'https://artfinenation.com'
   const opportunities: ParsedOpportunity[] = []
-  let htmlOrText = ''
+  let textContent = ''
 
-  // Спроба зчитати Google Sites через проксі-обхід
-  const proxyEndpoints = [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-    `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
-  ]
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 6000)
 
-  for (const endpoint of proxyEndpoints) {
-    try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 6000)
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+    const res = await fetch(proxyUrl, {
+      signal: controller.signal,
+      next: { revalidate: 0 }
+    })
 
-      const res = await fetch(endpoint, {
-        signal: controller.signal,
-        next: { revalidate: 0 }
-      })
+    clearTimeout(timeoutId)
 
-      clearTimeout(timeoutId)
-
-      if (res.ok) {
-        htmlOrText = await res.text()
-        if (htmlOrText.length > 200) {
-          logs.push(`Отримано контент Art Fine Nation через проксі. Довжина: ${htmlOrText.length}`)
-          break
-        }
-      }
-    } catch (e) {
-      // Перехід до наступного дзеркала
+    if (res.ok) {
+      textContent = await res.text()
     }
+  } catch (e) {
+    // Ігноруємо якщо не відповідав
   }
 
-  if (htmlOrText && htmlOrText.length > 100) {
+  if (textContent && textContent.length > 100) {
     try {
-      const $ = cheerio.load(htmlOrText)
-
-      $('a, h1, h2, h3, p, div').each((_, element) => {
+      const $ = cheerio.load(textContent)
+      $('a, h1, h2, h3, p').each((_, element) => {
         const text = $(element).text().trim().replace(/\s+/g, ' ')
         const href = $(element).attr('href') || $(element).find('a').attr('href')
-
         const isRelevant = /open\s*call|конкурс|виставка|грант|резиденція|митці|художники/i.test(text)
 
         if (isRelevant && text.length >= 15 && text.length <= 250) {
@@ -142,7 +129,7 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
         }
       })
     } catch (err) {
-      logs.push('Помилка обробки вмісту Art Fine Nation.')
+      // Помилка парсингу
     }
   }
 
@@ -158,18 +145,15 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
   ]
 
   for (const source of sources) {
-    let xml = ''
+    let items: Array<{ title: string; link: string; description: string }> = []
 
-    // 1. Прямий запит
+    // Спосіб 1: rss2json API (Обходить блокування IP Vercel)
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 8000)
+      const timeoutId = setTimeout(() => controller.abort(), 7000)
+      const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}`
 
-      const res = await fetch(source.url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-          'Accept': 'application/rss+xml, application/xml, text/xml, */*'
-        },
+      const res = await fetch(rss2jsonUrl, {
         signal: controller.signal,
         next: { revalidate: 0 }
       })
@@ -177,20 +161,29 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
       clearTimeout(timeoutId)
 
       if (res.ok) {
-        xml = await res.text()
+        const data = await res.json()
+        if (data.status === 'ok' && Array.isArray(data.items)) {
+          items = data.items.map((i: any) => ({
+            title: i.title || '',
+            link: i.link || i.guid || source.url,
+            description: i.description || i.content || ''
+          }))
+        }
       }
     } catch (e) {
-      // Ігноруємо помилку та переходимо до проксі
+      // Перехід на резервний прямий запит
     }
 
-    // 2. Резервний запит через AllOrigins (якщо Vercel заблоковано)
-    if (!xml) {
+    // Спосіб 2: Прямий fetch + Cheerio (якщо rss2json не спрацював)
+    if (items.length === 0) {
       try {
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 8000)
+        const timeoutId = setTimeout(() => controller.abort(), 7000)
 
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(source.url)}`
-        const res = await fetch(proxyUrl, {
+        const res = await fetch(source.url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+          },
           signal: controller.signal,
           next: { revalidate: 0 }
         })
@@ -198,49 +191,49 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
         clearTimeout(timeoutId)
 
         if (res.ok) {
-          xml = await res.text()
+          const xml = await res.text()
+          const $ = cheerio.load(xml, { xmlMode: true })
+
+          $('item, entry').each((_, element) => {
+            const title = $(element).find('title').text().trim()
+            const link = $(element).find('link').attr('href') || $(element).find('link').text().trim()
+            const description = $(element).find('description, summary, content').text().replace(/<[^>]+>/g, '').trim()
+
+            if (title && link) {
+              items.push({ title, link, description })
+            }
+          })
         }
       } catch (e) {
         console.error(`Не вдалося завантажити RSS ${source.name}`)
       }
     }
 
-    // Обробка XML
-    if (xml && xml.length > 50) {
-      try {
-        const $ = cheerio.load(xml, { xmlMode: true })
-
-        $('item, entry').each((_, element) => {
-          const title = $(element).find('title').text().trim()
-          const link = $(element).find('link').attr('href') || $(element).find('link').text().trim()
-          const description = $(element).find('description, summary, content').text().replace(/<[^>]+>/g, '').trim()
-
-          if (title && link) {
-            opportunities.push({
-              source_name: source.name,
-              title: title.substring(0, 150),
-              link: link,
-              source_url: link,
-              type: 'Open Call',
-              deadline: null,
-              country: 'International',
-              is_free: true,
-              cost_amount: 0,
-              cost_currency: 'EUR',
-              genres: ['Visual Art', 'Painting'],
-              techniques: [],
-              artist_levels: ['Emerging', 'Mid-Career'],
-              age_restrictions: 'None',
-              languages: ['en'],
-              ukrainians_eligible: true,
-              raw_description: description.substring(0, 500) || title,
-            })
-          }
+    // Додавання зібраних записів у загальний масив
+    items.forEach(item => {
+      if (item.title && item.link) {
+        const cleanDesc = item.description.replace(/<[^>]+>/g, '').trim()
+        opportunities.push({
+          source_name: source.name,
+          title: item.title.substring(0, 150),
+          link: item.link,
+          source_url: item.link,
+          type: 'Open Call',
+          deadline: null,
+          country: 'International',
+          is_free: true,
+          cost_amount: 0,
+          cost_currency: 'EUR',
+          genres: ['Visual Art', 'Painting'],
+          techniques: [],
+          artist_levels: ['Emerging', 'Mid-Career'],
+          age_restrictions: 'None',
+          languages: ['en'],
+          ukrainians_eligible: true,
+          raw_description: cleanDesc.substring(0, 500) || item.title,
         })
-      } catch (err) {
-        console.error(`Помилка парсингу XML для ${source.name}`)
       }
-    }
+    })
   }
 
   return opportunities
