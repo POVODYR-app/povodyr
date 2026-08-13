@@ -1,22 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export const maxDuration = 300; // 5 хвилин (на Pro можна більше)
+export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
-  // 1. Перевірка секрету (обов'язково!)
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
+
+  // Дозволяємо виклик від Vercel Cron
+  const isVercelCron = request.headers.get('x-vercel-cron') === '1';
 
   if (!cronSecret) {
     console.error('CRON_SECRET is not set');
     return NextResponse.json(
-      { success: false, error: 'Server misconfiguration' },
+      { success: false, error: 'Server misconfiguration: CRON_SECRET missing' },
       { status: 500 }
     );
   }
 
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  const isAuthorized =
+    authHeader === `Bearer ${cronSecret}` || isVercelCron;
+
+  if (!isAuthorized) {
     return NextResponse.json(
       { success: false, error: 'Unauthorized' },
       { status: 401 }
@@ -24,16 +29,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Тут поки що просто заглушка.
-    // На наступних кроках ми додамо реальний пайплайн.
     console.log('Daily process started at', new Date().toISOString());
-
-    // TODO: тут буде виклик runFullIngestPipeline()
 
     return NextResponse.json({
       success: true,
       message: 'Daily process endpoint is ready',
       timestamp: new Date().toISOString(),
+      triggeredBy: isVercelCron ? 'vercel-cron' : 'manual',
     });
   } catch (error) {
     console.error('Daily process failed:', error);
