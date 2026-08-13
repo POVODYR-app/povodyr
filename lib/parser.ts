@@ -72,16 +72,16 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
   const targetUrl = 'https://artfinenation.com'
   const apiKey = process.env.SCRAPER_API_KEY
 
-  // Якщо ключ ScraperAPI додано, використовуємо його, інакше падаємо на corsproxy
+  // Прибрано render=true для швидкого отримання HTML за 1-3 секунди
   const apiUrl = apiKey
-    ? `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}&render=true`
+    ? `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}`
     : `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
 
   const opportunities: ParsedOpportunity[] = []
 
   try {
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 20000)
+    const timeoutId = setTimeout(() => controller.abort(), 12000)
 
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -93,7 +93,7 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
 
     if (response.ok) {
       const html = await response.text()
-      logs.push(`Art Fine Nation HTML отримано через Scraping API. Довжина: ${html.length} символів`)
+      logs.push(`Art Fine Nation HTML отримано. Довжина: ${html.length} символів`)
 
       const $ = cheerio.load(html)
 
