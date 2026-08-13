@@ -73,13 +73,23 @@ export async function parseArtFineNationHTML(): Promise<ParsedOpportunity[]> {
   const opportunities: ParsedOpportunity[] = []
 
   try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 12000)
+
     const response = await fetch(targetUrl, {
+      method: 'GET',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
       },
+      signal: controller.signal,
       next: { revalidate: 0 }
     })
+
+    clearTimeout(timeoutId)
 
     if (response.ok) {
       const html = await response.text()
@@ -137,10 +147,19 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
 
   for (const source of sources) {
     try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000)
+
       const res = await fetch(source.url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; POVODYR/1.0)' },
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'application/rss+xml, application/xml, text/xml, */*'
+        },
+        signal: controller.signal,
         next: { revalidate: 0 }
       })
+
+      clearTimeout(timeoutId)
 
       if (!res.ok) continue
 
