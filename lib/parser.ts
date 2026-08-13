@@ -70,13 +70,13 @@ export function buildSearchQueries(year: number = 2026): string[] {
 
 export async function parseArtFineNationHTML(): Promise<ParsedOpportunity[]> {
   const targetUrl = 'https://artfinenation.com'
-  // Запит спрямовується через проксі-сервіс для обходу блокування IP-адрес
-  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+  // Використовуємо corsproxy.io для швидкого отримання HTML без затримок
+  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
   const opportunities: ParsedOpportunity[] = []
 
   try {
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 15000)
+    const timeoutId = setTimeout(() => controller.abort(), 12000)
 
     const response = await fetch(proxyUrl, {
       method: 'GET',
@@ -126,7 +126,7 @@ export async function parseArtFineNationHTML(): Promise<ParsedOpportunity[]> {
       })
     }
   } catch (error) {
-    console.error('Помилка виконання parseArtFineNationHTML через проксі:', error)
+    console.error('Помилка виконання parseArtFineNationHTML:', error)
   }
 
   return opportunities
