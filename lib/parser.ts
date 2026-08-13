@@ -70,14 +70,20 @@ export function buildSearchQueries(year: number = 2026): string[] {
 
 export async function parseArtFineNationHTML(logs: string[] = []): Promise<ParsedOpportunity[]> {
   const targetUrl = 'https://artfinenation.com'
-  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
+  const apiKey = process.env.SCRAPER_API_KEY
+
+  // Якщо ключ ScraperAPI додано, використовуємо його, інакше падаємо на corsproxy
+  const apiUrl = apiKey
+    ? `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}&render=true`
+    : `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
+
   const opportunities: ParsedOpportunity[] = []
 
   try {
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 12000)
+    const timeoutId = setTimeout(() => controller.abort(), 20000)
 
-    const response = await fetch(proxyUrl, {
+    const response = await fetch(apiUrl, {
       method: 'GET',
       signal: controller.signal,
       next: { revalidate: 0 }
@@ -87,7 +93,7 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
 
     if (response.ok) {
       const html = await response.text()
-      logs.push(`Art Fine Nation HTML отримано. Довжина: ${html.length} символів`)
+      logs.push(`Art Fine Nation HTML отримано через Scraping API. Довжина: ${html.length} символів`)
 
       const $ = cheerio.load(html)
 
@@ -126,11 +132,11 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
         }
       })
     } else {
-      logs.push(`Art Fine Nation проксі повернув статус: ${response.status}`)
+      logs.push(`Scraping API повернув статус: ${response.status}`)
     }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
-    logs.push(`Помилка Art Fine Nation HTML: ${errorMsg}`)
+    logs.push(`Помилка Art Fine Nation через Scraping API: ${errorMsg}`)
   }
 
   return opportunities
