@@ -68,68 +68,67 @@ export function buildSearchQueries(year: number = 2026): string[] {
   return queries
 }
 
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: number = 6000): Promise<Response> {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      next: { revalidate: 0 }
+    })
+    clearTimeout(id)
+    return response
+  } catch (err) {
+    clearTimeout(id)
+    throw err
+  }
+}
+
 export async function parseArtFineNationHTML(logs: string[] = []): Promise<ParsedOpportunity[]> {
   const targetUrl = 'https://artfinenation.com'
-  const apiKey = process.env.SCRAPER_API_KEY
   const opportunities: ParsedOpportunity[] = []
 
   let html = ''
 
-  // 1. Спроба через ScrapingAnt / ScraperAPI / CorsProxy з оптимальними параметрами
-  if (apiKey) {
+  // Допоміжна функція зі строгим таймаутом
+  const fetchWithTimeout = async (url: string, timeoutMs = 4000) => {
+    const controller = new AbortController()
+    const id = setTimeout(() => controller.abort(), timeoutMs)
     try {
-      const controller = new AbortController()
-      // Збільшуємо таймаут лише для ScraperAPI до 25s
-      const timeoutId = setTimeout(() => controller.abort(), 25000)
-
-      // Додаємо country_code=eu або keep_headers для стабілізації
-      const apiUrl = `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}&country_code=eu`
-
-      const response = await fetch(apiUrl, {
-        method: 'GET',
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
+        },
         signal: controller.signal,
         next: { revalidate: 0 }
       })
-
-      clearTimeout(timeoutId)
-
-      if (response.ok) {
-        html = await response.text()
-        logs.push(`Art Fine Nation HTML отримано через ScraperAPI. Довжина: ${html.length}`)
-      } else {
-        logs.push(`Scraping API повернув статус: ${response.status}`)
-      }
-    } catch (err: any) {
-      logs.push(`ScraperAPI не відповів вчасно (${err.message}). Перехід на резервний публічний proxy...`)
+      clearTimeout(id)
+      if (!res.ok) throw new Error(`Status ${res.status}`)
+      return await res.text()
+    } catch (e) {
+      clearTimeout(id)
+      throw e
     }
   }
 
-  // 2. Резервний спосіб через публічний CORS-проксі
-  if (!html) {
-    try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 8000)
-
-      const fallbackUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
-      const response = await fetch(fallbackUrl, {
-        method: 'GET',
-        signal: controller.signal,
-        next: { revalidate: 0 }
-      })
-
-      clearTimeout(timeoutId)
-
-      if (response.ok) {
-        html = await response.text()
-        logs.push(`Art Fine Nation HTML отримано через резервний проксі. Довжина: ${html.length}`)
-      }
-    } catch (fallbackErr) {
-      logs.push('Не вдалося завантажити HTML Art Fine Nation через резервні канали.')
-    }
+  // Паралельний запуск через кілька швидких каналів
+  try {
+    html = await Promise.any([
+      // Канал 1: Прямий запит
+      fetchWithTimeout(targetUrl, 3500),
+      // Канал 2: Швидкий публічний проксі AllOrigins
+      fetchWithTimeout(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, 4000),
+      // Канал 3: Jina Reader (обходить Cloudflare)
+      fetchWithTimeout(`https://r.jina.ai/${targetUrl}`, 4500)
+    ])
+    logs.push(`Art Fine Nation HTML отримано. Довжина: ${html.length} символів`)
+  } catch (err) {
+    logs.push('Art Fine Nation не відповів протягом 4.5s. Пропущено для збереження швидкості.')
   }
 
-  // 3. Парсинг збереженого HTML
-  if (html && html.length > 500) {
+  // Розбір отриманого контенту через Cheerio
+  if (html && html.length > 200) {
     try {
       const $ = cheerio.load(html)
 
@@ -168,13 +167,12 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
         }
       })
     } catch (parseError) {
-      logs.push(`Помилка парсингу Cheerio: ${parseError}`)
+      logs.push(`Помилка аналізу HTML: ${parseError}`)
     }
   }
 
   return opportunities
 }
-
 export async function parseRssSources(): Promise<ParsedOpportunity[]> {
   const opportunities: ParsedOpportunity[] = []
   const sources = [
