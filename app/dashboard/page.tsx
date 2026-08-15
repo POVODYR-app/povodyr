@@ -8,13 +8,20 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-interface Notification {
+interface Opportunity {
   id: string
   title: string
-  message?: string | null
-  is_read: boolean
+  description?: string | null
   created_at: string
+  deadline?: string | null
   link_url?: string | null
+  url?: string | null
+  country?: string | null
+  techniques?: any
+  cost_amount?: number | string
+  fee_amount?: number | string
+  org_fee?: number | string
+  is_free?: boolean
 }
 
 interface UserProfile {
@@ -44,13 +51,12 @@ function parseArrayField(raw: unknown): string[] {
 export default function DashboardPage() {
   const [userName, setUserName] = useState<string>('')
   const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [unreadCount, setUnreadCount] = useState<number>(0)
-  const [showInstallBanner, setShowInstallBanner] = useState<boolean>(false)
-  const [showNotifications, setShowNotifications] = useState<boolean>(false)
   
-  const [totalOpportunities, setTotalOpportunities] = useState<number>(0)
-  const [matchedCount, setMatchedCount] = useState<number>(0)
+  const [showInstallBanner, setShowInstallBanner] = useState<boolean>(false)
+  const [showModal, setShowModal] = useState<boolean>(false)
+
+  const [matchedOpportunities, setMatchedOpportunities] = useState<Opportunity[]>([])
+  const [totalOpportunitiesCount, setTotalOpportunitiesCount] = useState<number>(0)
 
   useEffect(() => {
     let isMounted = true
@@ -72,22 +78,19 @@ export default function DashboardPage() {
         .eq('id', user.id)
         .maybeSingle()
 
+      const todayStr = new Date().toISOString().split('T')[0]
+
       const opportunitiesPromise = supabase
         .from('opportunities')
         .select('*')
         .eq('is_active', true)
-
-      const notificationsPromise = supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
+        .or(`deadline.gte.${todayStr},deadline.is.null`)
         .order('created_at', { ascending: false })
 
       const [
         { data: profile },
-        { data: opportunities },
-        { data: notifs }
-      ] = await Promise.all([profilePromise, opportunitiesPromise, notificationsPromise])
+        { data: opportunities }
+      ] = await Promise.all([profilePromise, opportunitiesPromise])
 
       if (!isMounted) return
 
@@ -102,8 +105,8 @@ export default function DashboardPage() {
         telegram_chat_id: userProfile?.telegram_chat_id || null,
       })
 
-      const allOpps = opportunities || []
-      setTotalOpportunities(allOpps.length)
+      const allOpps = (opportunities || []) as Opportunity[]
+      setTotalOpportunitiesCount(allOpps.length)
 
       if (userProfile) {
         const userCountries = parseArrayField(userProfile.search_countries)
@@ -133,13 +136,9 @@ export default function DashboardPage() {
           return true
         })
 
-        setMatchedCount(matched.length)
-      }
-
-      if (notifs) {
-        const typedNotifs = notifs as Notification[]
-        setNotifications(typedNotifs)
-        setUnreadCount(typedNotifs.filter(n => !n.is_read).length)
+        setMatchedOpportunities(matched)
+      } else {
+        setMatchedOpportunities(allOpps)
       }
     }
 
@@ -155,23 +154,13 @@ export default function DashboardPage() {
     localStorage.setItem('povodyr_install_banner_closed', 'true')
   }
 
-  const markAsRead = async (id: string) => {
-    const target = notifications.find(n => n.id === id)
-    if (target && !target.is_read) {
-      setNotifications(prev =>
-        prev.map(n => (n.id === id ? { ...n, is_read: true } : n))
-      )
-      setUnreadCount(prev => Math.max(0, prev - 1))
-      await supabase.from('notifications').update({ is_read: true }).eq('id', id)
-    }
-  }
-
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return ''
     const d = new Date(dateString)
     return isNaN(d.getTime()) ? '' : d.toLocaleDateString('uk-UA')
   }
 
-  const formatMessageHtml = (msg: string) => {
+  const formatMessageHtml = (msg?: string | null) => {
     if (!msg) return ''
     return msg.replace(
       /<a /g,
@@ -259,7 +248,7 @@ export default function DashboardPage() {
 
           <div style={{ display: 'flex', gap: 8 }}>
             <button
-              onClick={() => setShowNotifications(true)}
+              onClick={() => setShowModal(true)}
               style={{
                 position: 'relative',
                 backgroundColor: '#1e293b',
@@ -272,7 +261,7 @@ export default function DashboardPage() {
               }}
             >
               🔔
-              {unreadCount > 0 && (
+              {matchedOpportunities.length > 0 && (
                 <span style={{
                   position: 'absolute',
                   top: -4,
@@ -288,7 +277,7 @@ export default function DashboardPage() {
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}>
-                  {unreadCount}
+                  {matchedOpportunities.length}
                 </span>
               )}
             </button>
@@ -313,10 +302,10 @@ export default function DashboardPage() {
         {userObj && <TelegramConnect user={userObj} />}
 
         <div 
-          onClick={() => setShowNotifications(true)}
+          onClick={() => setShowModal(true)}
           style={{
-            backgroundColor: matchedCount > 0 ? '#1e3a8a' : '#1e293b',
-            border: matchedCount > 0 ? '1px solid #3b82f6' : '1px solid #334155',
+            backgroundColor: matchedOpportunities.length > 0 ? '#1e3a8a' : '#1e293b',
+            border: matchedOpportunities.length > 0 ? '1px solid #3b82f6' : '1px solid #334155',
             borderRadius: 16,
             padding: 16,
             marginBottom: 20,
@@ -325,21 +314,21 @@ export default function DashboardPage() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 24 }}>🔍</span>
-            <p style={{ margin: 0, fontSize: 15, color: matchedCount > 0 ? '#ffffff' : '#cbd5e1' }}>
-              {matchedCount > 0
-                ? `Знайдено ${matchedCount} нових можливостей під ваш профіль!`
+            <p style={{ margin: 0, fontSize: 15, color: matchedOpportunities.length > 0 ? '#ffffff' : '#cbd5e1' }}>
+              {matchedOpportunities.length > 0
+                ? `Знайдено ${matchedOpportunities.length} актуальних можливостей під ваш профіль!`
                 : 'Сьогодні нових можливостей немає. Пошук триває.'}
             </p>
           </div>
         </div>
 
         <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 20 }}>
-          Усього знайдено матеріалів у базі: {totalOpportunities}
+          Усього актуальних матеріалів у базі: {totalOpportunitiesCount}
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <button
-            onClick={() => setShowNotifications(true)}
+            onClick={() => setShowModal(true)}
             style={{
               width: '100%',
               padding: 14,
@@ -352,7 +341,7 @@ export default function DashboardPage() {
               cursor: 'pointer'
             }}
           >
-            📋 Центр можливостей ({totalOpportunities})
+            📋 Центр можливостей ({matchedOpportunities.length})
           </button>
 
           <a
@@ -415,7 +404,7 @@ export default function DashboardPage() {
 
       </div>
 
-      {showNotifications && (
+      {showModal && (
         <div style={{
           position: 'fixed',
           inset: 0,
@@ -430,8 +419,8 @@ export default function DashboardPage() {
             backgroundColor: '#1e293b',
             borderRadius: 16,
             width: '100%',
-            maxWidth: 400,
-            maxHeight: '80vh',
+            maxWidth: 420,
+            maxHeight: '85vh',
             display: 'flex',
             flexDirection: 'column',
             border: '1px solid #334155'
@@ -443,9 +432,9 @@ export default function DashboardPage() {
               padding: 16,
               borderBottom: '1px solid #334155'
             }}>
-              <h2 style={{ margin: 0, fontSize: 18 }}>Знайдені можливості</h2>
+              <h2 style={{ margin: 0, fontSize: 18 }}>Знайдені можливості ({matchedOpportunities.length})</h2>
               <button
-                onClick={() => setShowNotifications(false)}
+                onClick={() => setShowModal(false)}
                 style={{
                   background: 'transparent',
                   border: 'none',
@@ -459,61 +448,66 @@ export default function DashboardPage() {
             </div>
 
             <div style={{ overflowY: 'auto', padding: 16, flex: 1 }}>
-              {notifications.length === 0 ? (
+              {matchedOpportunities.length === 0 ? (
                 <p style={{ textAlign: 'center', color: '#94a3b8', padding: 20 }}>
-                  Поки немає збережених можливостей.
+                  Немає актуальних можливостей під обрані параметри.
                 </p>
               ) : (
-                notifications.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => markAsRead(item.id)}
-                    style={{
-                      backgroundColor: item.is_read ? '#0f172a' : '#1e293b',
-                      border: item.is_read ? '1px solid #1e293b' : '1px solid #3b82f6',
-                      borderRadius: 12,
-                      padding: 14,
-                      marginBottom: 12,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <h3 style={{ margin: '0 0 6px 0', fontSize: 14, fontWeight: 600 }}>
-                      {item.title}
-                    </h3>
-                    {item.message && (
-                      <div 
-                        style={{ 
-                          margin: '0 0 8px 0', 
-                          fontSize: 13, 
-                          color: '#cbd5e1',
-                          whiteSpace: 'pre-line',
-                          lineHeight: 1.5
-                        }}
-                        dangerouslySetInnerHTML={{ __html: formatMessageHtml(item.message) }}
-                      />
-                    )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b' }}>
-                      <span>{formatDate(item.created_at)}</span>
-                      {item.link_url && (
-                        <a
-                          href={item.link_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ color: '#60a5fa', textDecoration: 'underline' }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          Детальніше →
-                        </a>
+                matchedOpportunities.map((item) => {
+                  const targetUrl = item.link_url || item.url
+                  return (
+                    <div
+                      key={item.id}
+                      style={{
+                        backgroundColor: '#0f172a',
+                        border: '1px solid #334155',
+                        borderRadius: 12,
+                        padding: 14,
+                        marginBottom: 12
+                      }}
+                    >
+                      <h3 style={{ margin: '0 0 6px 0', fontSize: 15, fontWeight: 600, color: '#f8fafc' }}>
+                        {item.title}
+                      </h3>
+                      
+                      {item.description && (
+                        <div 
+                          style={{ 
+                            margin: '0 0 10px 0', 
+                            fontSize: 13, 
+                            color: '#cbd5e1',
+                            whiteSpace: 'pre-line',
+                            lineHeight: 1.5
+                          }}
+                          dangerouslySetInnerHTML={{ __html: formatMessageHtml(item.description) }}
+                        />
                       )}
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: '#64748b' }}>
+                        <span>
+                          {item.deadline ? `Дедлайн: ${formatDate(item.deadline)}` : formatDate(item.created_at)}
+                        </span>
+                        
+                        {targetUrl && !targetUrl.includes('/dashboard') ? (
+                          <a
+                            href={targetUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: '#60a5fa', textDecoration: 'underline', fontWeight: 600 }}
+                          >
+                            Детальніше →
+                          </a>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
 
             <div style={{ padding: 16, borderTop: '1px solid #334155' }}>
               <button
-                onClick={() => setShowNotifications(false)}
+                onClick={() => setShowModal(false)}
                 style={{
                   width: '100%',
                   padding: 12,
