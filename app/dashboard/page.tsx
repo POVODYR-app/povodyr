@@ -422,7 +422,7 @@ export default function DashboardPage() {
           backgroundColor: 'rgba(0,0,0,0.7)',
           display: 'flex',
           alignItems: 'center',
-          justify: 'center',
+          justifyContent: 'center',
           padding: 16,
           zIndex: 50
         }}>
