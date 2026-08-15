@@ -1,13 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 
-interface NotificationItem {
+export interface NotificationItem {
   id: string;
   title: string;
   message: string;
   created_at: string;
   link_url?: string;
+  url?: string;
+  link?: string;
   is_read?: boolean;
 }
 
@@ -16,6 +18,7 @@ interface NotificationsModalProps {
   onClose: () => void;
   notifications: NotificationItem[];
   onSelectNotification?: (item: NotificationItem) => void;
+  title?: string; // Можливість кастомізувати заголовок (наприклад, для Центру можливостей)
 }
 
 export default function NotificationsModal({
@@ -23,7 +26,20 @@ export default function NotificationsModal({
   onClose,
   notifications,
   onSelectNotification,
+  title = 'Знайдені можливості',
 }: NotificationsModalProps) {
+  // Блокування скролу фонової сторінки для Safari iOS при відкритій модалці
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const formatDate = (dateString: string) => {
@@ -42,12 +58,13 @@ export default function NotificationsModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
       <div className="relative w-full max-w-lg rounded-2xl bg-[#1a1d2d] border border-slate-700 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-        {/* Заголовок модального вікна */}
+        {/* Шапка модального вікна */}
         <div className="flex items-center justify-between p-5 border-b border-slate-800">
-          <h2 className="text-xl font-bold text-white">Знайдені можливості</h2>
+          <h2 className="text-xl font-bold text-white">{title} ({notifications?.length || 0})</h2>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-slate-800"
+            style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
             aria-label="Закрити"
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -56,49 +73,69 @@ export default function NotificationsModal({
           </button>
         </div>
 
-        {/* Список сповіщень */}
-        <div className="p-5 overflow-y-auto space-y-4 flex-1">
+        {/* Список сповіщень із підтримкою плавної прокрутки Safari */}
+        <div 
+          className="p-5 overflow-y-auto space-y-4 flex-1"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
           {notifications && notifications.length > 0 ? (
-            notifications.map((item) => (
-              <div
-                key={item.id}
-                className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 hover:border-blue-500/50 transition-all"
-              >
-                <h3 className="font-bold text-white mb-2 text-base">{item.title}</h3>
-                
-                {/* Клас whitespace-pre-line забезпечує охайний вивід списку з переносами \n */}
-                <p className="text-sm text-slate-300 whitespace-pre-line leading-relaxed mb-3">
-                  {item.message}
-                </p>
+            notifications.map((item) => {
+              // Перевірка всіх можливих варіантів ключа з посиланням
+              const targetUrl = item.link_url || item.url || item.link;
 
-                <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-700/40">
-                  <span>{formatDate(item.created_at)}</span>
-                  {item.link_url && (
-                    <a
-                      href={item.link_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => onSelectNotification && onSelectNotification(item)}
-                      className="text-blue-400 hover:text-blue-300 font-medium inline-flex items-center gap-1"
-                    >
-                      Детальніше &rarr;
-                    </a>
-                  )}
+              const CardContent = (
+                <div className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 hover:border-blue-500/50 transition-all active:bg-slate-800/90">
+                  <h3 className="font-bold text-white mb-2 text-base">{item.title}</h3>
+                  
+                  <p className="text-sm text-slate-300 whitespace-pre-line leading-relaxed mb-3">
+                    {item.message}
+                  </p>
+
+                  <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-700/40">
+                    <span>{formatDate(item.created_at)}</span>
+                    {targetUrl ? (
+                      <span className="text-blue-400 font-medium inline-flex items-center gap-1 group-hover:underline">
+                        Перейти &rarr;
+                      </span>
+                    ) : (
+                      <span className="text-slate-500 italic">Немає посилання</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+
+              // Якщо є посилання — робимо ВСЮ картку клікабельним тегом <a> для Safari iOS
+              if (targetUrl) {
+                return (
+                  <a
+                    key={item.id}
+                    href={targetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => onSelectNotification && onSelectNotification(item)}
+                    className="block group no-underline"
+                    style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    {CardContent}
+                  </a>
+                );
+              }
+
+              return <div key={item.id}>{CardContent}</div>;
+            })
           ) : (
             <div className="text-center py-8 text-slate-400">
-              Немає сповіщень
+              Немає доступних можливостей
             </div>
           )}
         </div>
 
-        {/* Футер з кнопкою закриття */}
+        {/* Футер */}
         <div className="p-4 border-t border-slate-800 bg-[#161826] text-center">
           <button
             onClick={onClose}
-            className="w-full py-2.5 px-4 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-xl transition-colors"
+            className="w-full py-2.5 px-4 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-xl transition-colors active:scale-[0.98]"
+            style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
           >
             Закрити
           </button>
