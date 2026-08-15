@@ -32,6 +32,12 @@ function parseArrayField(raw: any): string[] {
   return [];
 }
 
+// Перевірка URL на наявність застарілих років у шляху
+function isArchivedUrl(url: string): boolean {
+  if (!url) return false;
+  return /\/(19\d\d|20[0-1]\d|202[0-4])\//.test(url);
+}
+
 async function sendTelegramMessage(chatId: string | number, text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token || !chatId) return false;
@@ -54,7 +60,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 1. Отримуємо активних користувачів
     const { data: users, error: usersError } = await supabase
       .from('profiles')
       .select('*')
@@ -64,30 +69,33 @@ export async function GET(request: NextRequest) {
     if (usersError) return NextResponse.json({ success: false, error: usersError.message }, { status: 500 });
     if (!users || users.length === 0) return NextResponse.json({ success: true, message: 'Немає користувачів для розсилки', sent: 0 });
 
-    // 2. Отримуємо тільки актуальні можливості (створені від 2025 року та пізніше)
     const { data: opportunities, error: oppError } = await supabase
       .from('opportunities')
       .select('*')
-      .gte('created_at', '2025-01-01T00:00:00Z')
       .order('created_at', { ascending: false })
       .limit(100);
 
     if (oppError) return NextResponse.json({ success: false, error: oppError.message }, { status: 500 });
 
-    // Стоп-слова для фільтрації інформаційного сміття / новин
     const ignoreKeywords = ['anniversary', 'celebrates', 'joined us', 'annual meeting', 'report', 're-cap', 'happy birthday'];
 
-    // Фільтрація валідних пропозицій
+    // Сувора фільтрація актуальності
     const validOpps = (opportunities || []).filter(opp => {
       const titleLower = String(opp.title || '').toLowerCase();
-      // Перевірка на стоп-слова
+      const linkUrl = String(opp.link || opp.source_url || '');
+
+      // 1. Відсікаємо застарілі URL із роками до 2025
+      if (isArchivedUrl(linkUrl)) return false;
+
+      // 2. Відсікаємо новинні заголовки
       if (ignoreKeywords.some(kw => titleLower.includes(kw))) return false;
       
-      // Перевірка дедлайну, якщо він вказаний
+      // 3. Перевірка дедлайну
       if (opp.deadline) {
         const deadlineDate = new Date(opp.deadline);
         if (!isNaN(deadlineDate.getTime()) && deadlineDate < new Date()) return false;
       }
+
       return true;
     });
 
@@ -102,7 +110,6 @@ export async function GET(request: NextRequest) {
       const regFeeMax = Number(user.reg_fee_max) || 0;
 
       const matchedOpps = validOpps.filter(opp => {
-        // Країна
         if (userCountries.length > 0 && opp.country && String(opp.country).trim() !== '') {
           const oppCountry = String(opp.country).toLowerCase();
           const countryMatch = userCountries.some(c => oppCountry.includes(c) || c.includes(oppCountry));
@@ -110,7 +117,6 @@ export async function GET(request: NextRequest) {
           if (!countryMatch && !isGlobal) return false;
         }
 
-        // Техніки
         if (userTechniques.length > 0 && opp.techniques) {
           const oppTechs = parseArrayField(opp.techniques);
           if (oppTechs.length > 0) {
@@ -119,7 +125,6 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // Внески
         if (opp.org_fee && Number(opp.org_fee) > orgFeeMax && orgFeeMax > 0) return false;
         if (opp.reg_fee && Number(opp.reg_fee) > regFeeMax && regFeeMax > 0) return false;
 
@@ -138,9 +143,9 @@ export async function GET(request: NextRequest) {
           .map(o => `• <a href="${o.link || o.source_url || 'https://povodyr.vercel.app/dashboard'}">${o.title || 'Мистецька можливість'}</a> (${o.country || 'Міжнародна'})`)
           .join('\n\n');
 
-        const moreCountText = matchedOpps.length > 5 ? `\n<i>...та ще ${matchedOpps.length - 5} у кабінеті</i>\n` : '';
+        const moreText = matchedOpps.length > 5 ? `\n<i>...та ще ${matchedOpps.length - 5} у кабінеті</i>\n` : '';
 
-        textMessage = `Привіт${userName ? ', ' + userName : ''}!\n\nЗнайдено <b>${matchedOpps.length}</b> актуальних можливостей під ваш профіль:\n\n${telegramList}\n${moreCountText}\n<a href="https://povodyr.vercel.app/dashboard">Переглянути всі в особистому кабінеті</a>`;
+        textMessage = `Привіт${userName ? ', ' + userName : ''}!\n\nЗнайдено <b>${matchedOpps.length}</b> актуальних можливостей під ваш профіль:\n\n${telegramList}\n${moreText}\n<a href="https://povodyr.vercel.app/dashboard">Переглянути всі в особистому кабінеті</a>`;
 
         const htmlItems = displayOpps
           .map(o => `<li><a href="${o.link || o.source_url || 'https://povodyr.vercel.app/dashboard'}"><strong>${o.title || 'Мистецька можливість'}</strong></a> (${o.country || 'Міжнародна'})</li>`)
