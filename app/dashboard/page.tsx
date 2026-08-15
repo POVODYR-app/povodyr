@@ -65,7 +65,6 @@ export default function DashboardPage() {
   
   const [showInstallBanner, setShowInstallBanner] = useState<boolean>(false)
 
-  // Окремі стани для модальних вікон
   const [activeModal, setActiveModal] = useState<'bell' | 'center' | null>(null)
 
   const [matchedOpportunities, setMatchedOpportunities] = useState<Opportunity[]>([])
@@ -181,10 +180,8 @@ export default function DashboardPage() {
     )
   }
 
-  // Останні 5 сповіщень для Дзвіночка
   const recentNotifications = matchedOpportunities.slice(0, 5)
 
-  // Список для модального вікна залежно від обраного режиму
   const modalData = activeModal === 'bell' ? recentNotifications : matchedOpportunities
   const modalTitle = activeModal === 'bell' ? 'Останні сповіщення' : `Центр можливостей (${matchedOpportunities.length})`
 
@@ -258,7 +255,7 @@ export default function DashboardPage() {
 
         <div style={{
           display: 'flex',
-          justify: 'space-between',
+          justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: 24
         }}>
@@ -447,7 +444,7 @@ export default function DashboardPage() {
           }}>
             <div style={{
               display: 'flex',
-              justify: 'space-between',
+              justifyContent: 'space-between',
               alignItems: 'center',
               padding: 16,
               borderBottom: '1px solid #334155'
