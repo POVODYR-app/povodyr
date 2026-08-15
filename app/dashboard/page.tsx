@@ -156,17 +156,27 @@ export default function DashboardPage() {
   }
 
   const markAsRead = async (id: string) => {
-    setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, is_read: true } : n))
-    )
-    setUnreadCount(prev => Math.max(0, prev - 1))
-
-    await supabase.from('notifications').update({ is_read: true }).eq('id', id)
+    const target = notifications.find(n => n.id === id)
+    if (target && !target.is_read) {
+      setNotifications(prev =>
+        prev.map(n => (n.id === id ? { ...n, is_read: true } : n))
+      )
+      setUnreadCount(prev => Math.max(0, prev - 1))
+      await supabase.from('notifications').update({ is_read: true }).eq('id', id)
+    }
   }
 
   const formatDate = (dateString: string) => {
     const d = new Date(dateString)
     return isNaN(d.getTime()) ? '' : d.toLocaleDateString('uk-UA')
+  }
+
+  const formatMessageHtml = (msg: string) => {
+    if (!msg) return ''
+    return msg.replace(
+      /<a /g,
+      '<a style="color: #60a5fa; text-decoration: underline;" target="_blank" rel="noopener noreferrer" '
+    )
   }
 
   return (
@@ -239,7 +249,7 @@ export default function DashboardPage() {
 
         <div style={{
           display: 'flex',
-          justify: 'space-between',
+          justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: 24
         }}>
@@ -302,13 +312,17 @@ export default function DashboardPage() {
 
         {userObj && <TelegramConnect user={userObj} />}
 
-        <div style={{
-          backgroundColor: matchedCount > 0 ? '#1e3a8a' : '#1e293b',
-          border: matchedCount > 0 ? '1px solid #3b82f6' : '1px solid #334155',
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 20
-        }}>
+        <div 
+          onClick={() => setShowNotifications(true)}
+          style={{
+            backgroundColor: matchedCount > 0 ? '#1e3a8a' : '#1e293b',
+            border: matchedCount > 0 ? '1px solid #3b82f6' : '1px solid #334155',
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 20,
+            cursor: 'pointer'
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 24 }}>🔍</span>
             <p style={{ margin: 0, fontSize: 15, color: matchedCount > 0 ? '#ffffff' : '#cbd5e1' }}>
@@ -368,7 +382,7 @@ export default function DashboardPage() {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justify: 'center',
+          justifyContent: 'center',
           gap: 12,
           textAlign: 'center'
         }}>
@@ -424,7 +438,7 @@ export default function DashboardPage() {
           }}>
             <div style={{
               display: 'flex',
-              justify: 'space-between',
+              justifyContent: 'space-between',
               alignItems: 'center',
               padding: 16,
               borderBottom: '1px solid #334155'
@@ -467,15 +481,16 @@ export default function DashboardPage() {
                       {item.title}
                     </h3>
                     {item.message && (
-                      <p style={{ 
-                        margin: '0 0 8px 0', 
-                        fontSize: 13, 
-                        color: '#cbd5e1',
-                        whiteSpace: 'pre-line',
-                        lineHeight: 1.5
-                      }}>
-                        {item.message}
-                      </p>
+                      <div 
+                        style={{ 
+                          margin: '0 0 8px 0', 
+                          fontSize: 13, 
+                          color: '#cbd5e1',
+                          whiteSpace: 'pre-line',
+                          lineHeight: 1.5
+                        }}
+                        dangerouslySetInnerHTML={{ __html: formatMessageHtml(item.message) }}
+                      />
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b' }}>
                       <span>{formatDate(item.created_at)}</span>
@@ -484,7 +499,7 @@ export default function DashboardPage() {
                           href={item.link_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          style={{ color: '#60a5fa' }}
+                          style={{ color: '#60a5fa', textDecoration: 'underline' }}
                           onClick={(e) => e.stopPropagation()}
                         >
                           Детальніше →
