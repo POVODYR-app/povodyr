@@ -171,10 +171,10 @@ export default function DashboardPage() {
     )
   }
 
-  // Останні 5 оновлень для Дзвіночка
+  // Останні 5 сповіщень для Дзвіночка
   const recentNotifications = matchedOpportunities.slice(0, 5)
 
-  // Список для модального вікна залежно від обраного типу
+  // Список для модального вікна залежно від обраного режиму
   const modalData = activeModal === 'bell' ? recentNotifications : matchedOpportunities
   const modalTitle = activeModal === 'bell' ? 'Останні сповіщення' : `Центр можливостей (${matchedOpportunities.length})`
 
@@ -247,17 +247,16 @@ export default function DashboardPage() {
         )}
 
         <div style={{
-  display: 'flex',
-  justifyContent: 'space-between', // Змінено justify на justifyContent
-  alignItems: 'center',
-  marginBottom: 24
-}}>
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 24
+        }}>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>
             Вітаємо{userName ? `, ${userName}` : ''}!
           </h1>
 
           <div style={{ display: 'flex', gap: 8 }}>
-            {/* Кнопка Дзвіночок: відкриває лише 5 останніх сповіщень */}
             <button
               onClick={() => setActiveModal('bell')}
               style={{
@@ -286,7 +285,7 @@ export default function DashboardPage() {
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
-                  justify: 'center'
+                  justifyContent: 'center'
                 }}>
                   {recentNotifications.length}
                 </span>
@@ -312,7 +311,6 @@ export default function DashboardPage() {
 
         {userObj && <TelegramConnect user={userObj} />}
 
-        {/* Інформаційна плашка */}
         <div 
           onClick={() => setActiveModal('center')}
           style={{
@@ -339,7 +337,6 @@ export default function DashboardPage() {
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {/* Кнопка Центр можливостей: відкриває весь список під профіль */}
           <button
             onClick={() => setActiveModal('center')}
             style={{
@@ -417,7 +414,6 @@ export default function DashboardPage() {
 
       </div>
 
-      {/* Універсальне модальне вікно */}
       {activeModal && (
         <div style={{
           position: 'fixed',
@@ -441,7 +437,7 @@ export default function DashboardPage() {
           }}>
             <div style={{
               display: 'flex',
-              justify: 'space-between',
+              justifyContent: 'space-between',
               alignItems: 'center',
               padding: 16,
               borderBottom: '1px solid #334155'
