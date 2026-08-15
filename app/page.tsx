@@ -1,24 +1,22 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import NotificationsModal, { NotificationItem } from '@/components/NotificationsModal';
+import NotificationsModal, { NotificationItem } from '../components/NotificationsModal';
+import { supabase } from '../lib/supabase';
 
-export default function DashboardPage() {
+export default function HomePage() {
   const [opportunities, setOpportunities] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Стани модальних вікон
+  // Стани для відкриття модальних вікон
   const [isBellModalOpen, setIsBellModalOpen] = useState(false);
   const [isCenterModalOpen, setIsCenterModalOpen] = useState(false);
-
-  const supabase = createClientComponentClient();
 
   useEffect(() => {
     async function fetchOpportunities() {
       try {
         setLoading(true);
-        // Завантажуємо можливості з Supabase
+        // Завантаження активних можливостей із Supabase
         const { data, error } = await supabase
           .from('opportunities')
           .select('*')
@@ -38,12 +36,12 @@ export default function DashboardPage() {
     }
 
     fetchOpportunities();
-  }, [supabase]);
+  }, []);
 
-  // 1. Свіжі сповіщення для Дзвіночка (перші 5 записів)
+  // 1. Останні 5 сповіщень для Дзвіночка
   const recentNotifications = opportunities.slice(0, 5);
 
-  // 2. Архiв за останні 30 днів для "Центру можливостей"
+  // 2. Історія за останні 30 днів для Центру можливостей
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -53,61 +51,114 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="min-h-screen bg-[#0f111a] text-white p-6 max-w-4xl mx-auto space-y-6">
-      {/* Шапка дашборду */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+    <main style={{ padding: '40px 20px', fontFamily: 'sans-serif', maxWidth: '600px', margin: '0 auto' }}>
+      {/* Верхня панель із Дзвіночком */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', itemsCenter: 'center', marginBottom: '20px' }}>
         <div>
-          <h1 className="text-2xl font-bold">Панель керування</h1>
-          <p className="text-sm text-slate-400">POVODYR — Цифровий асистент</p>
+          <h1 style={{ fontSize: '32px', margin: 0 }}>POVODYR</h1>
+          <p style={{ fontSize: '16px', color: '#666', marginTop: '6px' }}>
+            Цифровий асистент для українських художників.<br />
+            POVODYR бачить можливості. Художник обирає шлях.
+          </p>
         </div>
 
-        {/* Дзвіночок сповіщень */}
+        {/* Кнопка Дзвіночка */}
         <button
           onClick={() => setIsBellModalOpen(true)}
-          className="relative p-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-white transition-colors border border-slate-700"
-          style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+          style={{
+            position: 'relative',
+            padding: '10px 14px',
+            backgroundColor: '#1a1d2d',
+            color: '#fff',
+            border: '1px solid #334155',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            fontSize: '18px',
+            touchAction: 'manipulation'
+          }}
           aria-label="Сповіщення"
         >
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-            />
-          </svg>
+          🔔
           {recentNotifications.length > 0 && (
-            <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-[#0f111a]">
+            <span
+              style={{
+                position: 'absolute',
+                top: '-5px',
+                right: '-5px',
+                backgroundColor: '#3b82f6',
+                color: '#fff',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
               {recentNotifications.length}
             </span>
           )}
         </button>
       </div>
 
-      {/* Основний блок із кнопкою Центру можливостей */}
-      <div className="bg-[#181a26] p-6 rounded-2xl border border-slate-800 space-y-4 shadow-lg">
-        <h2 className="text-xl font-bold">Можливості для художників</h2>
-        <p className="text-slate-300 text-sm leading-relaxed">
-          Переглядайте актуальні опейн коли, резиденції та грантові програми, підібрані для вашого профілю.
-        </p>
-
+      {/* Кнопка розрахунку та авторизації */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '30px' }}>
         {/* Кнопка "Центр можливостей" */}
         <button
           onClick={() => setIsCenterModalOpen(true)}
           disabled={loading}
-          className="w-full py-3.5 px-5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.99] shadow-md shadow-blue-600/20"
-          style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+          style={{
+            padding: '14px 20px',
+            backgroundColor: '#2563eb',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '10px',
+            fontSize: '16px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            touchAction: 'manipulation'
+          }}
         >
-          <span>📋</span>
-          <span>
-            {loading
-              ? 'Завантаження можливостей...'
-              : `Центр можливостей (${monthlyHistory.length})`}
-          </span>
+          📋 {loading ? 'Завантаження...' : `Центр можливостей (${monthlyHistory.length})`}
         </button>
+
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <a
+            href="/login"
+            style={{
+              flex: 1,
+              textAlign: 'center',
+              padding: '12px 24px',
+              backgroundColor: '#000',
+              color: '#fff',
+              textDecoration: 'none',
+              borderRadius: '8px',
+              touchAction: 'manipulation'
+            }}
+          >
+            Увійти
+          </a>
+          <a
+            href="/register"
+            style={{
+              flex: 1,
+              textAlign: 'center',
+              padding: '12px 24px',
+              backgroundColor: '#f0f0f0',
+              color: '#000',
+              textDecoration: 'none',
+              borderRadius: '8px',
+              touchAction: 'manipulation'
+            }}
+          >
+            Зареєструватися
+          </a>
+        </div>
       </div>
 
-      {/* МОДАЛЬНЕ ВІКНО 1: Дзвіночок (Останні 5 сповіщень) */}
+      {/* МОДАЛЬНЕ ВІКНО 1: Свіжі сповіщення з Дзвіночка */}
       <NotificationsModal
         isOpen={isBellModalOpen}
         onClose={() => setIsBellModalOpen(false)}
@@ -122,6 +173,6 @@ export default function DashboardPage() {
         notifications={monthlyHistory}
         title="Центр можливостей (За 30 днів)"
       />
-    </div>
+    </main>
   );
 }
