@@ -16,6 +16,7 @@ interface Opportunity {
   deadline?: string | null
   link_url?: string | null
   url?: string | null
+  source_url?: string | null
   country?: string | null
   techniques?: any
   cost_amount?: number | string
@@ -53,7 +54,9 @@ export default function DashboardPage() {
   const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
   
   const [showInstallBanner, setShowInstallBanner] = useState<boolean>(false)
-  const [showModal, setShowModal] = useState<boolean>(false)
+
+  // Окремі стани для модальних вікон
+  const [activeModal, setActiveModal] = useState<'bell' | 'center' | null>(null)
 
   const [matchedOpportunities, setMatchedOpportunities] = useState<Opportunity[]>([])
   const [totalOpportunitiesCount, setTotalOpportunitiesCount] = useState<number>(0)
@@ -168,6 +171,13 @@ export default function DashboardPage() {
     )
   }
 
+  // Останні 5 оновлень для Дзвіночка
+  const recentNotifications = matchedOpportunities.slice(0, 5)
+
+  // Список для модального вікна залежно від обраного типу
+  const modalData = activeModal === 'bell' ? recentNotifications : matchedOpportunities
+  const modalTitle = activeModal === 'bell' ? 'Останні сповіщення' : `Центр можливостей (${matchedOpportunities.length})`
+
   return (
     <div style={{
       minHeight: '100dvh',
@@ -238,7 +248,7 @@ export default function DashboardPage() {
 
         <div style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justify: 'space-between',
           alignItems: 'center',
           marginBottom: 24
         }}>
@@ -247,8 +257,9 @@ export default function DashboardPage() {
           </h1>
 
           <div style={{ display: 'flex', gap: 8 }}>
+            {/* Кнопка Дзвіночок: відкриває лише 5 останніх сповіщень */}
             <button
-              onClick={() => setShowModal(true)}
+              onClick={() => setActiveModal('bell')}
               style={{
                 position: 'relative',
                 backgroundColor: '#1e293b',
@@ -261,7 +272,7 @@ export default function DashboardPage() {
               }}
             >
               🔔
-              {matchedOpportunities.length > 0 && (
+              {recentNotifications.length > 0 && (
                 <span style={{
                   position: 'absolute',
                   top: -4,
@@ -275,9 +286,9 @@ export default function DashboardPage() {
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justify: 'center'
                 }}>
-                  {matchedOpportunities.length}
+                  {recentNotifications.length}
                 </span>
               )}
             </button>
@@ -301,8 +312,9 @@ export default function DashboardPage() {
 
         {userObj && <TelegramConnect user={userObj} />}
 
+        {/* Інформаційна плашка */}
         <div 
-          onClick={() => setShowModal(true)}
+          onClick={() => setActiveModal('center')}
           style={{
             backgroundColor: matchedOpportunities.length > 0 ? '#1e3a8a' : '#1e293b',
             border: matchedOpportunities.length > 0 ? '1px solid #3b82f6' : '1px solid #334155',
@@ -327,8 +339,9 @@ export default function DashboardPage() {
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Кнопка Центр можливостей: відкриває весь список під профіль */}
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => setActiveModal('center')}
             style={{
               width: '100%',
               padding: 14,
@@ -404,7 +417,8 @@ export default function DashboardPage() {
 
       </div>
 
-      {showModal && (
+      {/* Універсальне модальне вікно */}
+      {activeModal && (
         <div style={{
           position: 'fixed',
           inset: 0,
@@ -427,14 +441,14 @@ export default function DashboardPage() {
           }}>
             <div style={{
               display: 'flex',
-              justifyContent: 'space-between',
+              justify: 'space-between',
               alignItems: 'center',
               padding: 16,
               borderBottom: '1px solid #334155'
             }}>
-              <h2 style={{ margin: 0, fontSize: 18 }}>Знайдені можливості ({matchedOpportunities.length})</h2>
+              <h2 style={{ margin: 0, fontSize: 18 }}>{modalTitle}</h2>
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => setActiveModal(null)}
                 style={{
                   background: 'transparent',
                   border: 'none',
@@ -448,13 +462,13 @@ export default function DashboardPage() {
             </div>
 
             <div style={{ overflowY: 'auto', padding: 16, flex: 1 }}>
-              {matchedOpportunities.length === 0 ? (
+              {modalData.length === 0 ? (
                 <p style={{ textAlign: 'center', color: '#94a3b8', padding: 20 }}>
-                  Немає актуальних можливостей під обрані параметри.
+                  Немає актуальних можливостей.
                 </p>
               ) : (
-                matchedOpportunities.map((item) => {
-                  const targetUrl = item.link_url || item.url
+                modalData.map((item) => {
+                  const targetUrl = item.source_url || item.link_url || item.url
                   return (
                     <div
                       key={item.id}
@@ -507,7 +521,7 @@ export default function DashboardPage() {
 
             <div style={{ padding: 16, borderTop: '1px solid #334155' }}>
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => setActiveModal(null)}
                 style={{
                   width: '100%',
                   padding: 12,
