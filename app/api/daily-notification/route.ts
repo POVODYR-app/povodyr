@@ -7,11 +7,9 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Ініціалізація Resend
 const resendApiKey = process.env.RESEND_API_KEY || '';
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
-// Налаштування Web Push
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
     process.env.VAPID_SUBJECT || 'mailto:support@povodyr.app',
@@ -20,7 +18,6 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   );
 }
 
-// Допоміжна функція нормалізації масивів
 function parseArrayField(raw: any): string[] {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw.map(i => String(i).toLowerCase().trim());
@@ -35,7 +32,6 @@ function parseArrayField(raw: any): string[] {
   return [];
 }
 
-// Функція надсилання повідомлення у Telegram
 async function sendTelegramMessage(chatId: string | number, text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token || !chatId) return false;
@@ -53,42 +49,51 @@ async function sendTelegramMessage(chatId: string | number, text: string) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Авторизація за запитом для Cron
     const authHeader = request.headers.get('authorization');
     if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 1. Отримуємо користувачів
+    // 1. Отримуємо активних користувачів
     const { data: users, error: usersError } = await supabase
       .from('profiles')
       .select('*')
       .eq('profile_completed', true)
       .eq('notifications_enabled', true);
 
-    if (usersError) {
-      return NextResponse.json({ success: false, error: usersError.message }, { status: 500 });
-    }
+    if (usersError) return NextResponse.json({ success: false, error: usersError.message }, { status: 500 });
+    if (!users || users.length === 0) return NextResponse.json({ success: true, message: 'Немає користувачів для розсилки', sent: 0 });
 
-    if (!users || users.length === 0) {
-      return NextResponse.json({ success: true, message: 'Немає користувачів для розсилки', sent: 0 });
-    }
-
-    // 2. Отримуємо актуальні можливості
+    // 2. Отримуємо тільки актуальні можливості (створені від 2025 року та пізніше)
     const { data: opportunities, error: oppError } = await supabase
       .from('opportunities')
       .select('*')
+      .gte('created_at', '2025-01-01T00:00:00Z')
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(100);
 
-    if (oppError) {
-      return NextResponse.json({ success: false, error: oppError.message }, { status: 500 });
-    }
+    if (oppError) return NextResponse.json({ success: false, error: oppError.message }, { status: 500 });
+
+    // Стоп-слова для фільтрації інформаційного сміття / новин
+    const ignoreKeywords = ['anniversary', 'celebrates', 'joined us', 'annual meeting', 'report', 're-cap', 'happy birthday'];
+
+    // Фільтрація валідних пропозицій
+    const validOpps = (opportunities || []).filter(opp => {
+      const titleLower = String(opp.title || '').toLowerCase();
+      // Перевірка на стоп-слова
+      if (ignoreKeywords.some(kw => titleLower.includes(kw))) return false;
+      
+      // Перевірка дедлайну, якщо він вказаний
+      if (opp.deadline) {
+        const deadlineDate = new Date(opp.deadline);
+        if (!isNaN(deadlineDate.getTime()) && deadlineDate < new Date()) return false;
+      }
+      return true;
+    });
 
     let sentCount = 0;
     const logs: any[] = [];
 
-    // 3. Обробка кожного користувача
     for (const user of users) {
       const userName = user.full_name ? user.full_name.trim() : '';
       const userCountries = parseArrayField(user.search_countries);
@@ -96,9 +101,8 @@ export async function GET(request: NextRequest) {
       const orgFeeMax = Number(user.org_fee_max) || 0;
       const regFeeMax = Number(user.reg_fee_max) || 0;
 
-      // Матчинг можливостей
-      const matchedOpps = (opportunities || []).filter(opp => {
-        // М'яка перевірка країни: якщо у картці вказано країну, звіряємо з вибором митця
+      const matchedOpps = validOpps.filter(opp => {
+        // Країна
         if (userCountries.length > 0 && opp.country && String(opp.country).trim() !== '') {
           const oppCountry = String(opp.country).toLowerCase();
           const countryMatch = userCountries.some(c => oppCountry.includes(c) || c.includes(oppCountry));
@@ -106,7 +110,7 @@ export async function GET(request: NextRequest) {
           if (!countryMatch && !isGlobal) return false;
         }
 
-        // Перевірка технік
+        // Техніки
         if (userTechniques.length > 0 && opp.techniques) {
           const oppTechs = parseArrayField(opp.techniques);
           if (oppTechs.length > 0) {
@@ -115,46 +119,44 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // Перевірка максимальних внесків
+        // Внески
         if (opp.org_fee && Number(opp.org_fee) > orgFeeMax && orgFeeMax > 0) return false;
         if (opp.reg_fee && Number(opp.reg_fee) > regFeeMax && regFeeMax > 0) return false;
 
         return true;
       });
 
-      // Тексти сповіщень
       let title = '';
       let textMessage = '';
       let emailHtml = '';
 
       if (matchedOpps.length > 0) {
-        title = `POVODYR: Знайдено ${matchedOpps.length} нових можливостей`;
+        const displayOpps = matchedOpps.slice(0, 5);
+        title = `POVODYR: Знайдено ${matchedOpps.length} актуальних можливостей`;
 
-        // Формування переліку з ПРЯМИМИ ПОСИЛАННЯМИ
-        const telegramList = matchedOpps
-          .slice(0, 5)
+        const telegramList = displayOpps
           .map(o => `• <a href="${o.link || o.source_url || 'https://povodyr.vercel.app/dashboard'}">${o.title || 'Мистецька можливість'}</a> (${o.country || 'Міжнародна'})`)
           .join('\n\n');
 
-        textMessage = `Привіт${userName ? ', ' + userName : ''}!\n\nЗнайдено <b>${matchedOpps.length}</b> можливостей під ваш профіль:\n\n${telegramList}\n\n<a href="https://povodyr.vercel.app/dashboard">Переглянути всі в особистому кабінеті</a>`;
+        const moreCountText = matchedOpps.length > 5 ? `\n<i>...та ще ${matchedOpps.length - 5} у кабінеті</i>\n` : '';
 
-        const htmlItems = matchedOpps
-          .slice(0, 5)
+        textMessage = `Привіт${userName ? ', ' + userName : ''}!\n\nЗнайдено <b>${matchedOpps.length}</b> актуальних можливостей під ваш профіль:\n\n${telegramList}\n${moreCountText}\n<a href="https://povodyr.vercel.app/dashboard">Переглянути всі в особистому кабінеті</a>`;
+
+        const htmlItems = displayOpps
           .map(o => `<li><a href="${o.link || o.source_url || 'https://povodyr.vercel.app/dashboard'}"><strong>${o.title || 'Мистецька можливість'}</strong></a> (${o.country || 'Міжнародна'})</li>`)
           .join('');
 
-        emailHtml = `<p>Привіт${userName ? ', ' + userName : ''}!</p><p>Знайдено <strong>${matchedOpps.length}</strong> нових можливостей під ваш профіль:</p><ul>${htmlItems}</ul><p><a href="https://povodyr.vercel.app/dashboard">Переглянути всі в кабінеті</a></p>`;
+        emailHtml = `<p>Привіт${userName ? ', ' + userName : ''}!</p><p>Знайдено <strong>${matchedOpps.length}</strong> актуальних можливостей під ваш профіль:</p><ul>${htmlItems}</ul><p><a href="https://povodyr.vercel.app/dashboard">Переглянути всі в кабінеті</a></p>`;
       } else {
         title = 'POVODYR сьогодні перевірив можливості';
-        textMessage = `Привіт${userName ? ', ' + userName : ''}!\n\nЗа вашими параметрами нових оновлень сьогодні не знайдено. Продовжую шукати.`;
-        emailHtml = `<p>Привіт${userName ? ', ' + userName : ''}!</p><p>За вашими параметрами нових оновлень сьогодні не знайдено. Продовжую шукати.</p>`;
+        textMessage = `Привіт${userName ? ', ' + userName : ''}!\n\nЗа вашими параметрами нових актуальних оновлень сьогодні не знайдено. Продовжую моніторинг.`;
+        emailHtml = `<p>Привіт${userName ? ', ' + userName : ''}!</p><p>За вашими параметрами нових актуальних оновлень сьогодні не знайдено. Продовжую моніторинг.</p>`;
       }
 
       let emailSent = false;
       let pushSent = false;
       let telegramSent = false;
 
-      // Канал 1: Email (через Resend)
       if (resend && user.email) {
         try {
           const res = await resend.emails.send({
@@ -169,15 +171,12 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Канал 2: Web Push (через web-push)
       if (user.push_subscription && process.env.VAPID_PRIVATE_KEY) {
         try {
-          const sub = typeof user.push_subscription === 'string' 
-            ? JSON.parse(user.push_subscription) 
-            : user.push_subscription;
+          const sub = typeof user.push_subscription === 'string' ? JSON.parse(user.push_subscription) : user.push_subscription;
           await webpush.sendNotification(sub, JSON.stringify({
             title,
-            body: matchedOpps.length > 0 ? `Знайдено ${matchedOpps.length} нових можливостей.` : 'За вашими параметрами оновлень не знайдено. Продовжую шукати.',
+            body: matchedOpps.length > 0 ? `Знайдено ${matchedOpps.length} актуальних можливостей.` : 'Нових оновлень не знайдено.',
             url: 'https://povodyr.vercel.app/dashboard'
           }));
           pushSent = true;
@@ -186,13 +185,11 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Канал 3: Telegram (через Bot API)
       if (user.telegram_chat_id) {
         telegramSent = await sendTelegramMessage(user.telegram_chat_id, textMessage);
       }
 
-      // 4. Запис статусу в таблицю notifications
-      const { error: insertError } = await supabase.from('notifications').insert({
+      await supabase.from('notifications').insert({
         user_id: user.id,
         title,
         message: textMessage,
@@ -203,27 +200,11 @@ export async function GET(request: NextRequest) {
         created_at: new Date().toISOString()
       });
 
-      if (!insertError) {
-        sentCount++;
-        logs.push({ 
-          user: userName || user.id, 
-          matched: matchedOpps.length, 
-          email: emailSent, 
-          push: pushSent, 
-          telegram: telegramSent 
-        });
-      } else {
-        logs.push({ user: userName || user.id, status: 'error', error: insertError.message });
-      }
+      sentCount++;
+      logs.push({ user: userName || user.id, matched: matchedOpps.length, telegram: telegramSent });
     }
 
-    return NextResponse.json({
-      success: true,
-      sent: sentCount,
-      total_users: users.length,
-      details: logs
-    });
-
+    return NextResponse.json({ success: true, sent: sentCount, details: logs });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
