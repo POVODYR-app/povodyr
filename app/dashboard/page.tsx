@@ -8,7 +8,26 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-function parseArrayField(raw: any): string[] {
+interface Notification {
+  id: string
+  title: string
+  message?: string | null
+  is_read: boolean
+  created_at: string
+  link_url?: string | null
+}
+
+interface UserProfile {
+  id: string
+  full_name?: string | null
+  telegram_chat_id?: string | null
+  search_countries?: any
+  techniques?: any
+  org_fee_max?: number | string
+  max_fee_amount?: number | string
+}
+
+function parseArrayField(raw: unknown): string[] {
   if (!raw) return []
   if (Array.isArray(raw)) return raw.map(i => String(i).toLowerCase().trim())
   if (typeof raw === 'string') {
@@ -16,109 +35,120 @@ function parseArrayField(raw: any): string[] {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed)) return parsed.map(i => String(i).toLowerCase().trim())
     } catch {
-      return raw.split(',').map(i => i.toLowerCase().trim())
+      return raw.split(',').map(i => i.toLowerCase().trim()).filter(Boolean)
     }
   }
   return []
 }
 
 export default function DashboardPage() {
-  const [userName, setUserName] = useState('')
+  const [userName, setUserName] = useState<string>('')
   const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
-  const [notifications, setNotifications] = useState<any[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [showInstallBanner, setShowInstallBanner] = useState(false)
-  const [showNotifications, setShowNotifications] = useState(false)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState<number>(0)
+  const [showInstallBanner, setShowInstallBanner] = useState<boolean>(false)
+  const [showNotifications, setShowNotifications] = useState<boolean>(false)
   
   const [totalOpportunities, setTotalOpportunities] = useState<number>(0)
   const [matchedCount, setMatchedCount] = useState<number>(0)
 
   useEffect(() => {
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone
+    let isMounted = true
+
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as unknown as { standalone?: boolean }).standalone
     const bannerClosed = localStorage.getItem('povodyr_install_banner_closed')
     
     if (!bannerClosed && !isPWA) {
       setShowInstallBanner(true)
     }
 
-    loadData()
-  }, [])
+    const loadData = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || !isMounted) return
 
-  const loadData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+      const profilePromise = supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle()
 
-    const profilePromise = supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle()
+      const opportunitiesPromise = supabase
+        .from('opportunities')
+        .select('*')
+        .eq('is_active', true)
 
-    const opportunitiesPromise = supabase
-      .from('opportunities')
-      .select('*')
-      .eq('is_active', true)
+      const notificationsPromise = supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
 
-    const notificationsPromise = supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+      const [
+        { data: profile },
+        { data: opportunities },
+        { data: notifs }
+      ] = await Promise.all([profilePromise, opportunitiesPromise, notificationsPromise])
 
-    const [
-      { data: profile },
-      { data: opportunities },
-      { data: notifs }
-    ] = await Promise.all([profilePromise, opportunitiesPromise, notificationsPromise])
+      if (!isMounted) return
 
-    if (profile?.full_name) {
-      setUserName(profile.full_name)
-    }
+      const userProfile = profile as UserProfile | null
 
-    setUserObj({
-      id: user.id,
-      telegram_chat_id: profile?.telegram_chat_id || null,
-    })
+      if (userProfile?.full_name) {
+        setUserName(userProfile.full_name)
+      }
 
-    const allOpps = opportunities || []
-    setTotalOpportunities(allOpps.length)
-
-    if (profile) {
-      const userCountries = parseArrayField(profile.search_countries)
-      const userTechniques = parseArrayField(profile.techniques)
-      const orgFeeMax = Number(profile.org_fee_max || profile.max_fee_amount) || 0
-
-      const matched = allOpps.filter(opp => {
-        if (userCountries.length > 0 && opp.country) {
-          const oppCountry = String(opp.country).toLowerCase()
-          const countryMatch = userCountries.some(c => oppCountry.includes(c) || c.includes(oppCountry))
-          if (!countryMatch && !oppCountry.includes('онлайн') && !oppCountry.includes('світ') && !oppCountry.includes('international')) {
-            return false
-          }
-        }
-
-        if (userTechniques.length > 0 && opp.techniques) {
-          const oppTechs = parseArrayField(opp.techniques)
-          if (oppTechs.length > 0) {
-            const techMatch = userTechniques.some(ut => oppTechs.some(ot => ot.includes(ut) || ut.includes(ot)))
-            if (!techMatch) return false
-          }
-        }
-
-        const fee = Number(opp.cost_amount || opp.fee_amount || opp.org_fee) || 0
-        if (fee > orgFeeMax && orgFeeMax > 0 && !opp.is_free) return false
-
-        return true
+      setUserObj({
+        id: user.id,
+        telegram_chat_id: userProfile?.telegram_chat_id || null,
       })
 
-      setMatchedCount(matched.length)
+      const allOpps = opportunities || []
+      setTotalOpportunities(allOpps.length)
+
+      if (userProfile) {
+        const userCountries = parseArrayField(userProfile.search_countries)
+        const userTechniques = parseArrayField(userProfile.techniques)
+        const orgFeeMax = Number(userProfile.org_fee_max || userProfile.max_fee_amount) || 0
+
+        const matched = allOpps.filter(opp => {
+          if (userCountries.length > 0 && opp.country) {
+            const oppCountry = String(opp.country).toLowerCase()
+            const countryMatch = userCountries.some(c => oppCountry.includes(c) || c.includes(oppCountry))
+            if (!countryMatch && !oppCountry.includes('онлайн') && !oppCountry.includes('світ') && !oppCountry.includes('international')) {
+              return false
+            }
+          }
+
+          if (userTechniques.length > 0 && opp.techniques) {
+            const oppTechs = parseArrayField(opp.techniques)
+            if (oppTechs.length > 0) {
+              const techMatch = userTechniques.some(ut => oppTechs.some(ot => ot.includes(ut) || ut.includes(ot)))
+              if (!techMatch) return false
+            }
+          }
+
+          const fee = Number(opp.cost_amount || opp.fee_amount || opp.org_fee) || 0
+          if (fee > orgFeeMax && orgFeeMax > 0 && !opp.is_free) return false
+
+          return true
+        })
+
+        setMatchedCount(matched.length)
+      }
+
+      if (notifs) {
+        const typedNotifs = notifs as Notification[]
+        setNotifications(typedNotifs)
+        setUnreadCount(typedNotifs.filter(n => !n.is_read).length)
+      }
     }
 
-    if (notifs) {
-      setNotifications(notifs)
-      setUnreadCount(notifs.filter((n: any) => !n.is_read).length)
+    loadData()
+
+    return () => {
+      isMounted = false
     }
-  }
+  }, [])
 
   const closeInstallBanner = () => {
     setShowInstallBanner(false)
@@ -126,11 +156,17 @@ export default function DashboardPage() {
   }
 
   const markAsRead = async (id: string) => {
-    await supabase.from('notifications').update({ is_read: true }).eq('id', id)
     setNotifications(prev =>
       prev.map(n => (n.id === id ? { ...n, is_read: true } : n))
     )
     setUnreadCount(prev => Math.max(0, prev - 1))
+
+    await supabase.from('notifications').update({ is_read: true }).eq('id', id)
+  }
+
+  const formatDate = (dateString: string) => {
+    const d = new Date(dateString)
+    return isNaN(d.getTime()) ? '' : d.toLocaleDateString('uk-UA')
   }
 
   return (
@@ -203,7 +239,7 @@ export default function DashboardPage() {
 
         <div style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justify: 'space-between',
           alignItems: 'center',
           marginBottom: 24
         }}>
@@ -240,7 +276,7 @@ export default function DashboardPage() {
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justify: 'center'
                 }}>
                   {unreadCount}
                 </span>
@@ -332,7 +368,7 @@ export default function DashboardPage() {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
+          justify: 'center',
           gap: 12,
           textAlign: 'center'
         }}>
@@ -372,7 +408,7 @@ export default function DashboardPage() {
           backgroundColor: 'rgba(0,0,0,0.7)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
+          justify: 'center',
           padding: 16,
           zIndex: 50
         }}>
@@ -388,7 +424,7 @@ export default function DashboardPage() {
           }}>
             <div style={{
               display: 'flex',
-              justifyContent: 'space-between',
+              justify: 'space-between',
               alignItems: 'center',
               padding: 16,
               borderBottom: '1px solid #334155'
@@ -442,7 +478,7 @@ export default function DashboardPage() {
                       </p>
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b' }}>
-                      <span>{new Date(item.created_at).toLocaleDateString('uk-UA')}</span>
+                      <span>{formatDate(item.created_at)}</span>
                       {item.link_url && (
                         <a
                           href={item.link_url}
