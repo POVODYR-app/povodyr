@@ -53,7 +53,7 @@ export default function HomePage() {
   return (
     <main style={{ padding: '40px 20px', fontFamily: 'sans-serif', maxWidth: '600px', margin: '0 auto' }}>
       {/* Верхня панель із Дзвіночком */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', itemsCenter: 'center', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div>
           <h1 style={{ fontSize: '32px', margin: 0 }}>POVODYR</h1>
           <p style={{ fontSize: '16px', color: '#666', marginTop: '6px' }}>
