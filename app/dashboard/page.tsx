@@ -247,11 +247,11 @@ export default function DashboardPage() {
         )}
 
         <div style={{
-          display: 'flex',
-          justify: 'space-between',
-          alignItems: 'center',
-          marginBottom: 24
-        }}>
+  display: 'flex',
+  justifyContent: 'space-between', // Змінено justify на justifyContent
+  alignItems: 'center',
+  marginBottom: 24
+}}>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>
             Вітаємо{userName ? `, ${userName}` : ''}!
           </h1>
