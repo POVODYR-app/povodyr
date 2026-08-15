@@ -490,7 +490,7 @@ export default function DashboardPage() {
                           {item.title}
                         </h3>
                         {item.source_name && (
-                          <span style={{ fontSize: 10, padding: '2px 6px', backgroundColor: '#334155', borderRadius: 4, color: '#94a3b8', whitespace: 'nowrap' }}>
+                          <span style={{ fontSize: 10, padding: '2px 6px', backgroundColor: '#334155', borderRadius: 4, color: '#94a3b8', whiteSpace: 'nowrap' }}>
                             {item.source_name}
                           </span>
                         )}
