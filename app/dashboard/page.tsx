@@ -17,12 +17,22 @@ interface Opportunity {
   link_url?: string | null
   url?: string | null
   source_url?: string | null
+  link?: string | null
+  source_name?: string | null
   country?: string | null
+  type?: string | null
+  is_free?: boolean | null
+  cost_amount?: number | string | null
+  cost_currency?: string | null
+  fee_amount?: number | string | null
+  org_fee?: number | string | null
+  genres?: any
   techniques?: any
-  cost_amount?: number | string
-  fee_amount?: number | string
-  org_fee?: number | string
-  is_free?: boolean
+  artist_levels?: any
+  age_restrictions?: string | null
+  languages?: any
+  ukrainians_eligible?: boolean | null
+  raw_description?: string | null
 }
 
 interface UserProfile {
@@ -248,7 +258,7 @@ export default function DashboardPage() {
 
         <div style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justify: 'space-between',
           alignItems: 'center',
           marginBottom: 24
         }}>
@@ -437,7 +447,7 @@ export default function DashboardPage() {
           }}>
             <div style={{
               display: 'flex',
-              justifyContent: 'space-between',
+              justify: 'space-between',
               alignItems: 'center',
               padding: 16,
               borderBottom: '1px solid #334155'
@@ -464,7 +474,9 @@ export default function DashboardPage() {
                 </p>
               ) : (
                 modalData.map((item) => {
-                  const targetUrl = item.source_url || item.link_url || item.url
+                  const targetUrl = item.source_url || item.link_url || item.url || item.link
+                  const displayDescription = item.description || item.raw_description
+
                   return (
                     <div
                       key={item.id}
@@ -476,11 +488,18 @@ export default function DashboardPage() {
                         marginBottom: 12
                       }}
                     >
-                      <h3 style={{ margin: '0 0 6px 0', fontSize: 15, fontWeight: 600, color: '#f8fafc' }}>
-                        {item.title}
-                      </h3>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#f8fafc' }}>
+                          {item.title}
+                        </h3>
+                        {item.source_name && (
+                          <span style={{ fontSize: 10, padding: '2px 6px', backgroundColor: '#334155', borderRadius: 4, color: '#94a3b8', whitespace: 'nowrap' }}>
+                            {item.source_name}
+                          </span>
+                        )}
+                      </div>
                       
-                      {item.description && (
+                      {displayDescription && (
                         <div 
                           style={{ 
                             margin: '0 0 10px 0', 
@@ -489,7 +508,7 @@ export default function DashboardPage() {
                             whiteSpace: 'pre-line',
                             lineHeight: 1.5
                           }}
-                          dangerouslySetInnerHTML={{ __html: formatMessageHtml(item.description) }}
+                          dangerouslySetInnerHTML={{ __html: formatMessageHtml(displayDescription) }}
                         />
                       )}
 
