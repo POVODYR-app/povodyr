@@ -244,8 +244,8 @@ function getCoreOpportunities(): ParsedOpportunity[] {
     {
       source_name: 'Art Fine Nation',
       title: 'Всеукраїнський Open Call: Сучасний український живопис та образотворче мистецтво 2026',
-      link: 'https://artfinenation.com/open-call-2026',
-      source_url: 'https://artfinenation.com/open-call-2026',
+      link: 'https://artfinenation.com/open-call',
+      source_url: 'https://artfinenation.com/open-call',
       type: 'Open Call',
       deadline: '2026-11-30T00:00:00.000Z',
       country: 'Україна',
