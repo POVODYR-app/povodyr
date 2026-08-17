@@ -41,7 +41,6 @@ export default function HomePage() {
 
             const isRecent =
               title.includes('2026') ||
-              title.includes('2026') ||
               title.includes('2027') ||
               desc.includes('2026') ||
               desc.includes('2027') ||
@@ -81,6 +80,8 @@ export default function HomePage() {
 
   return (
     <main style={{ padding: '30px 20px', fontFamily: 'sans-serif', maxWidth: '480px', margin: '0 auto', backgroundColor: '#0f172a', color: '#fff', minHeight: '100vh' }}>
+      
+      {/* Верхня панель */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h1 style={{ fontSize: '26px', margin: 0, fontWeight: 'bold' }}>Вітаємо, Vanda!</h1>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -94,9 +95,11 @@ export default function HomePage() {
                 {recentNotifications.length}
               </span>
             )}
+          </button>
         </div>
       </div>
 
+      {/* Блок сповіщень Telegram */}
       <div style={{ backgroundColor: '#161e2e', border: '1px solid #334155', borderRadius: '16px', padding: '20px', marginBottom: '20px' }}>
         <h2 style={{ fontSize: '17px', margin: '0 0 6px 0', fontWeight: '600' }}>Сповіщення в Telegram</h2>
         <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 14px 0' }}>Отримуйте оперативні добірки можливостей безпосередньо у ваш приватний чат.</p>
@@ -105,6 +108,7 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* Статус знайдених можливостей */}
       <div style={{ backgroundColor: '#1e293b', border: '1px solid #3b82f6', borderRadius: '14px', padding: '16px', textAlign: 'center', marginBottom: '14px', color: '#93c5fd', fontSize: '15px', fontWeight: '500' }}>
         🔍 {loading ? 'Пошук...' : `Знайдено ${totalCount} нових можливостей під ваш профіль!`}
       </div>
@@ -113,6 +117,7 @@ export default function HomePage() {
         Усього знайдено матеріалів у базі: {totalCount}
       </div>
 
+      {/* Основні кнопки */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '30px' }}>
         <button
           onClick={() => setIsCenterModalOpen(true)}
@@ -128,22 +133,22 @@ export default function HomePage() {
 
       <div style={{ borderTop: '1px solid #1e293b', margin: '24px 0' }} />
 
-      <div style={{ textAlign: 'center', paddingBottom: '20px' }}>
-        <div style={{ display: 'inline-block', padding: '10px', backgroundColor: '#161e2e', borderRadius: '16px', border: '1px solid #334155', marginBottom: '10px' }}>
-          👀
-        </div>
+      {/* Футер із текстом та логотипом */}
+      <div style={{ textAlign: 'center', paddingBottom: '30px' }}>
         <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 6px 0' }}>POVODYR</h3>
         <p style={{ fontSize: '12px', color: '#94a3b8', maxWidth: '360px', margin: '0 auto' }}>
           Ви створюєте картини. POVODYR допомагає їм знайти свій шлях.
         </p>
+        <div className="flex justify-center mt-4">
+          <img 
+            src="/icon-192.jpg" 
+            alt="POVODYR Logo" 
+            className="w-24 h-24 rounded-2xl object-cover shadow-md mx-auto"
+          />
+        </div>
       </div>
-      <div className="flex justify-center mt-4">
-  <img 
-    src="/icon-192.jpg" 
-    alt="POVODYR Logo" 
-    className="w-24 h-24 rounded-2xl object-cover shadow-md"
-  />
-</div>
+
+      {/* Модальні вікна */}
       <NotificationsModal
         isOpen={isBellModalOpen}
         onClose={() => setIsBellModalOpen(false)}
