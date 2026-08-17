@@ -69,7 +69,8 @@ export function buildSearchQueries(year: number = 2026): string[] {
 }
 
 export async function parseArtFineNationHTML(logs: string[] = []): Promise<ParsedOpportunity[]> {
-  const targetUrl = 'https://artfinenation.com'
+  const targetUrl = 'https://sites.google.com/view/artfinenation'
+  const originalUrl = 'https://artfinenation.com'
   const opportunities: ParsedOpportunity[] = []
   let textContent = ''
 
@@ -77,7 +78,7 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 6000)
 
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(originalUrl)}`
     const res = await fetch(proxyUrl, {
       signal: controller.signal,
       next: { revalidate: 0 }
@@ -257,8 +258,8 @@ function getCoreOpportunities(): ParsedOpportunity[] {
     {
       source_name: 'Art Fine Nation',
       title: 'Всеукраїнський Open Call: Сучасний український живопис та образотворче мистецтво 2026',
-      link: 'https://artfinenation.com/open-call',
-      source_url: 'https://artfinenation.com/open-call',
+      link: 'https://sites.google.com/view/artfinenation/open-call',
+      source_url: 'https://sites.google.com/view/artfinenation/open-call',
       type: 'Open Call',
       deadline: '2026-11-30T00:00:00.000Z',
       country: 'Україна',
@@ -276,8 +277,8 @@ function getCoreOpportunities(): ParsedOpportunity[] {
     {
       source_name: 'Art Fine Nation',
       title: '⚡️ OPEN CALL для художників на 2026 рік: «Art-Espresso. Take it Home»',
-      link: 'https://artfinenation.com/open-call',
-      source_url: 'https://artfinenation.com/open-call',
+      link: 'https://sites.google.com/view/artfinenation/open-call',
+      source_url: 'https://sites.google.com/view/artfinenation/open-call',
       type: 'Open Call',
       deadline: '2026-12-31T00:00:00.000Z',
       country: 'Україна',
@@ -295,8 +296,8 @@ function getCoreOpportunities(): ParsedOpportunity[] {
     {
       source_name: 'Art Fine Nation',
       title: 'Календар конкурсів, виставок та пленерів 2026 року',
-      link: 'https://artfinenation.com/open-call',
-      source_url: 'https://artfinenation.com/open-call',
+      link: 'https://sites.google.com/view/artfinenation/open-call',
+      source_url: 'https://sites.google.com/view/artfinenation/open-call',
       type: 'Виставка / Пленер',
       deadline: '2026-12-31T00:00:00.000Z',
       country: 'Україна',
