@@ -7,7 +7,6 @@ import { supabase } from '../lib/supabase';
 export default function HomePage() {
   const [opportunities, setOpportunities] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [isBellModalOpen, setIsBellModalOpen] = useState(false);
   const [isCenterModalOpen, setIsCenterModalOpen] = useState(false);
 
@@ -32,7 +31,6 @@ export default function HomePage() {
         setLoading(false);
       }
     }
-
     fetchOpportunities();
   }, []);
 
@@ -43,42 +41,77 @@ export default function HomePage() {
     <main style={{ padding: '30px 20px', fontFamily: 'sans-serif', maxWidth: '480px', margin: '0 auto', backgroundColor: '#0f172a', color: '#fff', minHeight: '100vh' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h1 style={{ fontSize: '26px', margin: 0, fontWeight: 'bold' }}>Вітаємо, Vanda!</h1>
-        
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
             onClick={() => setIsBellModalOpen(true)}
-            style={{
-              position: 'relative',
-              padding: '10px 14px',
-              backgroundColor: '#1e293b',
-              color: '#fff',
-              border: '1px solid #334155',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              fontSize: '16px',
-              touchAction: 'manipulation'
-            }}
+            style={{ position: 'relative', padding: '10px 14px', backgroundColor: '#1e293b', color: '#fff', border: '1px solid #334155', borderRadius: '12px', cursor: 'pointer', fontSize: '16px' }}
           >
             🔔
             {recentNotifications.length > 0 && (
-              <span style={{
-                position: 'absolute',
-                top: '-6px',
-                right: '-6px',
-                backgroundColor: '#3b82f6',
-                color: '#fff',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                padding: '2px 6px',
-                borderRadius: '10px'
-              }}>
+              <span style={{ position: 'absolute', top: '-6px', right: '-6px', backgroundColor: '#3b82f6', color: '#fff', fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '10px' }}>
                 {recentNotifications.length}
               </span>
             )}
           </button>
+          <a href="/profile" style={{ padding: '10px 14px', backgroundColor: '#1e293b', color: '#fff', border: '1px solid #334155', borderRadius: '12px', textDecoration: 'none', fontSize: '14px', fontWeight: '600' }}>
+            ✏️ Профіль
+          </a>
+        </div>
+      </div>
 
-          <a href="/profile" style={{
-            padding: '10px 14px',
-            backgroundColor: '#1e293b',
-            color: '#fff',
-            border: '1
+      <div style={{ backgroundColor: '#161e2e', border: '1px solid #334155', borderRadius: '16px', padding: '20px', marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '17px', margin: '0 0 6px 0', fontWeight: '600' }}>Сповіщення в Telegram</h2>
+        <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 14px 0' }}>Отримуйте оперативні добірки можливостей безпосередньо у ваш приватний чат.</p>
+        <div style={{ backgroundColor: '#0f172a', border: '1px solid #10b981', borderRadius: '10px', padding: '12px 14px', color: '#34d399', fontSize: '13px', fontWeight: '500' }}>
+          ✅ Персональні сповіщення в Telegram підключено
+        </div>
+      </div>
+
+      <div style={{ backgroundColor: '#1e293b', border: '1px solid #3b82f6', borderRadius: '14px', padding: '16px', textAlign: 'center', marginBottom: '14px', color: '#93c5fd', fontSize: '15px', fontWeight: '500' }}>
+        🔍 {loading ? 'Пошук...' : `Знайдено ${totalCount} нових можливостей під ваш профіль!`}
+      </div>
+
+      <div style={{ fontSize: '13px', color: '#94a3b8', textAlign: 'center', marginBottom: '20px' }}>
+        Усього знайдено матеріалів у базі: {totalCount}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '30px' }}>
+        <button
+          onClick={() => setIsCenterModalOpen(true)}
+          disabled={loading}
+          style={{ padding: '15px 20px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}
+        >
+          📋 {loading ? 'Завантаження...' : `Центр можливостей (${totalCount})`}
+        </button>
+        <a href="/profile" style={{ textAlign: 'center', padding: '15px 20px', backgroundColor: '#1e293b', color: '#fff', border: '1px solid #334155', textDecoration: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: '600' }}>
+          ✏️ Мій профіль
+        </a>
+      </div>
+
+      <div style={{ borderTop: '1px solid #1e293b', margin: '24px 0' }} />
+
+      <div style={{ textAlign: 'center', paddingBottom: '20px' }}>
+        <div style={{ display: 'inline-block', padding: '10px', backgroundColor: '#161e2e', borderRadius: '16px', border: '1px solid #334155', marginBottom: '10px' }}>
+          👁️
+        </div>
+        <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 6px 0' }}>POVODYR</h3>
+        <p style={{ fontSize: '12px', color: '#94a3b8', maxWidth: '360px', margin: '0 auto' }}>
+          Ви створюєте картини. POVODYR допомагає їм знайти свій шлях до глядача та галерей.
+        </p>
+      </div>
+
+      <NotificationsModal
+        isOpen={isBellModalOpen}
+        onClose={() => setIsBellModalOpen(false)}
+        notifications={recentNotifications}
+        title="Останні сповіщення"
+      />
+      <NotificationsModal
+        isOpen={isCenterModalOpen}
+        onClose={() => setIsCenterModalOpen(false)}
+        notifications={opportunities}
+        title={`Центр можливостей (${totalCount})`}
+      />
+    </main>
+  );
+}
