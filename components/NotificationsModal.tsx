@@ -20,7 +20,6 @@ interface NotificationsModalProps {
   isOpen: boolean;
   onClose: () => void;
   notifications: NotificationItem[];
-  onSelectNotification?: (item: NotificationItem) => void;
   title?: string;
 }
 
@@ -28,10 +27,8 @@ export default function NotificationsModal({
   isOpen,
   onClose,
   notifications,
-  onSelectNotification,
   title = 'Знайдені можливості',
 }: NotificationsModalProps) {
-  // Блокування скролу заднього фону для Safari iOS
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -47,8 +44,7 @@ export default function NotificationsModal({
 
   const formatDate = (dateString: string) => {
     try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('uk-UA', {
+      return new Date(dateString).toLocaleDateString('uk-UA', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -59,90 +55,153 @@ export default function NotificationsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-lg rounded-2xl bg-[#1a1d2d] border border-slate-700 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-        {/* Заголовок модального вікна */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-800">
-          <h2 className="text-xl font-bold text-white">
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        padding: '16px',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          backgroundColor: '#1a1d2d',
+          borderRadius: '16px',
+          width: '100%',
+          maxWidth: '480px',
+          maxHeight: '85vh',
+          display: 'flex',
+          flexDirection: 'column',
+          border: '1px solid #334155',
+          overflow: 'hidden',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Заголовок */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '16px 20px',
+            borderBottom: '1px solid #334155',
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#fff' }}>
             {title} ({notifications?.length || 0})
           </h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-slate-800"
-            style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
-            aria-label="Закрити"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#94a3b8',
+              fontSize: '24px',
+              cursor: 'pointer',
+              padding: '4px 8px',
+            }}
           >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            ×
           </button>
         </div>
 
-        {/* Список сповіщень */}
+        {/* Список */}
         <div
-          className="p-5 overflow-y-auto space-y-4 flex-1"
-          style={{ WebkitOverflowScrolling: 'touch' }}
+          style={{
+            padding: '16px',
+            overflowY: 'auto',
+            flex: 1,
+          }}
         >
           {notifications && notifications.length > 0 ? (
             notifications.map((item) => {
-              // Автоматичний пошук дійсного посилання з усіх наявних полів бази
               const targetUrl = item.source_url || item.link || item.link_url || item.url;
               const contentText = item.message || item.description || item.raw_description || '';
 
-              const CardContent = (
-                <div className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 hover:border-blue-500/50 transition-all active:bg-slate-800/90 cursor-pointer">
-                  <h3 className="font-bold text-white mb-2 text-base">{item.title}</h3>
+              return (
+                <div
+                  key={item.id}
+                  style={{
+                    backgroundColor: '#0f172a',
+                    border: '1px solid #334155',
+                    borderRadius: '12px',
+                    padding: '14px',
+                    marginBottom: '12px',
+                  }}
+                >
+                  <h3 style={{ margin: '0 0 8px 0', fontSize: '15px', fontWeight: '600', color: '#fff' }}>
+                    {item.title}
+                  </h3>
 
                   {contentText && (
-                    <p className="text-sm text-slate-300 whitespace-pre-line leading-relaxed mb-3 line-clamp-3">
-                      {contentText}
+                    <p
+                      style={{
+                        margin: '0 0 10px 0',
+                        fontSize: '13px',
+                        color: '#94a3b8',
+                        lineHeight: '1.4',
+                      }}
+                    >
+                      {contentText.length > 150 ? contentText.substring(0, 150) + '...' : contentText}
                     </p>
                   )}
 
-                  <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-700/40">
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      fontSize: '12px',
+                      color: '#64748b',
+                    }}
+                  >
                     <span>{formatDate(item.created_at)}</span>
                     {targetUrl ? (
-                      <span className="text-blue-400 font-medium inline-flex items-center gap-1 group-hover:underline">
-                        Перейти &rarr;
-                      </span>
+                      <a
+                        href={targetUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: '500' }}
+                      >
+                        Перейти →
+                      </a>
                     ) : (
-                      <span className="text-slate-500 italic">Немає посилання</span>
+                      <span style={{ color: '#64748b' }}>Немає посилання</span>
                     )}
                   </div>
                 </div>
               );
-
-              if (targetUrl) {
-                return (
-                  <a
-                    key={item.id}
-                    href={targetUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => onSelectNotification && onSelectNotification(item)}
-                    className="block group no-underline"
-                    style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
-                  >
-                    {CardContent}
-                  </a>
-                );
-              }
-
-              return <div key={item.id}>{CardContent}</div>;
             })
           ) : (
-            <div className="text-center py-8 text-slate-400">
-              Немає сповіщень
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
+              Немає можливостей
             </div>
           )}
         </div>
 
-        {/* Футер */}
-        <div className="p-4 border-t border-slate-800 bg-[#161826] text-center">
+        {/* Кнопка закрити */}
+        <div style={{ padding: '16px', borderTop: '1px solid #334155' }}>
           <button
             onClick={onClose}
-            className="w-full py-2.5 px-4 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-xl transition-colors active:scale-[0.98]"
-            style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+            style={{
+              width: '100%',
+              padding: '12px',
+              backgroundColor: '#334155',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '15px',
+              fontWeight: '500',
+              cursor: 'pointer',
+            }}
           >
             Закрити
           </button>
