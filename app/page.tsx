@@ -42,7 +42,7 @@ export default function HomePage() {
   const recentNotifications = opportunities.slice(0, 5);
 
   return (
-    <main style={{ padding: '40px 20px', fontFamily: 'sans-serif', maxWidth: '600px', margin: '0 auto', backgroundColor: '#0f172a', color: '#fff', minHeight: '100vh' }}>
+    <main key={Date.now()} style={{ padding: '40px 20px', fontFamily: 'sans-serif', maxWidth: '600px', margin: '0 auto', backgroundColor: '#0f172a', color: '#fff', minHeight: '100vh' }}>
       
       {/* Верхня панель: Привітання та кнопка Профілю / Дзвіночка */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
