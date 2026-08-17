@@ -95,15 +95,28 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
   if (textContent && textContent.length > 100) {
     try {
       const $ = cheerio.load(textContent)
-      $('a, h1, h2, h3, p').each((_, element) => {
-        const text = $(element).text().trim().replace(/\s+/g, ' ')
-        const href = $(element).attr('href') || $(element).find('a').attr('href')
-        const isRelevant = /open\s*call|конкурс|виставка|грант|резиденція|митці|художники/i.test(text)
+      
+      // Збираємо дані не лише з посилань, а й з усіх заголовків H1, H2, H3, H4 разом із супровідним текстом
+      $('h1, h2, h3, h4, a').each((_, element) => {
+        const $el = $(element)
+        const text = $el.text().trim().replace(/\s+/g, ' ')
+        const href = $el.attr('href') || $el.find('a').attr('href') || $el.closest('a').attr('href')
+        
+        // Шукаємо опис у наступному параграфі, якщо це заголовок
+        let description = ''
+        if ($el.is('h1, h2, h3, h4')) {
+          const nextP = $el.next('p').text().trim().replace(/\s+/g, ' ')
+          if (nextP) {
+            description = nextP
+          }
+        }
 
-        if (isRelevant && text.length >= 15 && text.length <= 250) {
+        const isRelevant = /open\s*call|конкурс|виставка|грант|резиденція|митці|художники|art-espresso|календар/i.test(text)
+
+        if (isRelevant && text.length >= 10 && text.length <= 300) {
           const fullLink = href 
             ? (href.startsWith('http') ? href : `${targetUrl}${href.startsWith('/') ? '' : '/'}${href}`)
-            : targetUrl
+            : `${targetUrl}/open-call`
 
           if (!opportunities.some(item => item.title === text || item.link === fullLink)) {
             opportunities.push({
@@ -111,19 +124,19 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
               title: text,
               link: fullLink,
               source_url: fullLink,
-              type: 'Open Call',
+              type: /виставка/i.test(text) ? 'Виставка' : 'Open Call',
               deadline: null,
               country: 'Україна',
               is_free: true,
               cost_amount: 0,
               cost_currency: 'UAH',
-              genres: ['Образотворче мистецтво', 'Живопис'],
+              genres: ['Образотворче мистецтво', 'Живопис', 'Графіка'],
               techniques: [],
               artist_levels: ['Emerging', 'Mid-Career', 'Established'],
               age_restrictions: 'None',
               languages: ['uk'],
               ukrainians_eligible: true,
-              raw_description: `Опубліковано на Art Fine Nation: ${text}`,
+              raw_description: description ? `Опис: ${description}` : `Опубліковано на Art Fine Nation: ${text}`,
             })
           }
         }
@@ -261,6 +274,44 @@ function getCoreOpportunities(): ParsedOpportunity[] {
       raw_description: 'Офіційний прийом заявок для виставкових проєктів та каталогів Першої української мистецької агенції Art Fine Nation.',
     },
     {
+      source_name: 'Art Fine Nation',
+      title: '⚡️ OPEN CALL для художників на 2026 рік: «Art-Espresso. Take it Home»',
+      link: 'https://artfinenation.com/open-call',
+      source_url: 'https://artfinenation.com/open-call',
+      type: 'Open Call',
+      deadline: '2026-12-31T00:00:00.000Z',
+      country: 'Україна',
+      is_free: true,
+      cost_amount: 0,
+      cost_currency: 'UAH',
+      genres: ['Образотворче мистецтво', 'Живопис'],
+      techniques: ['Олія', 'Акрил', 'Змішана техніка'],
+      artist_levels: ['Emerging', 'Mid-Career', 'Established'],
+      age_restrictions: 'None',
+      languages: ['uk'],
+      ukrainians_eligible: true,
+      raw_description: 'Спеціальний формат open call для художників у межах програми «Art-Espresso. Take it Home».',
+    },
+    {
+      source_name: 'Art Fine Nation',
+      title: 'Календар конкурсів, виставок та пленерів 2026 року',
+      link: 'https://artfinenation.com/open-call',
+      source_url: 'https://artfinenation.com/open-call',
+      type: 'Виставка / Пленер',
+      deadline: '2026-12-31T00:00:00.000Z',
+      country: 'Україна',
+      is_free: true,
+      cost_amount: 0,
+      cost_currency: 'UAH',
+      genres: ['Образотворче мистецтво', 'Живопис'],
+      techniques: [],
+      artist_levels: ['Emerging', 'Mid-Career', 'Established'],
+      age_restrictions: 'None',
+      languages: ['uk'],
+      ukrainians_eligible: true,
+      raw_description: 'Календар подій, конкурсів, виставок та пленерів Першої української мистецької агенції на 2026 рік.',
+    },
+    {
       source_name: 'Res Artis',
       title: 'International Visual Artist Residency & Exhibition Grant 2026',
       link: 'https://www.resartis.org/open-call-2026',
@@ -307,7 +358,7 @@ export async function fetchFromApprovedSources(logs: string[] = []): Promise<Par
   const coreResults = getCoreOpportunities()
   logs.push(`Базових гарантованих записів: ${coreResults.length}`)
   coreResults.forEach(item => {
-    if (!allOpportunities.some(o => o.link === item.link)) {
+    if (!allOpportunities.some(o => o.link === item.link && o.title === item.title)) {
       allOpportunities.push(item)
     }
   })
