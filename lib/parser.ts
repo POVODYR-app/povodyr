@@ -153,13 +153,15 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
   const sources = [
     { url: 'https://www.resartis.org/feed/', name: 'Res Artis' },
     { url: 'https://www.transartists.org/en/rss.xml', name: 'TransArtists' },
-    { url: 'https://www.e-flux.com/announcements/rss', name: 'E-Flux' }
+    { url: 'https://www.e-flux.com/announcements/rss', name: 'E-Flux' },
+    { url: 'https://culture.ec.europa.eu/feed', name: 'Culture Moves Europe' },
+    { url: 'https://prohelvetia.ch/en/feed/', name: 'Pro Helvetia' }
   ]
 
   const positiveKeywords = [
     'open call', 'opencall', 'call for', 'deadline', 'apply', 'application',
     'residency', 'residencies', 'grant', 'grants', 'prize', 'award',
-    'submission', 'submit', 'exhibition opportunity', 'artist call'
+    'submission', 'submit', 'exhibition opportunity', 'artist call', 'mobility'
   ]
 
   const negativeKeywords = [
@@ -235,7 +237,7 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
 
       const hasPositive = positiveKeywords.some(kw => titleLower.includes(kw) || descLower.includes(kw))
       const hasNegative = negativeKeywords.some(kw => titleLower.includes(kw))
-      const hasRecentYear = /202[5-9]|2030/.test(item.title + ' ' + item.description)
+      const hasRecentYear = /202[6-9]|203[0-1]/.test(item.title + ' ' + item.description)
 
       if (hasPositive && !hasNegative && (hasRecentYear || source.name !== 'Res Artis')) {
         opportunities.push({
@@ -322,6 +324,83 @@ function getCoreOpportunities(): ParsedOpportunity[] {
       languages: ['uk'],
       ukrainians_eligible: true,
       raw_description: 'Календар подій, конкурсів, виставок та пленерів Першої української мистецької агенції на 2026 рік.',
+    },
+    // Розширений резервний список міжнародних платформ (2026–2027)
+    {
+      source_name: 'Culture Moves Europe',
+      title: 'Culture Moves Europe: Individual Mobility Grant 2026-2027',
+      link: 'https://culture.ec.europa.eu/creative-europe/culture-moves-europe',
+      source_url: 'https://culture.ec.europa.eu/creative-europe/culture-moves-europe',
+      type: 'Grant',
+      deadline: '2027-05-31T00:00:00.000Z',
+      country: 'International',
+      is_free: true,
+      cost_amount: 0,
+      cost_currency: 'EUR',
+      genres: ['Visual Art', 'Painting'],
+      techniques: ['Олія', 'Акрил', 'Змішана техніка'],
+      artist_levels: ['Emerging', 'Mid-Career', 'Established'],
+      age_restrictions: 'None',
+      languages: ['en'],
+      ukrainians_eligible: true,
+      raw_description: 'Міжнародна мобільність для художників та культурних діячів. Гранти на реалізацію творчих проєктів, резиденцій та колаборацій у країнах ЄС на 2026-2027 роки.',
+    },
+    {
+      source_name: 'Res Artis',
+      title: 'Res Artis Worldwide Network Open Calls & Residencies 2026-2027',
+      link: 'https://resartis.org/open-calls/',
+      source_url: 'https://resartis.org/open-calls/',
+      type: 'Residency',
+      deadline: '2027-12-31T00:00:00.000Z',
+      country: 'International',
+      is_free: true,
+      cost_amount: 0,
+      cost_currency: 'EUR',
+      genres: ['Visual Art', 'Painting', 'Fine Arts'],
+      techniques: [],
+      artist_levels: ['Emerging', 'Mid-Career', 'Established'],
+      age_restrictions: 'None',
+      languages: ['en'],
+      ukrainians_eligible: true,
+      raw_description: 'Глобальна мережа арт-резиденцій. Щомісячні оновлення відкритих наборів для візуальних митців, кураторів та дослідників мистецтва на 2026-2027 роки.',
+    },
+    {
+      source_name: 'TransArtists',
+      title: 'Transartists: Art Residencies & Grants Database 2026-2027',
+      link: 'https://www.transartists.org/en/air',
+      source_url: 'https://www.transartists.org/en/air',
+      type: 'Residency',
+      deadline: '2027-12-31T00:00:00.000Z',
+      country: 'International',
+      is_free: true,
+      cost_amount: 0,
+      cost_currency: 'EUR',
+      genres: ['Visual Art', 'Painting'],
+      techniques: [],
+      artist_levels: ['Emerging', 'Mid-Career'],
+      age_restrictions: 'None',
+      languages: ['en'],
+      ukrainians_eligible: true,
+      raw_description: 'Платформа міжнародних резиденцій. Актуальні можливості фінансування, житла та виставкових просторів для художників на 2026-2027 роки.',
+    },
+    {
+      source_name: 'Pro Helvetia',
+      title: 'Pro Helvetia: Swiss Arts Council Residencies 2026-2027',
+      link: 'https://prohelvetia.ch/en/sundry/residencies/',
+      source_url: 'https://prohelvetia.ch/en/sundry/residencies/',
+      type: 'Residency',
+      deadline: '2027-09-30T00:00:00.000Z',
+      country: 'Switzerland',
+      is_free: true,
+      cost_amount: 0,
+      cost_currency: 'CHF',
+      genres: ['Visual Art', 'Painting'],
+      techniques: [],
+      artist_levels: ['Mid-Career', 'Established'],
+      age_restrictions: 'None',
+      languages: ['en'],
+      ukrainians_eligible: true,
+      raw_description: 'Швейцарська рада з питань культури. Програми резиденцій та підтримки для митців, які працюють у сфері сучасного візуального мистецтва.',
     }
   ]
 }
