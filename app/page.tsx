@@ -18,13 +18,54 @@ export default function HomePage() {
           .from('opportunities')
           .select('*')
           .eq('is_active', true)
-          .or('deadline.gte.2025-01-01,and(deadline.is.null,created_at.gte.2025-01-01)')
           .order('created_at', { ascending: false });
 
         if (error) {
           console.error('Помилка завантаження даних:', error);
-        } else if (data) {
-          setOpportunities(data as NotificationItem[]);
+          return;
+        }
+
+        if (data) {
+          // Фільтруємо тільки актуальні можливості
+          const currentYear = new Date().getFullYear(); // 2026
+          const filtered = data.filter((item: any) => {
+            // 1. Якщо є дедлайн — перевіряємо, що він у майбутньому або цьому/наступному році
+            if (item.deadline) {
+              const deadlineYear = new Date(item.deadline).getFullYear();
+              return deadlineYear >= currentYear;
+            }
+
+            // 2. Якщо дедлайну немає — залишаємо тільки ті, що явно про 2026/2027 або тестові
+            const title = (item.title || '').toLowerCase();
+            const desc = (item.raw_description || item.description || '').toLowerCase();
+
+            const isRecent =
+              title.includes('2026') ||
+              title.includes('2026') ||
+              title.includes('2027') ||
+              desc.includes('2026') ||
+              desc.includes('2027') ||
+              item.is_test === true;
+
+            // Додатково виключаємо очевидні старі новини
+            const isOldNews =
+              title.includes('2013') ||
+              title.includes('2014') ||
+              title.includes('2015') ||
+              title.includes('2016') ||
+              title.includes('2017') ||
+              title.includes('2018') ||
+              title.includes('2019') ||
+              title.includes('2020') ||
+              title.includes('2021') ||
+              title.includes('2022') ||
+              title.includes('2023') ||
+              title.includes('2024');
+
+            return isRecent && !isOldNews;
+          });
+
+          setOpportunities(filtered as NotificationItem[]);
         }
       } catch (err) {
         console.error('Помилка запиту:', err);
@@ -93,11 +134,11 @@ export default function HomePage() {
 
       <div style={{ textAlign: 'center', paddingBottom: '20px' }}>
         <div style={{ display: 'inline-block', padding: '10px', backgroundColor: '#161e2e', borderRadius: '16px', border: '1px solid #334155', marginBottom: '10px' }}>
-          👁️
+          👀
         </div>
         <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 6px 0' }}>POVODYR</h3>
         <p style={{ fontSize: '12px', color: '#94a3b8', maxWidth: '360px', margin: '0 auto' }}>
-          Ви створюєте картини. POVODYR допомагає їм знайти свій шлях до глядача та галерей.
+          Ви створюєте картини. POVODYR допомагає їм знайти свій шлях.
         </p>
       </div>
 
