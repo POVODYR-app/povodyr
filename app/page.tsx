@@ -8,7 +8,6 @@ export default function HomePage() {
   const [opportunities, setOpportunities] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Стани для відкриття модальних вікон
   const [isBellModalOpen, setIsBellModalOpen] = useState(false);
   const [isCenterModalOpen, setIsCenterModalOpen] = useState(false);
 
@@ -16,7 +15,6 @@ export default function HomePage() {
     async function fetchOpportunities() {
       try {
         setLoading(true);
-        // Завантаження активних можливостей із Supabase
         const { data, error } = await supabase
           .from('opportunities')
           .select('*')
@@ -38,29 +36,29 @@ export default function HomePage() {
     fetchOpportunities();
   }, []);
 
-  // Останні 5 сповіщень для Дзвіночка
-  const recentNotifications = opportunities.slice(0, 5);
+  const recentNotifications = opportunities.slice(0, 10);
+  const totalCount = opportunities.length;
 
   return (
-    <main key={Date.now()} style={{ padding: '40px 20px', fontFamily: 'sans-serif', maxWidth: '600px', margin: '0 auto', backgroundColor: '#0f172a', color: '#fff', minHeight: '100vh' }}>
+    <main key={Date.now()} style={{ padding: '30px 20px', fontFamily: 'sans-serif', maxWidth: '480px', margin: '0 auto', backgroundColor: '#0f172a', color: '#fff', minHeight: '100vh' }}>
       
-      {/* Верхня панель: Привітання та кнопка Профілю / Дзвіночка */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-        <h1 style={{ fontSize: '28px', margin: 0, fontWeight: 'bold' }}>Вітаємо, Vanda!</h1>
+      {/* Верхня панель: Привітання, Дзвіночок з лічильником та кнопка Профілю */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <h1 style={{ fontSize: '26px', margin: 0, fontWeight: 'bold' }}>Вітаємо, Vanda!</h1>
         
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {/* Кнопка Дзвіночка */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* Кнопка Дзвіночка з бейджем */}
           <button
             onClick={() => setIsBellModalOpen(true)}
             style={{
               position: 'relative',
               padding: '10px 14px',
-              backgroundColor: '#1a1d2d',
+              backgroundColor: '#1e293b',
               color: '#fff',
               border: '1px solid #334155',
               borderRadius: '12px',
               cursor: 'pointer',
-              fontSize: '18px',
+              fontSize: '16px',
               touchAction: 'manipulation'
             }}
             aria-label="Сповіщення"
@@ -70,18 +68,18 @@ export default function HomePage() {
               <span
                 style={{
                   position: 'absolute',
-                  top: '-5px',
-                  right: '-5px',
+                  top: '-6px',
+                  right: '-6px',
                   backgroundColor: '#3b82f6',
                   color: '#fff',
                   fontSize: '11px',
                   fontWeight: 'bold',
-                  width: '18px',
-                  height: '18px',
-                  borderRadius: '50%',
+                  padding: '2px 6px',
+                  borderRadius: '10px',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                 }}
               >
                 {recentNotifications.length}
@@ -89,12 +87,12 @@ export default function HomePage() {
             )}
           </button>
 
-          {/* Кнопка Профіль */}
+          {/* Кнопка Профілю у верхній панелі */}
           <a
             href="/profile"
             style={{
-              padding: '10px 16px',
-              backgroundColor: '#1a1d2d',
+              padding: '10px 14px',
+              backgroundColor: '#1e293b',
               color: '#fff',
               border: '1px solid #334155',
               borderRadius: '12px',
@@ -111,25 +109,26 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Блок сповіщень в Telegram */}
+      {/* Блок: Сповіщення в Telegram */}
       <div style={{
-        backgroundColor: '#1e293b',
+        backgroundColor: '#161e2e',
         border: '1px solid #334155',
         borderRadius: '16px',
         padding: '20px',
-        marginBottom: '24px'
+        marginBottom: '20px',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
       }}>
-        <h2 style={{ fontSize: '18px', margin: '0 0 8px 0', color: '#fff' }}>Сповіщення в Telegram</h2>
-        <p style={{ fontSize: '14px', color: '#94a3b8', margin: '0 0 16px 0' }}>
+        <h2 style={{ fontSize: '17px', margin: '0 0 6px 0', color: '#fff', fontWeight: '600' }}>Сповіщення в Telegram</h2>
+        <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 14px 0', lineHeight: '1.4' }}>
           Отримуйте оперативні добірки можливостей безпосередньо у ваш приватний чат.
         </p>
         <div style={{
           backgroundColor: '#0f172a',
           border: '1px solid #10b981',
           borderRadius: '10px',
-          padding: '12px 16px',
+          padding: '12px 14px',
           color: '#34d399',
-          fontSize: '14px',
+          fontSize: '13px',
           fontWeight: '500',
           display: 'flex',
           alignItems: 'center',
@@ -139,43 +138,55 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Інформаційний рядок кількості та кнопка Центру можливостей */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '40px' }}>
+      {/* Центральна плашка знайдених можливостей */}
+      <div style={{
+        backgroundColor: '#1e293b',
+        border: '1px solid #3b82f6',
+        borderRadius: '14px',
+        padding: '16px',
+        textAlign: 'center',
+        marginBottom: '14px',
+        color: '#93c5fd',
+        fontSize: '15px',
+        fontWeight: '500',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px'
+      }}>
+        <span>🔍</span> {loading ? 'Пошук...' : `Знайдено ${totalCount} нових можливостей під ваш профіль!`}
+      </div>
+
+      {/* Інформаційний текст бази */}
+      <div style={{ fontSize: '13px', color: '#94a3b8', textAlign: 'center', marginBottom: '20px' }}>
+        Усього знайдено матеріалів у базі: {totalCount}
+      </div>
+
+      {/* Основні великі кнопки керування */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '30px' }}>
         
-        <div style={{
-          padding: '16px 20px',
-          backgroundColor: '#1d283a',
-          border: '1px solid #3b82f6',
-          borderRadius: '12px',
-          color: '#93c5fd',
-          fontSize: '15px',
-          textAlign: 'center',
-          fontWeight: '500'
-        }}>
-          🔍 {loading ? 'Вираховуємо можливості...' : `Знайдено ${opportunities.length} нових можливостей під ваш профіль!`}
-        </div>
-
-        <div style={{ fontSize: '14px', color: '#94a3b8', textAlign: 'center' }}>
-          Усього знайдено матеріалів у базі: {opportunities.length}
-        </div>
-
         {/* Кнопка "Центр можливостей" */}
         <button
           onClick={() => setIsCenterModalOpen(true)}
           disabled={loading}
           style={{
-            padding: '16px 20px',
+            padding: '15px 20px',
             backgroundColor: '#2563eb',
             color: '#fff',
             border: 'none',
             borderRadius: '12px',
-            fontSize: '16px',
+            fontSize: '15px',
             fontWeight: '600',
             cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)',
             touchAction: 'manipulation'
           }}
         >
-          📋 {loading ? 'Завантаження...' : `Центр можливостей (${opportunities.length})`}
+          <span>📋</span> {loading ? 'Завантаження...' : `Центр можливостей (${totalCount})`}
         </button>
 
         {/* Кнопка "Мій профіль" */}
@@ -183,42 +194,46 @@ export default function HomePage() {
           href="/profile"
           style={{
             textAlign: 'center',
-            padding: '16px 20px',
+            padding: '15px 20px',
             backgroundColor: '#1e293b',
             color: '#fff',
             border: '1px solid #334155',
             textDecoration: 'none',
             borderRadius: '12px',
-            fontSize: '16px',
+            fontSize: '15px',
             fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
             touchAction: 'manipulation'
           }}
         >
-          ✏️ Мій профіль
+          <span>✏️</span> Мій профіль
         </a>
       </div>
 
-      <hr style={{ border: 'none', borderTop: '1px solid #1e293b', margin: '30px 0' }} />
+      <div style={{ borderTop: '1px solid #1e293b', margin: '24px 0' }} />
 
       {/* Нижній брендинг POVODYR */}
       <div style={{ textAlign: 'center', paddingBottom: '20px' }}>
         <div style={{
           display: 'inline-block',
-          padding: '12px',
-          backgroundColor: '#1e293b',
+          padding: '10px',
+          backgroundColor: '#161e2e',
           borderRadius: '16px',
           border: '1px solid #334155',
-          marginBottom: '12px'
+          marginBottom: '10px'
         }}>
-          <span style={{ fontSize: '28px' }}>👁️‍🗨️</span>
+          <span style={{ fontSize: '26px' }}>👁️‍🗨️</span>
         </div>
-        <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 8px 0', letterSpacing: '1px' }}>POVODYR</h3>
-        <p style={{ fontSize: '13px', color: '#94a3b8', maxWidth: '400px', margin: '0 auto', lineHeight: '1.4' }}>
+        <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 6px 0', letterSpacing: '1px' }}>POVODYR</h3>
+        <p style={{ fontSize: '12px', color: '#94a3b8', maxWidth: '360px', margin: '0 auto', lineHeight: '1.4' }}>
           Ви створюєте картини. POVODYR допомагає їм знайти свій шлях до глядача та галерей.
         </p>
       </div>
 
-      {/* МОДАЛЬНЕ ВІКНО 1: Свіжі сповіщення з Дзвіночка */}
+      {/* Модальне вікно сповіщень (Дзвіночок) */}
       <NotificationsModal
         isOpen={isBellModalOpen}
         onClose={() => setIsBellModalOpen(false)}
@@ -226,12 +241,12 @@ export default function HomePage() {
         title="Останні сповіщення"
       />
 
-      {/* МОДАЛЬНЕ ВІКНО 2: Центр можливостей (Всі доступні матеріали) */}
+      {/* Модальне вікно Центру можливостей */}
       <NotificationsModal
         isOpen={isCenterModalOpen}
         onClose={() => setIsCenterModalOpen(false)}
         notifications={opportunities}
-        title={`Центр можливостей (${opportunities.length})`}
+        title={`Центр можливостей (${totalCount})`}
       />
     </main>
   );
