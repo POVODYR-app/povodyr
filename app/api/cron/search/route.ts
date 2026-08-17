@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { fetchActiveOpportunities } from '@/lib/supabase'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -54,8 +53,17 @@ export async function GET() {
         .upsert(opp, { onConflict: 'link' })
     }
 
-    // Отримуємо актуальні можливості через централізовану функцію
-    const opportunities = await fetchActiveOpportunities()
+    // Отримуємо активні можливості безпосередньо з урахуванням дедлайнів
+    const nowISO = new Date().toISOString()
+    const { data: opportunities, error: oppError } = await supabase
+      .from('opportunities')
+      .select('*')
+      .eq('is_active', true)
+      .or(`deadline.gte.${nowISO},deadline.is.null`)
+
+    if (oppError) {
+      return NextResponse.json({ error: oppError.message }, { status: 500 })
+    }
 
     const results = []
 
