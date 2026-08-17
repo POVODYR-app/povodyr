@@ -82,14 +82,8 @@ export default function DashboardPage() {
         .eq('id', user.id)
         .maybeSingle()
 
-      const todayStr = new Date().toISOString().split('T')[0]
-
-      const opportunitiesPromise = supabase
-        .from('opportunities')
-        .select('*')
-        .eq('is_active', true)
-        .or(`deadline.gte.${todayStr},deadline.is.null`)
-        .order('created_at', { ascending: false })
+      // Викликаємо нашу хмарну RPC-функцію з бази даних
+      const opportunitiesPromise = supabase.rpc('get_active_opportunities')
 
       const [{ data: profile }, { data: opportunities }] = await Promise.all([profilePromise, opportunitiesPromise])
 
@@ -155,8 +149,6 @@ export default function DashboardPage() {
     if (!msg) return ''
     return msg.replace(/<a /g, '<a style="color: #60a5fa; text-decoration: underline;" target="_blank" rel="noopener noreferrer" ')
   }
-
-  const recentNotifications = matchedOpportunities.slice(0, 5)
 
   return (
     <div style={{ minHeight: '100dvh', backgroundColor: '#0f172a', color: 'white', padding: '20px 16px', fontFamily: 'sans-serif' }}>
