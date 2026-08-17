@@ -29,7 +29,7 @@ export const SEARCH_KEYWORDS = {
     "Заявка на виставку галерея",
     "Подати заявку на виставку",
     "Відкритий конкурс для художників",
-    "Мистецька резиденція Україна",
+    "Мистецька резиденція для художників",
     "Арт-резиденція для живописців",
     "Гранти для художників",
     "Гранти на культурні проєкти",
@@ -90,20 +90,18 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
       textContent = await res.text()
     }
   } catch (e) {
-    // Ігноруємо якщо не відповідав
+    // Ігноруємо
   }
 
   if (textContent && textContent.length > 100) {
     try {
       const $ = cheerio.load(textContent)
       
-      // Збираємо дані не лише з посилань, а й з усіх заголовків H1, H2, H3, H4 разом із супровідним текстом
       $('h1, h2, h3, h4, a').each((_, element) => {
         const $el = $(element)
         const text = $el.text().trim().replace(/\s+/g, ' ')
         const href = $el.attr('href') || $el.find('a').attr('href') || $el.closest('a').attr('href')
         
-        // Шукаємо опис у наступному параграфі, якщо це заголовок
         let description = ''
         if ($el.is('h1, h2, h3, h4')) {
           const nextP = $el.next('p').text().trim().replace(/\s+/g, ' ')
@@ -112,7 +110,7 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
           }
         }
 
-        const isRelevant = /open\s*call|конкурс|виставка|грант|резиденція|митці|художники|art-espresso|календар/i.test(text)
+        const isRelevant = /open\s*call|конкурс|виставка|грант|резиденція|митці|художники|art-espresso| календар конкурсів|виставок|пленерів/i.test(text)
 
         if (isRelevant && text.length >= 10 && text.length <= 300) {
           const fullLink = href 
@@ -131,7 +129,7 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
               is_free: true,
               cost_amount: 0,
               cost_currency: 'UAH',
-              genres: ['Образотворче мистецтво', 'Живопис', 'Графіка'],
+              genres: ['Образотворче мистецтво', 'Живопис', 'Графіка', 'Коллаж', 'Скульптура', 'Декоративно-ужиткове мистецтво'],
               techniques: [],
               artist_levels: ['Emerging', 'Mid-Career', 'Established'],
               age_restrictions: 'None',
@@ -143,7 +141,7 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
         }
       })
     } catch (err) {
-      // Помилка парсингу
+      // ignore
     }
   }
 
@@ -158,14 +156,12 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
     { url: 'https://www.e-flux.com/announcements/rss', name: 'E-Flux' }
   ]
 
-  // Ключові слова, які вказують на реальну можливість
   const positiveKeywords = [
     'open call', 'opencall', 'call for', 'deadline', 'apply', 'application',
     'residency', 'residencies', 'grant', 'grants', 'prize', 'award',
     'submission', 'submit', 'exhibition opportunity', 'artist call'
   ]
 
-  // Слова, які вказують на старі новини / не можливості
   const negativeKeywords = [
     'board member', 'welcomes', 'appointed', 'highlights', 'anniversary',
     'meeting', 'conference report', 'goodbye', 'interview', 'spotlight on'
@@ -174,7 +170,7 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
   for (const source of sources) {
     let items: Array<{ title: string; link: string; description: string }> = []
 
-    // Спосіб 1: rss2json
+    // rss2json
     try {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 8000)
@@ -196,11 +192,9 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
           }))
         }
       }
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
 
-    // Спосіб 2: прямий fetch
+    // Прямий fetch
     if (items.length === 0) {
       try {
         const controller = new AbortController()
@@ -208,7 +202,7 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
 
         const res = await fetch(source.url, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
           },
           signal: controller.signal,
           next: { revalidate: 0 }
@@ -237,12 +231,10 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
     // Фільтрація
     items.forEach(item => {
       const titleLower = item.title.toLowerCase()
-      const descLower = item.description.toLowerCase()
+      const descLower = (item.description || '').toLowerCase()
 
       const hasPositive = positiveKeywords.some(kw => titleLower.includes(kw) || descLower.includes(kw))
       const hasNegative = negativeKeywords.some(kw => titleLower.includes(kw))
-
-      // Додатково перевіряємо рік
       const hasRecentYear = /202[5-9]|2030/.test(item.title + ' ' + item.description)
 
       if (hasPositive && !hasNegative && (hasRecentYear || source.name !== 'Res Artis')) {
@@ -263,109 +255,7 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
           age_restrictions: 'None',
           languages: ['en'],
           ukrainians_eligible: true,
-          raw_description: item.description.replace(/<[^>]+>/g, '').trim().substring(0, 500) || item.title,
-        })
-      }
-    })
-  }
-
-  return opportunities
-}
- {
-  const opportunities: ParsedOpportunity[] = []
-  const sources = [
-    { url: 'https://www.resartis.org/feed/', name: 'Res Artis' },
-    { url: 'https://www.transartists.org/en/rss.xml', name: 'TransArtists' },
-    { url: 'https://www.e-flux.com/announcements/rss', name: 'E-Flux' }
-  ]
-
-  for (const source of sources) {
-    let items: Array<{ title: string; link: string; description: string }> = []
-
-    // Спосіб 1: rss2json API (Обходить блокування IP Vercel)
-    try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 7000)
-      const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}&count=50`
-
-      const res = await fetch(rss2jsonUrl, {
-        signal: controller.signal,
-        next: { revalidate: 0 }
-      })
-
-      clearTimeout(timeoutId)
-
-      if (res.ok) {
-        const data = await res.json()
-        if (data.status === 'ok' && Array.isArray(data.items)) {
-          items = data.items.map((i: any) => ({
-            title: i.title || '',
-            link: i.link || i.guid || source.url,
-            description: i.description || i.content || ''
-          }))
-        }
-      }
-    } catch (e) {
-      // Перехід на резервний прямий запит
-    }
-
-    // Спосіб 2: Прямий fetch + Cheerio (якщо rss2json не спрацював)
-    if (items.length === 0) {
-      try {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 7000)
-
-        const res = await fetch(source.url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
-          },
-          signal: controller.signal,
-          next: { revalidate: 0 }
-        })
-
-        clearTimeout(timeoutId)
-
-        if (res.ok) {
-          const xml = await res.text()
-          const $ = cheerio.load(xml, { xmlMode: true })
-
-          $('item, entry').each((_, element) => {
-            const title = $(element).find('title').text().trim()
-            const link = $(element).find('link').attr('href') || $(element).find('link').text().trim()
-            const description = $(element).find('description, summary, content').text().replace(/<[^>]+>/g, '').trim()
-
-            if (title && link) {
-              items.push({ title, link, description })
-            }
-          })
-        }
-      } catch (e) {
-        console.error(`Не вдалося завантажити RSS ${source.name}`)
-      }
-    }
-
-    // Додавання зібраних записів у загальний масив
-    items.forEach(item => {
-      if (item.title && item.link) {
-        const cleanDesc = item.description.replace(/<[^>]+>/g, '').trim()
-        opportunities.push({
-          source_name: source.name,
-          title: item.title.substring(0, 150),
-          link: item.link,
-          source_url: item.link,
-          type: 'Open Call',
-          deadline: null,
-          country: 'International',
-          is_free: true,
-          cost_amount: 0,
-          cost_currency: 'EUR',
-          genres: ['Visual Art', 'Painting'],
-          techniques: [],
-          artist_levels: ['Emerging', 'Mid-Career'],
-          age_restrictions: 'None',
-          languages: ['en'],
-          ukrainians_eligible: true,
-          raw_description: cleanDesc.substring(0, 500) || item.title,
+          raw_description: (item.description || item.title).replace(/<[^>]+>/g, '').trim().substring(0, 500),
         })
       }
     })
@@ -378,7 +268,7 @@ function getCoreOpportunities(): ParsedOpportunity[] {
   return [
     {
       source_name: 'Art Fine Nation',
-      title: 'Всеукраїнський Open Call: Сучасний український живопис та образотворче мистецтво 2026',
+      title: 'open calls для художників 2026',
       link: 'https://sites.google.com/view/artfinenation/open-call',
       source_url: 'https://sites.google.com/view/artfinenation/open-call',
       type: 'Open Call',
@@ -432,25 +322,6 @@ function getCoreOpportunities(): ParsedOpportunity[] {
       languages: ['uk'],
       ukrainians_eligible: true,
       raw_description: 'Календар подій, конкурсів, виставок та пленерів Першої української мистецької агенції на 2026 рік.',
-    },
-    {
-      source_name: 'Res Artis',
-      title: 'International Visual Artist Residency & Exhibition Grant 2026',
-      link: 'https://www.resartis.org/open-call-2026',
-      source_url: 'https://www.resartis.org/open-call-2026',
-      type: 'Residency',
-      deadline: '2026-12-15T00:00:00.000Z',
-      country: 'International',
-      is_free: true,
-      cost_amount: 0,
-      cost_currency: 'EUR',
-      genres: ['Visual Art', 'Painting'],
-      techniques: ['Mixed Media', 'Oil', 'Acrylic'],
-      artist_levels: ['Emerging', 'Mid-Career'],
-      age_restrictions: 'None',
-      languages: ['en'],
-      ukrainians_eligible: true,
-      raw_description: 'Міжнародна резиденційна програма для митців у галузі візуального мистецтва та живопису.',
     }
   ]
 }
