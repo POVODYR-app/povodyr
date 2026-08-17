@@ -129,7 +129,7 @@ export default function ProfilePage() {
 
     setSaving(false)
     if (!error) {
-      router.push('/dashboard')
+      router.push('/')
     } else {
       alert('Помилка збереження: ' + error.message)
     }
@@ -149,7 +149,7 @@ export default function ProfilePage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#ffffff' }}>Мій профіль</h1>
           <button 
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push('/')}
             style={{ backgroundColor: '#334155', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
           >
             ← Назад
