@@ -141,7 +141,11 @@ export default function HomePage() {
           Ви створюєте картини. POVODYR допомагає їм знайти свій шлях.
         </p>
       </div>
-
+      <img 
+  src="/icon-192.jpg" 
+  alt="POVODYR Logo" 
+  className="w-16 h-16 rounded-xl object-cover mt-4 mx-auto"
+/>
       <NotificationsModal
         isOpen={isBellModalOpen}
         onClose={() => setIsBellModalOpen(false)}
