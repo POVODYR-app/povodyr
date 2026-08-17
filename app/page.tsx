@@ -41,8 +41,6 @@ export default function HomePage() {
 
   return (
     <main style={{ padding: '30px 20px', fontFamily: 'sans-serif', maxWidth: '480px', margin: '0 auto', backgroundColor: '#0f172a', color: '#fff', minHeight: '100vh' }}>
-      
-      {/* Верхня панель */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h1 style={{ fontSize: '26px', margin: 0, fontWeight: 'bold' }}>Вітаємо, Vanda!</h1>
         
@@ -55,3 +53,32 @@ export default function HomePage() {
               backgroundColor: '#1e293b',
               color: '#fff',
               border: '1px solid #334155',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              touchAction: 'manipulation'
+            }}
+          >
+            🔔
+            {recentNotifications.length > 0 && (
+              <span style={{
+                position: 'absolute',
+                top: '-6px',
+                right: '-6px',
+                backgroundColor: '#3b82f6',
+                color: '#fff',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                padding: '2px 6px',
+                borderRadius: '10px'
+              }}>
+                {recentNotifications.length}
+              </span>
+            )}
+          </button>
+
+          <a href="/profile" style={{
+            padding: '10px 14px',
+            backgroundColor: '#1e293b',
+            color: '#fff',
+            border: '1
