@@ -40,7 +40,7 @@ export default function HomePage() {
   const totalCount = opportunities.length;
 
   return (
-    <main={Date.now()} style={{ padding: '30px 20px', fontFamily: 'sans-serif', maxWidth: '480px', margin: '0 auto', backgroundColor: '#0f172a', color: '#fff', minHeight: '100vh' }}>
+    <main style={{ padding: '30px 20px', fontFamily: 'sans-serif', maxWidth: '480px', margin: '0 auto', backgroundColor: '#0f172a', color: '#fff', minHeight: '100vh' }}>
       
       {/* Верхня панель: Привітання, Дзвіночок з лічильником та кнопка Профілю */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
