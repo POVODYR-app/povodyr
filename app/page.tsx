@@ -94,10 +94,6 @@ export default function HomePage() {
                 {recentNotifications.length}
               </span>
             )}
-          </button>
-          <a href="/profile" style={{ padding: '10px 14px', backgroundColor: '#1e293b', color: '#fff', border: '1px solid #334155', borderRadius: '12px', textDecoration: 'none', fontSize: '14px', fontWeight: '600' }}>
-            ✏️ Профіль
-          </a>
         </div>
       </div>
 
