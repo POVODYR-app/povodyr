@@ -2,7 +2,6 @@ import { NextResponse, NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import webpush from 'web-push';
-import { fetchActiveOpportunities } from '@/lib/supabase';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -77,8 +76,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, message: 'Немає користувачів для розсилки', sent: 0 });
     }
 
-    // Використовуємо уніфіковану функцію замість ручного запиту
-    const opportunities = await fetchActiveOpportunities();
+    // Отримуємо активні можливості безпосередньо з бази з урахуванням дедлайнів
+    const nowISO = new Date().toISOString();
+    const { data: opportunities, error: oppError } = await supabase
+      .from('opportunities')
+      .select('*')
+      .eq('is_active', true)
+      .or(`deadline.gte.${nowISO},deadline.is.null`)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (oppError) {
+      return NextResponse.json({ success: false, error: oppError.message }, { status: 500 });
+    }
 
     let sentCount = 0;
     const logs: any[] = [];
