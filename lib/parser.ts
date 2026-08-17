@@ -158,6 +158,127 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
     { url: 'https://www.e-flux.com/announcements/rss', name: 'E-Flux' }
   ]
 
+  // Ключові слова, які вказують на реальну можливість
+  const positiveKeywords = [
+    'open call', 'opencall', 'call for', 'deadline', 'apply', 'application',
+    'residency', 'residencies', 'grant', 'grants', 'prize', 'award',
+    'submission', 'submit', 'exhibition opportunity', 'artist call'
+  ]
+
+  // Слова, які вказують на старі новини / не можливості
+  const negativeKeywords = [
+    'board member', 'welcomes', 'appointed', 'highlights', 'anniversary',
+    'meeting', 'conference report', 'goodbye', 'interview', 'spotlight on'
+  ]
+
+  for (const source of sources) {
+    let items: Array<{ title: string; link: string; description: string }> = []
+
+    // Спосіб 1: rss2json
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 8000)
+      const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}&count=40`
+
+      const res = await fetch(rss2jsonUrl, {
+        signal: controller.signal,
+        next: { revalidate: 0 }
+      })
+      clearTimeout(timeoutId)
+
+      if (res.ok) {
+        const data = await res.json()
+        if (data.status === 'ok' && Array.isArray(data.items)) {
+          items = data.items.map((i: any) => ({
+            title: i.title || '',
+            link: i.link || i.guid || source.url,
+            description: i.description || i.content || ''
+          }))
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // Спосіб 2: прямий fetch
+    if (items.length === 0) {
+      try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+        const res = await fetch(source.url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+          },
+          signal: controller.signal,
+          next: { revalidate: 0 }
+        })
+        clearTimeout(timeoutId)
+
+        if (res.ok) {
+          const xml = await res.text()
+          const $ = cheerio.load(xml, { xmlMode: true })
+
+          $('item, entry').each((_, element) => {
+            const title = $(element).find('title').text().trim()
+            const link = $(element).find('link').attr('href') || $(element).find('link').text().trim()
+            const description = $(element).find('description, summary, content').text().replace(/<[^>]+>/g, '').trim()
+
+            if (title && link) {
+              items.push({ title, link, description })
+            }
+          })
+        }
+      } catch (e) {
+        console.error(`Не вдалося завантажити RSS ${source.name}`)
+      }
+    }
+
+    // Фільтрація
+    items.forEach(item => {
+      const titleLower = item.title.toLowerCase()
+      const descLower = item.description.toLowerCase()
+
+      const hasPositive = positiveKeywords.some(kw => titleLower.includes(kw) || descLower.includes(kw))
+      const hasNegative = negativeKeywords.some(kw => titleLower.includes(kw))
+
+      // Додатково перевіряємо рік
+      const hasRecentYear = /202[5-9]|2030/.test(item.title + ' ' + item.description)
+
+      if (hasPositive && !hasNegative && (hasRecentYear || source.name !== 'Res Artis')) {
+        opportunities.push({
+          source_name: source.name,
+          title: item.title.substring(0, 160),
+          link: item.link,
+          source_url: item.link,
+          type: titleLower.includes('residency') ? 'Residency' : 'Open Call',
+          deadline: null,
+          country: 'International',
+          is_free: true,
+          cost_amount: 0,
+          cost_currency: 'EUR',
+          genres: ['Visual Art', 'Painting'],
+          techniques: [],
+          artist_levels: ['Emerging', 'Mid-Career'],
+          age_restrictions: 'None',
+          languages: ['en'],
+          ukrainians_eligible: true,
+          raw_description: item.description.replace(/<[^>]+>/g, '').trim().substring(0, 500) || item.title,
+        })
+      }
+    })
+  }
+
+  return opportunities
+}
+ {
+  const opportunities: ParsedOpportunity[] = []
+  const sources = [
+    { url: 'https://www.resartis.org/feed/', name: 'Res Artis' },
+    { url: 'https://www.transartists.org/en/rss.xml', name: 'TransArtists' },
+    { url: 'https://www.e-flux.com/announcements/rss', name: 'E-Flux' }
+  ]
+
   for (const source of sources) {
     let items: Array<{ title: string; link: string; description: string }> = []
 
