@@ -18,6 +18,7 @@ export default function HomePage() {
           .from('opportunities')
           .select('*')
           .eq('is_active', true)
+          .or('deadline.gte.2025-01-01,and(deadline.is.null,created_at.gte.2025-01-01)')
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -43,10 +44,7 @@ export default function HomePage() {
         <h1 style={{ fontSize: '26px', margin: 0, fontWeight: 'bold' }}>Вітаємо, Vanda!</h1>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
-            onClick={() => {
-              alert('Дзвіночок натиснуто!');
-              setIsBellModalOpen(true);
-            }}
+            onClick={() => setIsBellModalOpen(true)}
             style={{ position: 'relative', padding: '10px 14px', backgroundColor: '#1e293b', color: '#fff', border: '1px solid #334155', borderRadius: '12px', cursor: 'pointer', fontSize: '16px' }}
           >
             🔔
@@ -80,10 +78,7 @@ export default function HomePage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '30px' }}>
         <button
-          onClick={() => {
-            alert('Центр можливостей натиснуто!');
-            setIsCenterModalOpen(true);
-          }}
+          onClick={() => setIsCenterModalOpen(true)}
           disabled={loading}
           style={{ padding: '15px 20px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}
         >
