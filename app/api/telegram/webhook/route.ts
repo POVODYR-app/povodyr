@@ -8,8 +8,11 @@ const botToken = process.env.TELEGRAM_BOT_TOKEN || ''
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 async function sendTelegramMessage(chatId: number | string, text: string) {
-  if (!botToken) return
-  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+  if (!botToken) {
+    console.error('TELEGRAM_BOT_TOKEN is missing!')
+    return
+  }
+  const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -18,11 +21,14 @@ async function sendTelegramMessage(chatId: number | string, text: string) {
       parse_mode: 'HTML',
     }),
   })
+  const data = await res.json()
+  console.log('Telegram send result:', data)
 }
 
 export async function POST(req: Request) {
   try {
     const update = await req.json()
+    console.log('Incoming webhook update:', JSON.stringify(update))
 
     if (update?.message?.text) {
       const chatId = update.message.chat.id
@@ -31,12 +37,16 @@ export async function POST(req: Request) {
       if (text.startsWith('/start')) {
         const parts = text.split(' ')
         const userId = parts[1]
+        console.log('Parsed start command. User ID from link:', userId, 'Chat ID:', chatId)
 
         if (userId) {
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from('profiles')
             .update({ telegram_chat_id: String(chatId) })
             .eq('id', userId)
+            .select()
+
+          console.log('Supabase update result:', { data, error })
 
           if (!error) {
             await sendTelegramMessage(
@@ -60,6 +70,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true })
   } catch (err) {
+    console.error('Webhook error:', err)
     return NextResponse.json({ ok: false, error: 'Internal server error' }, { status: 500 })
   }
 }
