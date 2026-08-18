@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import TelegramConnect from '../../components/TelegramConnect'
-import NotificationsModal, { NotificationItem } from '../components/NotificationsModal'
+import NotificationsModal, { NotificationItem } from '../../components/NotificationsModal'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -58,20 +58,12 @@ function parseArrayField(raw: unknown): string[] {
 export default function DashboardPage() {
   const [userName, setUserName] = useState<string>('')
   const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
-  const [showInstallBanner, setShowInstallBanner] = useState<boolean>(false)
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
   const [matchedOpportunities, setMatchedOpportunities] = useState<Opportunity[]>([])
   const [totalOpportunitiesCount, setTotalOpportunitiesCount] = useState<number>(0)
 
   useEffect(() => {
     let isMounted = true
-
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as unknown as { standalone?: boolean }).standalone
-    const bannerClosed = localStorage.getItem('povodyr_install_banner_closed')
-    
-    if (!bannerClosed && !isPWA) {
-      setShowInstallBanner(true)
-    }
 
     const loadData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -139,14 +131,12 @@ export default function DashboardPage() {
     return () => { isMounted = false }
   }, [])
 
-  // Мапимо можливості у формат, який приймає компонент NotificationsModal
   const modalNotifications: NotificationItem[] = matchedOpportunities.map(opp => ({
     id: opp.id,
     title: opp.title,
     description: opp.description || opp.raw_description || '',
     created_at: opp.created_at || new Date().toISOString(),
     link_url: opp.link_url || opp.source_url || opp.link || opp.url,
-    source_name: opp.source_name,
   }))
 
   return (
@@ -164,14 +154,13 @@ export default function DashboardPage() {
             borderRadius: 16, 
             padding: 16, 
             marginBottom: 20, 
-            cursor: 'pointer',
-            transition: 'background-color 0.2s'
+            cursor: 'pointer'
           }}
         >
           <p style={{ margin: 0, fontSize: 15, fontWeight: 500 }}>
             {matchedOpportunities.length > 0 
-              ? `Знайдено можливостей за вашими фільтрами: ${matchedOpportunities.length} (з ${totalOpportunitiesCount} загальних)` 
-              : `Немає можливостей за вашими поточними фільтрами (всього в базі: ${totalOpportunitiesCount}). Натисніть, щоб переглянути.`}
+              ? `Знайдено можливостей: ${matchedOpportunities.length}` 
+              : `Немає можливостей за вашими фільтрами.`}
           </p>
         </div>
 
