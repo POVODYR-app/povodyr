@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import TelegramConnect from '../../components/TelegramConnect'
+import NotificationsModal, { NotificationItem } from '../components/NotificationsModal'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -58,7 +59,7 @@ export default function DashboardPage() {
   const [userName, setUserName] = useState<string>('')
   const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
   const [showInstallBanner, setShowInstallBanner] = useState<boolean>(false)
-  const [activeModal, setActiveModal] = useState<'bell' | 'center' | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
   const [matchedOpportunities, setMatchedOpportunities] = useState<Opportunity[]>([])
   const [totalOpportunitiesCount, setTotalOpportunitiesCount] = useState<number>(0)
 
@@ -82,7 +83,6 @@ export default function DashboardPage() {
         .eq('id', user.id)
         .maybeSingle()
 
-      // Викликаємо нашу хмарну RPC-функцію з бази даних
       const opportunitiesPromise = supabase.rpc('get_active_opportunities')
 
       const [{ data: profile }, { data: opportunities }] = await Promise.all([profilePromise, opportunitiesPromise])
@@ -139,16 +139,15 @@ export default function DashboardPage() {
     return () => { isMounted = false }
   }, [])
 
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return ''
-    const d = new Date(dateString)
-    return isNaN(d.getTime()) ? '' : d.toLocaleDateString('uk-UA')
-  }
-
-  const formatMessageHtml = (msg?: string | null) => {
-    if (!msg) return ''
-    return msg.replace(/<a /g, '<a style="color: #60a5fa; text-decoration: underline;" target="_blank" rel="noopener noreferrer" ')
-  }
+  // Мапимо можливості у формат, який приймає компонент NotificationsModal
+  const modalNotifications: NotificationItem[] = matchedOpportunities.map(opp => ({
+    id: opp.id,
+    title: opp.title,
+    description: opp.description || opp.raw_description || '',
+    created_at: opp.created_at || new Date().toISOString(),
+    link_url: opp.link_url || opp.source_url || opp.link || opp.url,
+    source_name: opp.source_name,
+  }))
 
   return (
     <div style={{ minHeight: '100dvh', backgroundColor: '#0f172a', color: 'white', padding: '20px 16px', fontFamily: 'sans-serif' }}>
@@ -157,32 +156,31 @@ export default function DashboardPage() {
         
         {userObj && <TelegramConnect user={userObj} />}
 
-        <div onClick={() => setActiveModal('center')} style={{ backgroundColor: matchedOpportunities.length > 0 ? '#1e3a8a' : '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 16, marginBottom: 20, cursor: 'pointer' }}>
-          <p style={{ margin: 0, fontSize: 15 }}>{matchedOpportunities.length > 0 ? `Знайдено ${matchedOpportunities.length} можливостей!` : 'Немає нових можливостей.'}</p>
+        <div 
+          onClick={() => setIsModalOpen(true)} 
+          style={{ 
+            backgroundColor: matchedOpportunities.length > 0 ? '#1e3a8a' : '#1e293b', 
+            border: '1px solid #334155', 
+            borderRadius: 16, 
+            padding: 16, 
+            marginBottom: 20, 
+            cursor: 'pointer',
+            transition: 'background-color 0.2s'
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 15, fontWeight: 500 }}>
+            {matchedOpportunities.length > 0 
+              ? `Знайдено можливостей за вашими фільтрами: ${matchedOpportunities.length} (з ${totalOpportunitiesCount} загальних)` 
+              : `Немає можливостей за вашими поточними фільтрами (всього в базі: ${totalOpportunitiesCount}). Натисніть, щоб переглянути.`}
+          </p>
         </div>
 
-        {activeModal && (
-          <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 50, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ backgroundColor: '#1e293b', borderRadius: 16, width: '100%', maxWidth: 420, maxHeight: '85vh', display: 'flex', flexDirection: 'column', border: '1px solid #334155' }}>
-              <div style={{ padding: 16, borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between' }}>
-                <h2 style={{ margin: 0, fontSize: 18 }}>Центр можливостей</h2>
-                <button onClick={() => setActiveModal(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20 }}>✕</button>
-              </div>
-              <div style={{ overflowY: 'auto', padding: 16, flex: 1 }}>
-                {matchedOpportunities.map((item) => (
-                  <div key={item.id} style={{ backgroundColor: '#0f172a', borderRadius: 12, padding: 14, marginBottom: 12 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <h3 style={{ margin: 0, fontSize: 15 }}>{item.title}</h3>
-                      {item.source_name && <span style={{ fontSize: 10, padding: '2px 6px', backgroundColor: '#334155', borderRadius: 4, whiteSpace: 'nowrap' }}>{item.source_name}</span>}
-                    </div>
-                    {item.description && <div style={{ fontSize: 13, marginBottom: 10 }} dangerouslySetInnerHTML={{ __html: formatMessageHtml(item.description) }} />}
-                    <div style={{ fontSize: 11, color: '#64748b' }}>{item.deadline ? `Дедлайн: ${formatDate(item.deadline)}` : 'Без терміну'}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+        <NotificationsModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          notifications={modalNotifications}
+          title="Центр можливостей"
+        />
       </div>
     </div>
   )
