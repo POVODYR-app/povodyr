@@ -16,10 +16,15 @@ export async function GET(request: NextRequest) {
 
   try {
     // Захист від випадкового виклику
-    const authHeader = request.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
+const authHeader = request.headers.get('authorization');
+const isAuthorized = 
+  !process.env.CRON_SECRET || 
+  authHeader === `Bearer ${process.env.CRON_SECRET}` ||
+  request.nextUrl.searchParams.get('secret') === process.env.CRON_SECRET;
+
+if (!isAuthorized) {
+  return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+}
 
     logs.push(`[${new Date().toISOString()}] Запуск ingest...`);
 
