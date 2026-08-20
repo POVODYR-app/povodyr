@@ -58,12 +58,9 @@ function parseArrayField(raw: unknown): string[] {
 export default function DashboardPage() {
   const [userName, setUserName] = useState('')
   const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
-  
-  // Стани для модальних вікон або списків
-  const [modalType, setModalType] = useState<'daily' | 'center' | null>(null)
-  
-  const [matchedOpportunities, setMatchedOpportunities] = useState<Opportunity[]>([]) // Центр (10 днів)
-  const [dailyOpportunities, setDailyOpportunities] = useState<Opportunity[]>([])       // За добу
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [matchedOpportunities, setMatchedOpportunities] = useState<Opportunity[]>([])
+  const [dailyOpportunities, setDailyOpportunities] = useState<Opportunity[]>([])
   const [totalCount, setTotalCount] = useState<number>(0)
   const [loading, setLoading] = useState(true)
 
@@ -103,7 +100,7 @@ export default function DashboardPage() {
         .eq('is_active', true)
         .or(`deadline.gte.${nowISO},deadline.is.null`)
         .order('created_at', { ascending: false })
-        .limit(200)
+        .limit(100)
 
       if (error) {
         console.error('Помилка завантаження opportunities:', error)
@@ -114,13 +111,17 @@ export default function DashboardPage() {
       const allOpps = (opportunities || []) as Opportunity[]
       setTotalCount(allOpps.length)
 
-      // 3. Фільтрація загальна
+      // Визначаємо найновішу дату в базі для синхронізації з розсилкою бота
+      const latestDate = allOpps.length > 0 ? new Date(allOpps[0].created_at).getTime() : Date.now()
+      const recentThreshold = latestDate - (3 * 24 * 60 * 60 * 1000) // 3 дні від найсвіжішого запису
+
+      // 3. Фільтрація
       if (userProfile) {
         const userCountries = parseArrayField(userProfile.search_countries)
         const userTechniques = parseArrayField(userProfile.techniques)
         const orgFeeMax = Number(userProfile.org_fee_max || userProfile.max_fee_amount) || 0
 
-        const filtered = allOpps.filter((opp) => {
+        const matched = allOpps.filter((opp) => {
           // Країна
           if (userCountries.length > 0 && opp.country) {
             const oppCountry = String(opp.country).toLowerCase()
@@ -155,31 +156,24 @@ export default function DashboardPage() {
           return true
         })
 
-        // Центр можливостей: останні 10 днів (новіші витісняють старі)
-        const tenDaysAgo = Date.now() - 10 * 24 * 60 * 60 * 1000
-        const centerMatched = filtered.filter((opp) => {
-          const createdTime = opp.created_at ? new Date(opp.created_at).getTime() : 0
-          return createdTime >= tenDaysAgo
-        })
-
-        centerMatched.sort((a, b) => {
+        // Сортуємо за датою дедлайну
+        matched.sort((a, b) => {
           const dateA = a.deadline ? new Date(a.deadline).getTime() : Infinity
           const dateB = b.deadline ? new Date(b.deadline).getTime() : Infinity
           return dateA - dateB
         })
 
-        // Добові можливості: остання доба (24 години)
-        const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000
-        const dailyMatched = filtered.filter((opp) => {
+        // Формуємо свіжі для відмітки «за добу / останні»
+        const recentMatched = matched.filter((opp) => {
           const createdTime = opp.created_at ? new Date(opp.created_at).getTime() : 0
-          return createdTime >= oneDayAgo
+          return createdTime >= recentThreshold
         })
 
-        setMatchedOpportunities(centerMatched)
-        setDailyOpportunities(dailyMatched)
+        setMatchedOpportunities(matched)
+        setDailyOpportunities(recentMatched.length > 0 ? recentMatched : matched.slice(0, 12))
       } else {
         setMatchedOpportunities(allOpps)
-        setDailyOpportunities(allOpps)
+        setDailyOpportunities(allOpps.slice(0, 12))
       }
 
       setLoading(false)
@@ -191,10 +185,7 @@ export default function DashboardPage() {
     }
   }, [])
 
-  // Формуємо масив нотифікацій залежно від того, що відкрито
-  const activeModalNotifications: NotificationItem[] = (
-    modalType === 'daily' ? dailyOpportunities : matchedOpportunities
-  ).map((opp) => ({
+  const modalNotifications: NotificationItem[] = matchedOpportunities.map((opp) => ({
     id: opp.id,
     title: opp.title,
     description: opp.raw_description || opp.description || '',
@@ -214,13 +205,13 @@ export default function DashboardPage() {
     >
       <div style={{ maxWidth: 420, margin: '0 auto' }}>
         
-        {/* Шапка з вітанням та іконкою сповіщень (показує добову кількість) */}
+        {/* Шапка з вітанням та іконкою сповіщень */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
             Вітаємо{userName ? `, ${userName}` : ''}!
           </h1>
           <button 
-            onClick={() => setModalType('daily')}
+            onClick={() => setIsModalOpen(true)}
             style={{ 
               background: '#1e293b', 
               border: '1px solid #334155', 
@@ -254,9 +245,9 @@ export default function DashboardPage() {
 
         {userObj && <TelegramConnect user={userObj} />}
 
-        {/* Блок кількості знайдених можливостей за добу */}
+        {/* Блок кількості знайдених можливостей */}
         <div 
-          onClick={() => !loading && dailyOpportunities.length > 0 && setModalType('daily')}
+          onClick={() => !loading && matchedOpportunities.length > 0 && setIsModalOpen(true)}
           style={{ 
             backgroundColor: '#1e293b', 
             border: '1px solid #334155', 
@@ -270,18 +261,18 @@ export default function DashboardPage() {
           <p style={{ margin: 0, fontSize: 15, fontWeight: 500 }}>
             {loading
               ? 'Завантаження можливостей...'
-              : dailyOpportunities.length > 0
-              ? `Знайдено ${dailyOpportunities.length} нових можливостей під ваш профіль!`
-              : 'Немає нових можливостей за добу'}
+              : matchedOpportunities.length > 0
+              ? `Знайдено ${matchedOpportunities.length} нових можливостей під ваш профіль!`
+              : 'Немає можливостей за вашими фільтрами. Продовжую шукати'}
           </p>
           <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
             Усього знайдено матеріалів у базі: {totalCount}
           </p>
         </div>
 
-        {/* Кнопка Центр можливостей (за 10 днів) */}
+        {/* Кнопка Центр можливостей */}
         <button 
-          onClick={() => setModalType('center')} 
+          onClick={() => setIsModalOpen(true)} 
           style={{ 
             width: '100%',
             backgroundColor: '#2563eb', 
@@ -319,19 +310,27 @@ export default function DashboardPage() {
           ✏️ Мій профіль
         </button>
 
-        {/* Брендинг внизу */}
+        {/* Брендинг з логотипом внизу */}
         <div style={{ textAlign: 'center', marginTop: 32, borderTop: '1px solid #1e293b', paddingTop: 24 }}>
           <h3 style={{ margin: '0 0 8px 0', fontSize: 18, fontWeight: 700, letterSpacing: '1px' }}>POVODYR</h3>
           <p style={{ margin: '0 0 16px 0', fontSize: 13, color: '#94a3b8' }}>
             Ви створюєте картини. POVODYR допомагає їм знайти свій шлях.
           </p>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+            <img 
+              src="/logo.png" 
+              alt="POVODYR Logo" 
+              style={{ width: 120, height: 'auto', borderRadius: 16, border: '1px solid #334155' }}
+              onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+            />
+          </div>
         </div>
 
         <NotificationsModal
-          isOpen={modalType !== null}
-          onClose={() => setModalType(null)}
-          notifications={activeModalNotifications}
-          title={modalType === 'daily' ? 'Знайдено можливостей за добу' : 'Центр можливостей (10 днів)'}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          notifications={modalNotifications}
+          title="Центр можливостей"
         />
       </div>
     </div>
