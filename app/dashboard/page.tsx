@@ -92,12 +92,15 @@ export default function DashboardPage() {
         telegram_chat_id: userProfile?.telegram_chat_id || null,
       })
 
-      // 2. Активні можливості
+      // 2. Активні можливості (за останні 10 днів для розрахунку бази)
       const nowISO = new Date().toISOString()
+      const tenDaysAgoISO = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+
       const { data: opportunities, error } = await supabase
         .from('opportunities')
         .select('*')
         .eq('is_active', true)
+        .gte('created_at', tenDaysAgoISO)
         .or(`deadline.gte.${nowISO},deadline.is.null`)
         .order('created_at', { ascending: false })
         .limit(100)
@@ -113,7 +116,7 @@ export default function DashboardPage() {
 
       // Визначаємо найновішу дату в базі для синхронізації з розсилкою бота
       const latestDate = allOpps.length > 0 ? new Date(allOpps[0].created_at).getTime() : Date.now()
-      const recentThreshold = latestDate - (3 * 24 * 60 * 60 * 1000) // 3 дні від найсвіжішого запису
+      const recentThreshold = latestDate - (24 * 60 * 60 * 1000) // 1 доба від найсвіжішого запису
 
       // 3. Фільтрація
       if (userProfile) {
@@ -163,17 +166,21 @@ export default function DashboardPage() {
           return dateA - dateB
         })
 
-        // Формуємо свіжі для відмітки «за добу / останні»
+        // Формуємо свіжі за добу
         const recentMatched = matched.filter((opp) => {
           const createdTime = opp.created_at ? new Date(opp.created_at).getTime() : 0
           return createdTime >= recentThreshold
         })
 
         setMatchedOpportunities(matched)
-        setDailyOpportunities(recentMatched.length > 0 ? recentMatched : matched.slice(0, 12))
+        setDailyOpportunities(recentMatched)
       } else {
+        const recentMatched = allOpps.filter((opp) => {
+          const createdTime = opp.created_at ? new Date(opp.created_at).getTime() : 0
+          return createdTime >= recentThreshold
+        })
         setMatchedOpportunities(allOpps)
-        setDailyOpportunities(allOpps.slice(0, 12))
+        setDailyOpportunities(recentMatched)
       }
 
       setLoading(false)
@@ -208,7 +215,7 @@ export default function DashboardPage() {
         {/* Шапка з вітанням та іконкою сповіщень */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
-            Вітаємо{userName ? `, ${userName}` : ''}!
+            Вітаю{userName ? `, ${userName}` : ''}!
           </h1>
           <button 
             onClick={() => setIsModalOpen(true)}
@@ -245,9 +252,9 @@ export default function DashboardPage() {
 
         {userObj && <TelegramConnect user={userObj} />}
 
-        {/* Блок кількості знайдених можливостей */}
+        {/* Блок кількості знайдених можливостей за добу */}
         <div 
-          onClick={() => !loading && matchedOpportunities.length > 0 && setIsModalOpen(true)}
+          onClick={() => !loading && dailyOpportunities.length > 0 && setIsModalOpen(true)}
           style={{ 
             backgroundColor: '#1e293b', 
             border: '1px solid #334155', 
@@ -261,12 +268,12 @@ export default function DashboardPage() {
           <p style={{ margin: 0, fontSize: 15, fontWeight: 500 }}>
             {loading
               ? 'Завантаження можливостей...'
-              : matchedOpportunities.length > 0
-              ? `Знайдено ${matchedOpportunities.length} нових можливостей під ваш профіль!`
-              : 'Немає можливостей за вашими фільтрами. Продовжую шукати'}
+              : dailyOpportunities.length > 0
+              ? `Знайдено ${dailyOpportunities.length} нових можливостей під ваш профіль!`
+              : 'Немає нових можливостей за добу. Продовжую шукати.'}
           </p>
           <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
-            Усього знайдено матеріалів у базі: {totalCount}
+            Усього збережено матеріалів у базі за останні 10 днів: {totalCount}
           </p>
         </div>
 
@@ -314,12 +321,12 @@ export default function DashboardPage() {
         <div style={{ textAlign: 'center', marginTop: 32, borderTop: '1px solid #1e293b', paddingTop: 24 }}>
           <h3 style={{ margin: '0 0 8px 0', fontSize: 18, fontWeight: 700, letterSpacing: '1px' }}>POVODYR</h3>
           <p style={{ margin: '0 0 16px 0', fontSize: 13, color: '#94a3b8' }}>
-            Ви створюєте картини. POVODYR допомагає їм знайти свій шлях.
+            Ви створюєте картини. POVODYR допомагає їм знайти шлях.
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
             <img 
               src="/icon-192" 
-              alt="POVODYR Logo" 
+              alt="icon-192" 
               style={{ width: 120, height: 'auto', borderRadius: 16, border: '1px solid #334155' }}
               onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
             />
