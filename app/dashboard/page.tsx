@@ -58,8 +58,12 @@ function parseArrayField(raw: unknown): string[] {
 export default function DashboardPage() {
   const [userName, setUserName] = useState('')
   const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [matchedOpportunities, setMatchedOpportunities] = useState<Opportunity[]>([])
+  
+  // Стани для модальних вікон або списків
+  const [modalType, setModalType] = useState<'daily' | 'center' | null>(null)
+  
+  const [matchedOpportunities, setMatchedOpportunities] = useState<Opportunity[]>([]) // Центр (10 днів)
+  const [dailyOpportunities, setDailyOpportunities] = useState<Opportunity[]>([])       // За добу
   const [totalCount, setTotalCount] = useState<number>(0)
   const [loading, setLoading] = useState(true)
 
@@ -99,7 +103,7 @@ export default function DashboardPage() {
         .eq('is_active', true)
         .or(`deadline.gte.${nowISO},deadline.is.null`)
         .order('created_at', { ascending: false })
-        .limit(100)
+        .limit(200)
 
       if (error) {
         console.error('Помилка завантаження opportunities:', error)
@@ -110,13 +114,13 @@ export default function DashboardPage() {
       const allOpps = (opportunities || []) as Opportunity[]
       setTotalCount(allOpps.length)
 
-      // 3. Фільтрація
+      // 3. Фільтрація загальна
       if (userProfile) {
         const userCountries = parseArrayField(userProfile.search_countries)
         const userTechniques = parseArrayField(userProfile.techniques)
         const orgFeeMax = Number(userProfile.org_fee_max || userProfile.max_fee_amount) || 0
 
-        const matched = allOpps.filter((opp) => {
+        const filtered = allOpps.filter((opp) => {
           // Країна
           if (userCountries.length > 0 && opp.country) {
             const oppCountry = String(opp.country).toLowerCase()
@@ -151,16 +155,31 @@ export default function DashboardPage() {
           return true
         })
 
-        // Сортуємо за датою дедлайну
-        matched.sort((a, b) => {
+        // Центр можливостей: останні 10 днів (новіші витісняють старі)
+        const tenDaysAgo = Date.now() - 10 * 24 * 60 * 60 * 1000
+        const centerMatched = filtered.filter((opp) => {
+          const createdTime = opp.created_at ? new Date(opp.created_at).getTime() : 0
+          return createdTime >= tenDaysAgo
+        })
+
+        centerMatched.sort((a, b) => {
           const dateA = a.deadline ? new Date(a.deadline).getTime() : Infinity
           const dateB = b.deadline ? new Date(b.deadline).getTime() : Infinity
           return dateA - dateB
         })
 
-        setMatchedOpportunities(matched)
+        // Добові можливості: остання доба (24 години)
+        const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000
+        const dailyMatched = filtered.filter((opp) => {
+          const createdTime = opp.created_at ? new Date(opp.created_at).getTime() : 0
+          return createdTime >= oneDayAgo
+        })
+
+        setMatchedOpportunities(centerMatched)
+        setDailyOpportunities(dailyMatched)
       } else {
         setMatchedOpportunities(allOpps)
+        setDailyOpportunities(allOpps)
       }
 
       setLoading(false)
@@ -172,7 +191,10 @@ export default function DashboardPage() {
     }
   }, [])
 
-  const modalNotifications: NotificationItem[] = matchedOpportunities.map((opp) => ({
+  // Формуємо масив нотифікацій залежно від того, що відкрито
+  const activeModalNotifications: NotificationItem[] = (
+    modalType === 'daily' ? dailyOpportunities : matchedOpportunities
+  ).map((opp) => ({
     id: opp.id,
     title: opp.title,
     description: opp.raw_description || opp.description || '',
@@ -192,13 +214,13 @@ export default function DashboardPage() {
     >
       <div style={{ maxWidth: 420, margin: '0 auto' }}>
         
-        {/* Шапка з вітанням та іконкою сповіщень */}
+        {/* Шапка з вітанням та іконкою сповіщень (показує добову кількість) */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
             Вітаємо{userName ? `, ${userName}` : ''}!
           </h1>
           <button 
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => setModalType('daily')}
             style={{ 
               background: '#1e293b', 
               border: '1px solid #334155', 
@@ -212,7 +234,7 @@ export default function DashboardPage() {
             }}
           >
             🔔
-            {matchedOpportunities.length > 0 && (
+            {dailyOpportunities.length > 0 && (
               <span style={{ 
                 position: 'absolute', 
                 top: -4, 
@@ -224,7 +246,7 @@ export default function DashboardPage() {
                 padding: '2px 6px', 
                 borderRadius: '50%' 
               }}>
-                {matchedOpportunities.length}
+                {dailyOpportunities.length}
               </span>
             )}
           </button>
@@ -232,9 +254,9 @@ export default function DashboardPage() {
 
         {userObj && <TelegramConnect user={userObj} />}
 
-        {/* Блок кількості знайдених можливостей */}
+        {/* Блок кількості знайдених можливостей за добу */}
         <div 
-          onClick={() => !loading && matchedOpportunities.length > 0 && setIsModalOpen(true)}
+          onClick={() => !loading && dailyOpportunities.length > 0 && setModalType('daily')}
           style={{ 
             backgroundColor: '#1e293b', 
             border: '1px solid #334155', 
@@ -248,18 +270,18 @@ export default function DashboardPage() {
           <p style={{ margin: 0, fontSize: 15, fontWeight: 500 }}>
             {loading
               ? 'Завантаження можливостей...'
-              : matchedOpportunities.length > 0
-              ? `Знайдено ${matchedOpportunities.length} нових можливостей під ваш профіль!`
-              : 'Немає можливостей за вашими фільтрами'}
+              : dailyOpportunities.length > 0
+              ? `Знайдено ${dailyOpportunities.length} нових можливостей під ваш профіль!`
+              : 'Немає нових можливостей за добу'}
           </p>
           <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
             Усього знайдено матеріалів у базі: {totalCount}
           </p>
         </div>
 
-        {/* Кнопка Центр можливостей */}
+        {/* Кнопка Центр можливостей (за 10 днів) */}
         <button 
-          onClick={() => setIsModalOpen(true)} 
+          onClick={() => setModalType('center')} 
           style={{ 
             width: '100%',
             backgroundColor: '#2563eb', 
@@ -306,10 +328,10 @@ export default function DashboardPage() {
         </div>
 
         <NotificationsModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          notifications={modalNotifications}
-          title="Центр можливостей"
+          isOpen={modalType !== null}
+          onClose={() => setModalType(null)}
+          notifications={activeModalNotifications}
+          title={modalType === 'daily' ? 'Знайдено можливостей за добу' : 'Центр можливостей (10 днів)'}
         />
       </div>
     </div>
