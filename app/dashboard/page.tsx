@@ -318,7 +318,7 @@ export default function DashboardPage() {
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
             <img 
-              src="/logo.png" 
+              src="/icon-192" 
               alt="POVODYR Logo" 
               style={{ width: 120, height: 'auto', borderRadius: 16, border: '1px solid #334155' }}
               onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
