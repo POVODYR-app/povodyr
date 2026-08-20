@@ -60,6 +60,7 @@ export default function DashboardPage() {
   const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [matchedOpportunities, setMatchedOpportunities] = useState<Opportunity[]>([])
+  const [totalCount, setTotalCount] = useState<number>(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -90,7 +91,7 @@ export default function DashboardPage() {
         telegram_chat_id: userProfile?.telegram_chat_id || null,
       })
 
-      // 2. Активні можливості (ті самі, що бачить daily-process)
+      // 2. Активні можливості
       const nowISO = new Date().toISOString()
       const { data: opportunities, error } = await supabase
         .from('opportunities')
@@ -107,8 +108,9 @@ export default function DashboardPage() {
       }
 
       const allOpps = (opportunities || []) as Opportunity[]
+      setTotalCount(allOpps.length)
 
-      // 3. Фільтрація ТОЧНО як у daily-process
+      // 3. Фільтрація
       if (userProfile) {
         const userCountries = parseArrayField(userProfile.search_countries)
         const userTechniques = parseArrayField(userProfile.techniques)
@@ -189,29 +191,117 @@ export default function DashboardPage() {
       }}
     >
       <div style={{ maxWidth: 420, margin: '0 auto' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>
-          Вітаємо{userName ? `, ${userName}` : ''}!
-        </h1>
+        
+        {/* Шапка з вітанням та іконкою сповіщень */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
+            Вітаємо{userName ? `, ${userName}` : ''}!
+          </h1>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            style={{ 
+              background: '#1e293b', 
+              border: '1px solid #334155', 
+              borderRadius: 12, 
+              padding: '10px 14px', 
+              cursor: 'pointer', 
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            🔔
+            {matchedOpportunities.length > 0 && (
+              <span style={{ 
+                position: 'absolute', 
+                top: -4, 
+                right: -4, 
+                background: '#3b82f6', 
+                color: 'white', 
+                fontSize: 10, 
+                fontWeight: 'bold', 
+                padding: '2px 6px', 
+                borderRadius: '50%' 
+              }}>
+                {matchedOpportunities.length}
+              </span>
+            )}
+          </button>
+        </div>
 
         {userObj && <TelegramConnect user={userObj} />}
 
-        <div
+        {/* Блок кількості знайдених можливостей */}
+        <div 
           onClick={() => !loading && matchedOpportunities.length > 0 && setIsModalOpen(true)}
-          style={{
-            backgroundColor: matchedOpportunities.length > 0 ? '#1e3a8a' : '#1e293b',
-            border: '1px solid #334155',
-            borderRadius: 16,
-            padding: 16,
-            marginBottom: 20,
+          style={{ 
+            backgroundColor: '#1e293b', 
+            border: '1px solid #334155', 
+            borderRadius: 16, 
+            padding: 16, 
+            marginBottom: 16, 
             cursor: loading ? 'default' : 'pointer',
+            textAlign: 'center'
           }}
         >
           <p style={{ margin: 0, fontSize: 15, fontWeight: 500 }}>
             {loading
               ? 'Завантаження можливостей...'
               : matchedOpportunities.length > 0
-              ? `Знайдено ${matchedOpportunities.length} можливостей під ваш профіль`
+              ? `Знайдено ${matchedOpportunities.length} нових можливостей під ваш профіль!`
               : 'Немає можливостей за вашими фільтрами'}
+          </p>
+          <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
+            Усього знайдено матеріалів у базі: {totalCount}
+          </p>
+        </div>
+
+        {/* Кнопка Центр можливостей */}
+        <button 
+          onClick={() => setIsModalOpen(true)} 
+          style={{ 
+            width: '100%',
+            backgroundColor: '#2563eb', 
+            color: 'white',
+            border: 'none',
+            borderRadius: 16, 
+            padding: 16, 
+            marginBottom: 12, 
+            fontSize: 16,
+            fontWeight: 600,
+            cursor: 'pointer',
+            textAlign: 'center'
+          }}
+        >
+          📂 Центр можливостей ({matchedOpportunities.length})
+        </button>
+
+        {/* Кнопка Мій профіль */}
+        <button 
+          onClick={() => window.location.href = '/profile'} 
+          style={{ 
+            width: '100%',
+            backgroundColor: '#1e293b', 
+            color: 'white',
+            border: '1px solid #334155',
+            borderRadius: 16, 
+            padding: 16, 
+            marginBottom: 24, 
+            fontSize: 16,
+            fontWeight: 600,
+            cursor: 'pointer',
+            textAlign: 'center'
+          }}
+        >
+          ✏️ Мій профіль
+        </button>
+
+        {/* Брендинг внизу */}
+        <div style={{ textAlign: 'center', marginTop: 32, borderTop: '1px solid #1e293b', paddingTop: 24 }}>
+          <h3 style={{ margin: '0 0 8px 0', fontSize: 18, fontWeight: 700, letterSpacing: '1px' }}>POVODYR</h3>
+          <p style={{ margin: '0 0 16px 0', fontSize: 13, color: '#94a3b8' }}>
+            Ви створюєте картини. POVODYR допомагає їм знайти свій шлях.
           </p>
         </div>
 
