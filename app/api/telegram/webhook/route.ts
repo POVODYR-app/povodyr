@@ -39,51 +39,58 @@ export async function POST(req: Request) {
     console.log('--- WEBHOOK RECEIVED ---', JSON.stringify(update))
 
     const chatId = update?.message?.chat?.id || update?.callback_query?.message?.chat?.id
+    const telegramUser = update?.message?.from
     const text = update?.message?.text?.trim() || ''
 
-    if (!chatId) {
-      console.log('No chat ID found in update')
+    if (!chatId || !telegramUser) {
       return NextResponse.json({ ok: true })
     }
 
+    const telegramIdStr = String(telegramUser.id)
+
     if (text.startsWith('/start')) {
       const parts = text.split(/\s+/)
-      const userId = parts[1]
-      console.log('Parsed start. User ID:', userId, 'Chat ID:', chatId)
+      const rawParam = parts[1] // Це може бути UUID з посилання
 
-      if (userId) {
-        const { data, error } = await supabase
+      console.log('Start command received. Telegram ID:', telegramIdStr, 'Param:', rawParam, 'Chat ID:', chatId)
+
+      let updateError = null
+
+      if (rawParam) {
+        // Якщо посилання містило UUID профілю (перший вхід)
+        const { error } = await supabase
           .from('profiles')
-          .upsert({ 
-            id: userId, 
-            telegram_chat_id: String(chatId) 
-          }, { onConflict: 'id' })
-          .select()
-
-        console.log('Supabase upsert result:', { data, error })
-
-        if (!error) {
-          await sendTelegramMessage(
-            chatId,
-            '✅ Ваш акаунт POVODYR успішно підключено! Тепер ви отримуватимете персональні сповіщення сюди.'
-          )
-        } else {
-          await sendTelegramMessage(
-            chatId,
-            '⚠️ Не вдалося прив’язати акаунт. Спробуйте скопіювати команду з кабінету.'
-          )
-        }
+          .update({ telegram_chat_id: String(chatId) })
+          .eq('id', rawParam)
+        
+        updateError = error
       } else {
+        // Якщо параметр не передався (бот вже відкривався раніше),
+        // шукаємо профіль за telegram_id, який вже прив'язаний до цього юзера на сайті
+        const { error } = await supabase
+          .from('profiles')
+          .update({ telegram_chat_id: String(chatId) })
+          .eq('telegram_id', telegramIdStr)
+
+        updateError = error
+      }
+
+      if (!updateError) {
         await sendTelegramMessage(
           chatId,
-          'Вітаємо у POVODYR! Для підключення сповіщень скористайтеся кнопкою у вашому особистому кабінеті.'
+          '✅ Ваш акаунт POVODYR успішно підключено! Тепер ви отримуватимете персональні сповіщення сюди.'
+        )
+      } else {
+        // Якщо в базі ще немає запису з цим telegram_id або сталася помилка
+        await sendTelegramMessage(
+          chatId,
+          `Вітаємо у POVODYР! Ваш Telegram ID: <code>${telegramIdStr}</code>. Будь ласка, переконайтеся, що ви авторизовані на сайті через цей акаунт.`
         )
       }
     } else {
-      // Відповідь на будь-яке інше текстове повідомлення, щоб перевірити чи працює бот узагалі
       await sendTelegramMessage(
         chatId,
-        'Отримав ваше повідомлення. Щоб підключити сповіщення, перейдіть до особистого кабінету POVODYR і натисніть кнопку підключення Telegram.'
+        'Отримав ваше повідомлення. Сповіщення від POVODYR налаштовано успішно.'
       )
     }
 
