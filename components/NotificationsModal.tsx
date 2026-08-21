@@ -145,7 +145,7 @@ export default function NotificationsModal({
           }}
         >
           <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#fff' }}>
-            {title} ({notifications?.length || 0} DEADLINE)
+            {title} ({notifications?.length || 0})
           </h2>
           <button
             onClick={onClose}
