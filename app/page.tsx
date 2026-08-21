@@ -15,22 +15,24 @@ export default function HomePage() {
       try {
         setLoading(true);
         
-        // 1. Отримуємо поточного авторизованого користувача
-        const { data: { user } } = await supabase.auth.getUser();
+        // Отримуємо поточну сесію та юзера
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user;
         
+        console.log('Поточний Auth User ID:', user?.id);
+
         if (!user) {
-          setNotifications([]);
+          console.warn('Користувач не авторизований у Supabase на клієнті!');
           setLoading(false);
           return;
         }
 
-        // 2. Робимо запит виключно для цього користувача за його user_id
+        // Робимо запит до таблиці сповіщень саме для вашого user_id
         const { data, error } = await supabase
           .from('notifications')
           .select('*')
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(100);
+          .order('created_at', { ascending: false });
 
         if (error) {
           console.error('Помилка завантаження сповіщень:', error);
@@ -38,6 +40,8 @@ export default function HomePage() {
         }
 
         if (data) {
+          console.log(`Знайдено персональних записів для вашого профілю: ${data.length}`);
+          
           const formattedNotifications: NotificationItem[] = data.map((item: any) => ({
             id: item.id,
             title: item.title,
@@ -68,7 +72,7 @@ export default function HomePage() {
       
       {/* Верхня панель */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '26px', margin: 0, fontWeight: 'bold' }}>Вітаємо, Vanda!</h1>
+        <h1 style={{ fontSize: '26px', margin: 0, fontWeight: 'bold' }}>Вітаю, Vanda!</h1>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
             onClick={() => setIsBellModalOpen(true)}
