@@ -31,43 +31,22 @@ interface Opportunity {
   genres?: any
 }
 
-interface UserProfile {
-  id: string
-  full_name?: string | null
-  telegram_chat_id?: string | null
-  search_countries?: any
-  techniques?: any
-  org_fee_max?: number | string
-  max_fee_amount?: number | string
-}
-
-function parseArrayField(raw: unknown): string[] {
-  if (!raw) return []
-  if (Array.isArray(raw)) return raw.map(i => String(i).toLowerCase().trim())
-  if (typeof raw === 'string') {
-    try {
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed)) return parsed.map(i => String(i).toLowerCase().trim())
-    } catch {
-      return raw.split(',').map(i => i.toLowerCase().trim()).filter(Boolean)
-    }
-  }
-  return []
-}
-
 export default function DashboardPage() {
   const [userName, setUserName] = useState('')
   const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [matchedOpportunities, setMatchedOpportunities] = useState<Opportunity[]>([])
-  const [dailyOpportunities, setDailyOpportunities] = useState<Opportunity[]>([])
-  const [totalCount, setTotalCount] = useState<number>(0)
   const [loading, setLoading] = useState(true)
+
+  // Нові стани для показників з API
+  const [dailyCount, setDailyCount] = useState<number>(0)
+  const [monthlyMatchedCount, setMonthlyMatchedCount] = useState<number>(0)
+  const [upcomingDeadlinesCount, setUpcomingDeadlinesCount] = useState<number>(0)
+  const [modalOpportunities, setModalOpportunities] = useState<Opportunity[]>([])
 
   useEffect(() => {
     let isMounted = true
 
-    const loadData = async () => {
+    const loadDashboardData = async () => {
       setLoading(true)
 
       const { data: { user } } = await supabase.auth.getUser()
@@ -76,7 +55,7 @@ export default function DashboardPage() {
         return
       }
 
-      // 1. Профіль
+      // 1. Завантажуємо профіль
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
@@ -85,101 +64,48 @@ export default function DashboardPage() {
 
       if (!isMounted) return
 
-      const userProfile = profile as UserProfile | null
-      if (userProfile?.full_name) setUserName(userProfile.full_name)
+      if (profile?.full_name) setUserName(profile.full_name)
       setUserObj({
         id: user.id,
-        telegram_chat_id: userProfile?.telegram_chat_id || null,
+        telegram_chat_id: profile?.telegram_chat_id || null,
       })
 
-      // 2. Активні можливості
-      const nowISO = new Date().toISOString()
-      const tenDaysAgoISO = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+      // 2. Отримуємо статистику з нового API /api/user-stats
+      try {
+        const res = await fetch(`/api/user-stats?user_id=${user.id}`)
+        const json = await res.json()
+        if (json.success && isMounted) {
+          setDailyCount(json.daily_count || 0)
+          setMonthlyMatchedCount(json.monthly_matched_count || 0)
+          setUpcomingDeadlinesCount(json.upcoming_deadlines_count || 0)
+          
+          // Для Центру можливостей завантажимо також самі можливості за місяць
+          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+          const { data: opps } = await supabase
+            .from('opportunities')
+            .select('*')
+            .eq('is_active', true)
+            .gte('created_at', thirtyDaysAgo)
+            .order('created_at', { ascending: false })
 
-      const { data: opportunities, error } = await supabase
-        .from('opportunities')
-        .select('*')
-        .eq('is_active', true)
-        .gte('created_at', tenDaysAgoISO)
-        .or(`deadline.gte.${nowISO},deadline.is.null`)
-        .order('created_at', { ascending: false })
-        .limit(100)
-
-      if (error) {
-        console.error('Помилка завантаження opportunities:', error)
-        setLoading(false)
-        return
+          if (opps && isMounted) {
+            setModalOpportunities(opps as Opportunity[])
+          }
+        }
+      } catch (err) {
+        console.error('Помилка завантаження статистики користувача:', err)
       }
 
-      const allOpps = (opportunities || []) as Opportunity[]
-      setTotalCount(allOpps.length)
-
-      // 3. Фільтрація
-      if (userProfile) {
-        const userCountries = parseArrayField(userProfile.search_countries)
-        const userTechniques = parseArrayField(userProfile.techniques)
-        const orgFeeMax = Number(userProfile.org_fee_max || userProfile.max_fee_amount) || 0
-
-        const matched = allOpps.filter((opp) => {
-          // Країна
-          if (userCountries.length > 0 && opp.country) {
-            const oppCountry = String(opp.country).toLowerCase()
-            const countryMatch = userCountries.some(
-              (c) => oppCountry.includes(c) || c.includes(oppCountry)
-            )
-            const isGlobal =
-              oppCountry.includes('онлайн') ||
-              oppCountry.includes('світ') ||
-              oppCountry.includes('international') ||
-              oppCountry.includes('україна') ||
-              oppCountry.includes('ukraine')
-
-            if (!countryMatch && !isGlobal) return false
-          }
-
-          // Техніки
-          if (userTechniques.length > 0 && opp.techniques) {
-            const oppTechs = parseArrayField(opp.techniques)
-            if (oppTechs.length > 0) {
-              const techMatch = userTechniques.some((ut) =>
-                oppTechs.some((ot) => ot.includes(ut) || ut.includes(ot))
-              )
-              if (!techMatch) return false
-            }
-          }
-
-          // Вартість
-          const fee = Number(opp.cost_amount || opp.fee_amount || opp.org_fee) || 0
-          if (fee > orgFeeMax && orgFeeMax > 0 && !opp.is_free) return false
-
-          return true
-        })
-
-        // Сортуємо за дедлайном
-        matched.sort((a, b) => {
-          const dateA = a.deadline ? new Date(a.deadline).getTime() : Infinity
-          const dateB = b.deadline ? new Date(b.deadline).getTime() : Infinity
-          return dateA - dateB
-        })
-
-        setMatchedOpportunities(matched)
-        // Виводимо актуальні підібрані можливості (наприклад, перші 10 найближчих або всі збіги)
-        setDailyOpportunities(matched)
-      } else {
-        setMatchedOpportunities(allOpps)
-        setDailyOpportunities(allOpps)
-      }
-
-      setLoading(false)
+      if (isMounted) setLoading(false)
     }
 
-    loadData()
+    loadDashboardData()
     return () => {
       isMounted = false
     }
   }, [])
 
-  const modalNotifications: NotificationItem[] = matchedOpportunities.map((opp) => ({
+  const notificationItems: NotificationItem[] = modalOpportunities.map((opp) => ({
     id: opp.id,
     title: opp.title,
     description: opp.raw_description || opp.description || '',
@@ -219,19 +145,19 @@ export default function DashboardPage() {
             }}
           >
             🔔
-            {dailyOpportunities.length > 0 && (
+            {upcomingDeadlinesCount > 0 && (
               <span style={{ 
                 position: 'absolute', 
                 top: -4, 
                 right: -4, 
-                background: '#3b82f6', 
+                background: '#ef4444', 
                 color: 'white', 
                 fontSize: 10, 
                 fontWeight: 'bold', 
                 padding: '2px 6px', 
                 borderRadius: '50%' 
               }}>
-                {dailyOpportunities.length}
+                {upcomingDeadlinesCount}
               </span>
             )}
           </button>
@@ -239,9 +165,9 @@ export default function DashboardPage() {
 
         {userObj && <TelegramConnect user={userObj} />}
 
-        {/* Блок знайдених можливостей */}
+        {/* Блок свіжих надходжень за добу */}
         <div 
-          onClick={() => !loading && dailyOpportunities.length > 0 && setIsModalOpen(true)}
+          onClick={() => !loading && setIsModalOpen(true)}
           style={{ 
             backgroundColor: '#1e293b', 
             border: '1px solid #334155', 
@@ -255,16 +181,14 @@ export default function DashboardPage() {
           <p style={{ margin: 0, fontSize: 15, fontWeight: 500 }}>
             {loading
               ? 'Завантаження можливостей...'
-              : dailyOpportunities.length > 0
-              ? `Знайдено ${dailyOpportunities.length} актуальних можливостей під ваш профіль!`
-              : 'Немає нових можливостей.'}
+              : `Свіжі надходження за добу: ${dailyCount}`}
           </p>
           <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
-            Усього збережено матеріалів у базі за останні 10 днів: {totalCount}
+            {loading ? '' : `Усього матеріалів у базі за останні 24 години: ${dailyCount}`}
           </p>
         </div>
 
-        {/* Кнопка Центр можливостей */}
+        {/* Кнопка Центр можливостей (за місяць) */}
         <button 
           onClick={() => setIsModalOpen(true)} 
           style={{ 
@@ -281,7 +205,7 @@ export default function DashboardPage() {
             textAlign: 'center'
           }}
         >
-          📂 Центр можливостей ({matchedOpportunities.length})
+          📂 Центр можливостей ({monthlyMatchedCount})
         </button>
 
         {/* Кнопка Мій профіль */}
@@ -323,7 +247,7 @@ export default function DashboardPage() {
         <NotificationsModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          notifications={modalNotifications}
+          notifications={notificationItems}
           title="Центр можливостей"
         />
       </div>
