@@ -114,9 +114,8 @@ export default function DashboardPage() {
       const allOpps = (opportunities || []) as Opportunity[]
       setTotalCount(allOpps.length)
 
-      // Визначаємо найновішу дату в базі для синхронізації з розсилкою бота
-      const latestDate = allOpps.length > 0 ? new Date(allOpps[0].created_at).getTime() : Date.now()
-      const recentThreshold = latestDate - (24 * 60 * 60 * 1000) // 1 доба від найсвіжішого запису
+      // Виправляємо поріг свіжості: беремо реальні останні 24 години від поточного моменту
+      const recentThreshold = Date.now() - (24 * 60 * 60 * 1000)
 
       // 3. Фільтрація
       if (userProfile) {
@@ -166,7 +165,7 @@ export default function DashboardPage() {
           return dateA - dateB
         })
 
-        // Формуємо свіжі за добу
+        // Формуємо свіжі за добу на основі реального часу
         const recentMatched = matched.filter((opp) => {
           const createdTime = opp.created_at ? new Date(opp.created_at).getTime() : 0
           return createdTime >= recentThreshold
