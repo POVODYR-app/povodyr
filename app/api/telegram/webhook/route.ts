@@ -29,56 +29,67 @@ async function sendTelegramMessage(chatId: number | string, text: string) {
   }
 }
 
+export async function GET() {
+  return NextResponse.json({ status: 'Webhook is active' })
+}
+
 export async function POST(req: Request) {
   try {
     const update = await req.json()
-    console.log('Incoming webhook update:', JSON.stringify(update))
+    console.log('--- WEBHOOK RECEIVED ---', JSON.stringify(update))
 
-    if (update?.message?.text) {
-      const chatId = update.message.chat.id
-      const text = update.message.text.trim()
+    const chatId = update?.message?.chat?.id || update?.callback_query?.message?.chat?.id
+    const text = update?.message?.text?.trim() || ''
 
-      if (text.startsWith('/start')) {
-        const parts = text.split(/\s+/)
-        const userId = parts[1] // Отримуємо UUID, якщо він є після пробілу
-        console.log('Parsed start command. User ID from link:', userId, 'Chat ID:', chatId)
+    if (!chatId) {
+      console.log('No chat ID found in update')
+      return NextResponse.json({ ok: true })
+    }
 
-        if (userId) {
-          // Якщо параметр є — прив'язуємо до бази
-          const { data, error } = await supabase
-            .from('profiles')
-            .upsert({ 
-              id: userId, 
-              telegram_chat_id: String(chatId) 
-            }, { onConflict: 'id' })
-            .select()
+    if (text.startsWith('/start')) {
+      const parts = text.split(/\s+/)
+      const userId = parts[1]
+      console.log('Parsed start. User ID:', userId, 'Chat ID:', chatId)
 
-          console.log('Supabase upsert result:', { data, error })
+      if (userId) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .upsert({ 
+            id: userId, 
+            telegram_chat_id: String(chatId) 
+          }, { onConflict: 'id' })
+          .select()
 
-          if (!error) {
-            await sendTelegramMessage(
-              chatId,
-              '✅ Ваш акаунт POVODYR успішно підключено! Тепер ви отримуватимете персональні сповіщення сюди.'
-            )
-          } else {
-            await sendTelegramMessage(
-              chatId,
-              '⚠️ Не вдалося прив’язати акаунт. Спробуйте скопіювати команду з особистого кабінету.'
-            )
-          }
-        } else {
-          // Якщо параметр відсутній (чистий /start)
+        console.log('Supabase upsert result:', { data, error })
+
+        if (!error) {
           await sendTelegramMessage(
             chatId,
-            'Вітаємо у POVODYR! Для підключення персональних сповіщень, будь ласка, скористайтеся кнопкою «Підключити Telegram-бота» у вашому особистому кабінеті в додатку.'
+            '✅ Ваш акаунт POVODYR успішно підключено! Тепер ви отримуватимете персональні сповіщення сюди.'
+          )
+        } else {
+          await sendTelegramMessage(
+            chatId,
+            '⚠️ Не вдалося прив’язати акаунт. Спробуйте скопіювати команду з кабінету.'
           )
         }
+      } else {
+        await sendTelegramMessage(
+          chatId,
+          'Вітаємо у POVODYR! Для підключення сповіщень скористайтеся кнопкою у вашому особистому кабінеті.'
+        )
       }
+    } else {
+      // Відповідь на будь-яке інше текстове повідомлення, щоб перевірити чи працює бот узагалі
+      await sendTelegramMessage(
+        chatId,
+        'Отримав ваше повідомлення. Щоб підключити сповіщення, перейдіть до особистого кабінету POVODYR і натисніть кнопку підключення Telegram.'
+      )
     }
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('Webhook error:', err)
+    console.error('Webhook critical error:', err)
     return NextResponse.json({ ok: false, error: 'Internal server error' }, { status: 500 })
   }
 }
