@@ -12,17 +12,21 @@ async function sendTelegramMessage(chatId: number | string, text: string) {
     console.error('TELEGRAM_BOT_TOKEN is missing!')
     return
   }
-  const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: text,
-      parse_mode: 'HTML',
-    }),
-  })
-  const data = await res.json()
-  console.log('Telegram send result:', data)
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: text,
+        parse_mode: 'HTML',
+      }),
+    })
+    const data = await res.json()
+    console.log('Telegram send result:', data)
+  } catch (err) {
+    console.error('Error sending telegram message:', err)
+  }
 }
 
 export async function POST(req: Request) {
@@ -35,18 +39,21 @@ export async function POST(req: Request) {
       const text = update.message.text.trim()
 
       if (text.startsWith('/start')) {
-        const parts = text.split(' ')
-        const userId = parts[1]
+        const parts = text.split(/\s+/)
+        const userId = parts[1] // Отримуємо UUID, якщо він є після пробілу
         console.log('Parsed start command. User ID from link:', userId, 'Chat ID:', chatId)
 
         if (userId) {
+          // Якщо параметр є — прив'язуємо до бази
           const { data, error } = await supabase
             .from('profiles')
-            .update({ telegram_chat_id: String(chatId) })
-            .eq('id', userId)
+            .upsert({ 
+              id: userId, 
+              telegram_chat_id: String(chatId) 
+            }, { onConflict: 'id' })
             .select()
 
-          console.log('Supabase update result:', { data, error })
+          console.log('Supabase upsert result:', { data, error })
 
           if (!error) {
             await sendTelegramMessage(
@@ -56,13 +63,14 @@ export async function POST(req: Request) {
           } else {
             await sendTelegramMessage(
               chatId,
-              '⚠️ Не вдалося прив’язати акаунт. Спробуйте ще раз за посиланням із дашборду.'
+              '⚠️ Не вдалося прив’язати акаунт. Спробуйте скопіювати команду з особистого кабінету.'
             )
           }
         } else {
+          // Якщо параметр відсутній (чистий /start)
           await sendTelegramMessage(
             chatId,
-            'Вітаємо! Щоб підключити сповіщення, перейдіть за посиланням із вашого особистого кабінету POVODYR.'
+            'Вітаємо у POVODYR! Для підключення персональних сповіщень, будь ласка, скористайтеся кнопкою «Підключити Telegram-бота» у вашому особистому кабінеті в додатку.'
           )
         }
       }
