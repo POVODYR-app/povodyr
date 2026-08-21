@@ -1,6 +1,12 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+);
 
 export interface NotificationItem {
   id: string;
@@ -29,9 +35,30 @@ export default function NotificationsModal({
   notifications,
   title = 'Знайдені можливості',
 }: NotificationsModalProps) {
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [userId, setUserId] = useState<string | null>(null);
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      
+      // Завантажуємо закладки поточного користувача
+      const fetchBookmarks = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        setUserId(user.id);
+
+        const { data, error } = await supabase
+          .from('saved_opportunities')
+          .select('opportunity_id')
+          .eq('user_id', user.id);
+
+        if (!error && data) {
+          setSavedIds(new Set(data.map((item: any) => item.opportunity_id)));
+        }
+      };
+
+      fetchBookmarks();
     } else {
       document.body.style.overflow = '';
     }
@@ -41,6 +68,29 @@ export default function NotificationsModal({
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const toggleBookmark = async (opportunityId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!userId) return;
+
+    const newSavedIds = new Set(savedIds);
+    if (newSavedIds.has(opportunityId)) {
+      newSavedIds.delete(opportunityId);
+      setSavedIds(newSavedIds);
+
+      await supabase
+        .from('saved_opportunities')
+        .delete()
+        .match({ user_id: userId, opportunity_id: opportunityId });
+    } else {
+      newSavedIds.add(opportunityId);
+      setSavedIds(newSavedIds);
+
+      await supabase
+        .from('saved_opportunities')
+        .insert({ user_id: userId, opportunity_id: opportunityId });
+    }
+  };
 
   const formatDate = (dateString: string) => {
     try {
@@ -125,6 +175,7 @@ export default function NotificationsModal({
             notifications.map((item) => {
               const targetUrl = item.source_url || item.link || item.link_url || item.url;
               const contentText = item.message || item.description || item.raw_description || '';
+              const isSaved = savedIds.has(item.id);
 
               return (
                 <div
@@ -135,11 +186,33 @@ export default function NotificationsModal({
                     borderRadius: '12px',
                     padding: '14px',
                     marginBottom: '12px',
+                    position: 'relative',
                   }}
                 >
-                  <h3 style={{ margin: '0 0 8px 0', fontSize: '15px', fontWeight: '600', color: '#fff' }}>
-                    {item.title}
-                  </h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                    <h3 style={{ margin: '0 0 8px 0', fontSize: '15px', fontWeight: '600', color: '#fff', flex: 1 }}>
+                      {item.title}
+                    </h3>
+                    <button
+                      onClick={(e) => toggleBookmark(item.id, e)}
+                      title={isSaved ? "Видалити із закладок" : "Зберегти в закладки"}
+                      style={{
+                        background: isSaved ? '#2563eb' : '#334155',
+                        border: 'none',
+                        borderRadius: '8px',
+                        width: '32px',
+                        height: '32px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {isSaved ? '🔖' : '🤍'}
+                    </button>
+                  </div>
 
                   {contentText && (
                     <p
