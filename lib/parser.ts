@@ -68,6 +68,43 @@ export function buildSearchQueries(year: number = 2026): string[] {
   return queries
 }
 
+// Допоміжна функція фільтрації для відсіювання старих новин, призначень та неактуальних дат
+function isOpportunityValid(title: string, description: string, deadline: string | null): boolean {
+  const titleLower = title.toLowerCase()
+  const descLower = description.toLowerCase()
+  const combinedText = `${titleLower} ${descLower}`
+
+  // 1. Стоп-слова для інформаційних/архівних новин (кадрові зміни, звіти, річниці тощо)
+  const negativeKeywords = [
+    'board member', 'welcomes', 'appointed', 'highlights', 'anniversary',
+    'meeting', 'conference report', 'goodbye', 'interview', 'spotlight on',
+    'review', 'archived', 'recap'
+  ]
+  if (negativeKeywords.some(kw => titleLower.includes(kw))) {
+    return false
+  }
+
+  // 2. Фільтрація за роками у текстах (якщо згадуються старі роки без актуальних майбутніх)
+  const hasOldYear = /\b(201[0-9]|202[0-5])\b/.test(combinedText)
+  const hasCurrentOrFutureYear = /\b(202[6-9]|203[0-1])\b/.test(combinedText)
+  
+  // Якщо згадується старий рік і немає згадки поточного/майбутнього, відсіюємо
+  if (hasOldYear && !hasCurrentOrFutureYear && !deadline) {
+    return false
+  }
+
+  // 3. Перевірка дедлайну, якщо він вказаний
+  if (deadline) {
+    const deadlineDate = new Date(deadline)
+    const currentDate = new Date('2026-08-21') // Поточна дата
+    if (!isNaN(deadlineDate.getTime()) && deadlineDate < currentDate) {
+      return false
+    }
+  }
+
+  return true
+}
+
 export async function parseArtFineNationHTML(logs: string[] = []): Promise<ParsedOpportunity[]> {
   const targetUrl = 'https://sites.google.com/view/artfinenation'
   const originalUrl = 'https://artfinenation.com'
@@ -117,26 +154,28 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
             ? (href.startsWith('http') ? href : `${targetUrl}${href.startsWith('/') ? '' : '/'}${href}`)
             : `${targetUrl}/open-call`
 
-          if (!opportunities.some(item => item.title === text || item.link === fullLink)) {
-            opportunities.push({
-              source_name: 'Art Fine Nation',
-              title: text,
-              link: fullLink,
-              source_url: fullLink,
-              type: /виставка/i.test(text) ? 'Виставка' : 'Open Call',
-              deadline: null,
-              country: 'Україна',
-              is_free: true,
-              cost_amount: 0,
-              cost_currency: 'UAH',
-              genres: ['Образотворче мистецтво', 'Живопис', 'Графіка', 'Коллаж', 'Скульптура', 'Декоративно-ужиткове мистецтво'],
-              techniques: [],
-              artist_levels: ['Emerging', 'Mid-Career', 'Established'],
-              age_restrictions: 'None',
-              languages: ['uk'],
-              ukrainians_eligible: true,
-              raw_description: description ? `Опис: ${description}` : `Опубліковано на Art Fine Nation: ${text}`,
-            })
+          if (isOpportunityValid(text, description, null)) {
+            if (!opportunities.some(item => item.title === text || item.link === fullLink)) {
+              opportunities.push({
+                source_name: 'Art Fine Nation',
+                title: text,
+                link: fullLink,
+                source_url: fullLink,
+                type: /виставка/i.test(text) ? 'Виставка' : 'Open Call',
+                deadline: null,
+                country: 'Україна',
+                is_free: true,
+                cost_amount: 0,
+                cost_currency: 'UAH',
+                genres: ['Образотворче мистецтво', 'Живопис', 'Графіка', 'Коллаж', 'Скульптура', 'Декоративно-ужиткове мистецтво'],
+                techniques: [],
+                artist_levels: ['Emerging', 'Mid-Career', 'Established'],
+                age_restrictions: 'None',
+                languages: ['uk'],
+                ukrainians_eligible: true,
+                raw_description: description ? `Опис: ${description}` : `Опубліковано на Art Fine Nation: ${text}`,
+              })
+            }
           }
         }
       })
@@ -172,7 +211,6 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
   for (const source of sources) {
     let items: Array<{ title: string; link: string; description: string }> = []
 
-    // rss2json
     try {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 8000)
@@ -196,7 +234,6 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
       }
     } catch (e) {}
 
-    // Прямий fetch
     if (items.length === 0) {
       try {
         const controller = new AbortController()
@@ -230,7 +267,7 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
       }
     }
 
-    // Фільтрація
+    // Фільтрація з урахуванням нової функції валідації
     items.forEach(item => {
       const titleLower = item.title.toLowerCase()
       const descLower = (item.description || '').toLowerCase()
@@ -240,25 +277,27 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
       const hasRecentYear = /202[6-9]|203[0-1]/.test(item.title + ' ' + item.description)
 
       if (hasPositive && !hasNegative && (hasRecentYear || source.name !== 'Res Artis')) {
-        opportunities.push({
-          source_name: source.name,
-          title: item.title.substring(0, 160),
-          link: item.link,
-          source_url: item.link,
-          type: titleLower.includes('residency') ? 'Residency' : 'Open Call',
-          deadline: null,
-          country: 'International',
-          is_free: true,
-          cost_amount: 0,
-          cost_currency: 'EUR',
-          genres: ['Visual Art', 'Painting'],
-          techniques: [],
-          artist_levels: ['Emerging', 'Mid-Career'],
-          age_restrictions: 'None',
-          languages: ['en'],
-          ukrainians_eligible: true,
-          raw_description: (item.description || item.title).replace(/<[^>]+>/g, '').trim().substring(0, 500),
-        })
+        if (isOpportunityValid(item.title, item.description, null)) {
+          opportunities.push({
+            source_name: source.name,
+            title: item.title.substring(0, 160),
+            link: item.link,
+            source_url: item.link,
+            type: titleLower.includes('residency') ? 'Residency' : 'Open Call',
+            deadline: null,
+            country: 'International',
+            is_free: true,
+            cost_amount: 0,
+            cost_currency: 'EUR',
+            genres: ['Visual Art', 'Painting'],
+            techniques: [],
+            artist_levels: ['Emerging', 'Mid-Career'],
+            age_restrictions: 'None',
+            languages: ['en'],
+            ukrainians_eligible: true,
+            raw_description: (item.description || item.title).replace(/<[^>]+>/g, '').trim().substring(0, 500),
+          })
+        }
       }
     })
   }
@@ -325,7 +364,6 @@ function getCoreOpportunities(): ParsedOpportunity[] {
       ukrainians_eligible: true,
       raw_description: 'Календар подій, конкурсів, виставок та пленерів Першої української мистецької агенції на 2026 рік.',
     },
-    // Нові додані джерела (Culture.ec.europa.eu та British Council Ukraine)
     {
       source_name: 'European Commission (Culture)',
       title: 'EU Supports Ukraine Through Culture',
@@ -383,7 +421,6 @@ function getCoreOpportunities(): ParsedOpportunity[] {
       ukrainians_eligible: true,
       raw_description: 'Програма британської ради Connections Through Culture 2026 для грантової підтримки партнерства та спільних мистецьких ініціатив між Україною та Великою Британією.',
     },
-    // Попередні міжнародні платформи
     {
       source_name: 'Culture Moves Europe',
       title: 'Culture Moves Europe: Individual Mobility Grant 2026-2027',
@@ -489,10 +526,12 @@ export async function fetchFromApprovedSources(logs: string[] = []): Promise<Par
   logs.push(`Базових гарантованих записів: ${coreResults.length}`)
   coreResults.forEach(item => {
     if (!allOpportunities.some(o => o.link === item.link && o.title === item.title)) {
-      allOpportunities.push(item)
+      if (isOpportunityValid(item.title, item.raw_description, item.deadline)) {
+        allOpportunities.push(item)
+      }
     }
   })
 
-  logs.push(`Загалом зібрано елементів: ${allOpportunities.length}`)
+  logs.push(`Загалом зібрано елементів після фільтрації: ${allOpportunities.length}`)
   return allOpportunities
 }
