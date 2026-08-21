@@ -6,7 +6,34 @@ export interface AIScoreOutput {
   estimated_prep_time: string
 }
 
+// Функція для відсіювання інформаційних новин (призначення, річниці, звіти тощо)
+export function isOpportunityRelevant(opp: any): boolean {
+  const textToAnalyze = `${opp.title || ''} ${opp.raw_description || opp.description || ''}`.toLowerCase()
+
+  const informationalStopWords = [
+    'board member', 'appointed', 'anniversary', 'welcomes', 'interview', 
+    'conference report', 'goodbye', 'spotlight on', 'review', 'recap',
+    'прес-реліз', 'звіт', 'річниця', 'призначено', 'співробітник'
+  ]
+
+  if (informationalStopWords.some(word => textToAnalyze.includes(word))) {
+    return false
+  }
+
+  const validKeywords = [
+    'open call', 'opencall', 'call for artists', 'grant', 'grants', 
+    'residency', 'residencies', 'award', 'prize', 'submission', 
+    'конкурс', 'грант', 'резиденція', 'виставка', 'пленер', 'заявка'
+  ]
+
+  const hasValidIntent = validKeywords.some(word => textToAnalyze.includes(word))
+  return hasValidIntent
+}
+
 export function evaluateMatch(profile: any, opp: any): AIScoreOutput | null {
+  // Відсіюємо інформаційні пости перед будь-яким скорингом
+  if (!isOpportunityRelevant(opp)) return null
+
   if (opp.ukrainians_eligible === false) return null
 
   const countries: string[] = profile.search_countries || []
