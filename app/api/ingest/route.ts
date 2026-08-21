@@ -15,20 +15,18 @@ export async function GET(request: NextRequest) {
   const errors: string[] = [];
 
   try {
-    // Захист від випадкового виклику
-const authHeader = request.headers.get('authorization');
-const isAuthorized = 
-  !process.env.CRON_SECRET || 
-  authHeader === `Bearer ${process.env.CRON_SECRET}` ||
-  request.nextUrl.searchParams.get('secret') === process.env.CRON_SECRET;
+    const authHeader = request.headers.get('authorization');
+    const isAuthorized = 
+      !process.env.CRON_SECRET || 
+      authHeader === `Bearer ${process.env.CRON_SECRET}` ||
+      request.nextUrl.searchParams.get('secret') === process.env.CRON_SECRET;
 
-if (!isAuthorized) {
-  return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-}
+    if (!isAuthorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
 
     logs.push(`[${new Date().toISOString()}] Запуск ingest...`);
 
-    // 1. Збираємо можливості
     const fetchedItems: ParsedOpportunity[] = await fetchFromApprovedSources(logs);
     logs.push(`Отримано елементів з парсера: ${fetchedItems.length}`);
 
@@ -47,7 +45,6 @@ if (!isAuthorized) {
     let updated = 0;
     let skipped = 0;
 
-    // 2. Обробляємо кожну можливість
     for (const item of fetchedItems) {
       const link = item.link || item.source_url;
       if (!link) {
@@ -56,32 +53,31 @@ if (!isAuthorized) {
         continue;
       }
 
-      // Нормалізація під реальну структуру таблиці opportunities
       const record = {
-  title: (item.title || 'Без назви').substring(0, 300),
-  source_name: item.source_name || 'Unknown',
-  source_url: item.source_url || link,
-  link: link,
-  type: item.type || 'Open Call',
-  category: item.type || 'Open Call',
-  country: item.country || 'International',
-  is_free: item.is_free ?? true,
-  cost_amount: item.cost_amount ?? 0,
-  fee_amount: item.cost_amount ?? 0,
-  cost_currency: item.cost_currency || 'EUR',
-  techniques: Array.isArray(item.techniques) ? item.techniques : [],
-  genres: Array.isArray(item.genres) ? item.genres : [],
-  artist_levels: Array.isArray(item.artist_levels) ? item.artist_levels : [],
-  languages: Array.isArray(item.languages) ? item.languages : ['en'],
-  ukrainians_eligible: item.ukrainians_eligible ?? true,
-  accepts_ukrainians: item.ukrainians_eligible ?? true,
-  raw_description: item.raw_description || '',
-  description: item.raw_description || '',
-  deadline: item.deadline || null,
-  is_active: true,
-  updated_at: new Date().toISOString(),
-};
-      // Перевіряємо, чи вже є запис
+        title: (item.title || 'Без назви').substring(0, 300),
+        source_name: item.source_name || 'Unknown',
+        source_url: item.source_url || link,
+        link: link,
+        type: item.type || 'Open Call',
+        category: item.type || 'Open Call',
+        country: item.country || 'International',
+        is_free: item.is_free ?? true,
+        cost_amount: item.cost_amount ?? 0,
+        fee_amount: item.cost_amount ?? 0,
+        cost_currency: item.cost_currency || 'EUR',
+        techniques: Array.isArray(item.techniques) ? item.techniques : [],
+        genres: Array.isArray(item.genres) ? item.genres : [],
+        artist_levels: Array.isArray(item.artist_levels) ? item.artist_levels : [],
+        languages: Array.isArray(item.languages) ? item.languages : ['en'],
+        ukrainians_eligible: item.ukrainians_eligible ?? true,
+        accepts_ukrainians: item.ukrainians_eligible ?? true,
+        raw_description: item.raw_description || '',
+        description: item.raw_description || '',
+        deadline: item.deadline || null,
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      };
+
       const { data: existing, error: selectError } = await supabase
         .from('opportunities')
         .select('id')
@@ -94,7 +90,6 @@ if (!isAuthorized) {
       }
 
       if (existing?.id) {
-        // Оновлюємо існуючий запис
         const { error: updateError } = await supabase
           .from('opportunities')
           .update(record)
@@ -107,7 +102,6 @@ if (!isAuthorized) {
           logs.push(`Оновлено: ${item.title}`);
         }
       } else {
-        // Вставляємо новий
         const { error: insertError } = await supabase
           .from('opportunities')
           .insert({
@@ -117,7 +111,6 @@ if (!isAuthorized) {
 
         if (insertError) {
           if (insertError.code === '23505') {
-            // Конфлікт унікальності — просто пропускаємо
             skipped++;
             logs.push(`Вже існує (unique): ${link}`);
           } else {
