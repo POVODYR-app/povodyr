@@ -5,66 +5,48 @@ import NotificationsModal, { NotificationItem } from '../components/Notification
 import { supabase } from '../lib/supabase';
 
 export default function HomePage() {
-  const [opportunities, setOpportunities] = useState<NotificationItem[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isBellModalOpen, setIsBellModalOpen] = useState(false);
   const [isCenterModalOpen, setIsCenterModalOpen] = useState(false);
 
   useEffect(() => {
-    async function fetchOpportunities() {
+    async function fetchUserNotifications() {
       try {
         setLoading(true);
+        
+        // Отримуємо поточного авторизованого користувача
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+
+        // Завантажуємо сповіщення саме з таблиці notifications для цього користувача
         const { data, error } = await supabase
-          .from('opportunities')
+          .from('notifications')
           .select('*')
-          .eq('is_active', true)
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('Помилка завантаження даних:', error);
+          console.error('Помилка завантаження сповіщень:', error);
           return;
         }
 
         if (data) {
-          // Фільтруємо тільки актуальні можливості
-          const currentYear = new Date().getFullYear(); // 2026
-          const filtered = data.filter((item: any) => {
-            // 1. Якщо є дедлайн — перевіряємо, що він у майбутньому або цьому/наступному році
-            if (item.deadline) {
-              const deadlineYear = new Date(item.deadline).getFullYear();
-              return deadlineYear >= currentYear;
-            }
+          // Мапимо поля таблиці notifications під формат NotificationItem
+          const formattedNotifications: NotificationItem[] = data.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            description: item.message,
+            link: item.link_url || 'https://povodyr.vercel.app/dashboard',
+            created_at: item.created_at,
+            is_read: item.is_read
+          }));
 
-            // 2. Якщо дедлайну немає — залишаємо тільки ті, що явно про 2026/2027 або тестові
-            const title = (item.title || '').toLowerCase();
-            const desc = (item.raw_description || item.description || '').toLowerCase();
-
-            const isRecent =
-              title.includes('2026') ||
-              title.includes('2027') ||
-              desc.includes('2026') ||
-              desc.includes('2027') ||
-              item.is_test === true;
-
-            // Додатково виключаємо очевидні старі новини
-            const isOldNews =
-              title.includes('2013') ||
-              title.includes('2014') ||
-              title.includes('2015') ||
-              title.includes('2016') ||
-              title.includes('2017') ||
-              title.includes('2018') ||
-              title.includes('2019') ||
-              title.includes('2020') ||
-              title.includes('2021') ||
-              title.includes('2022') ||
-              title.includes('2023') ||
-              title.includes('2024');
-
-            return isRecent && !isOldNews;
-          });
-
-          setOpportunities(filtered as NotificationItem[]);
+          setNotifications(formattedNotifications);
         }
       } catch (err) {
         console.error('Помилка запиту:', err);
@@ -72,11 +54,12 @@ export default function HomePage() {
         setLoading(false);
       }
     }
-    fetchOpportunities();
+    fetchUserNotifications();
   }, []);
 
-  const recentNotifications = opportunities.slice(0, 10);
-  const totalCount = opportunities.length;
+  // Підраховуємо непрочитані сповіщення для дзвіночка
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const totalCount = notifications.length;
 
   return (
     <main style={{ padding: '30px 20px', fontFamily: 'sans-serif', maxWidth: '480px', margin: '0 auto', backgroundColor: '#0f172a', color: '#fff', minHeight: '100vh' }}>
@@ -90,9 +73,9 @@ export default function HomePage() {
             style={{ position: 'relative', padding: '10px 14px', backgroundColor: '#1e293b', color: '#fff', border: '1px solid #334155', borderRadius: '12px', cursor: 'pointer', fontSize: '16px' }}
           >
             🔔
-            {recentNotifications.length > 0 && (
+            {unreadCount > 0 && (
               <span style={{ position: 'absolute', top: '-6px', right: '-6px', backgroundColor: '#3b82f6', color: '#fff', fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '10px' }}>
-                {recentNotifications.length}
+                {unreadCount}
               </span>
             )}
           </button>
@@ -110,11 +93,11 @@ export default function HomePage() {
 
       {/* Статус знайдених можливостей */}
       <div style={{ backgroundColor: '#1e293b', border: '1px solid #3b82f6', borderRadius: '14px', padding: '16px', textAlign: 'center', marginBottom: '14px', color: '#93c5fd', fontSize: '15px', fontWeight: '500' }}>
-        🔍 {loading ? 'Пошук...' : `Знайдено ${totalCount} нових можливостей під ваш профіль!`}
+        🔍 {loading ? 'Пошук...' : `Отримано звітів за добу: ${totalCount}`}
       </div>
 
       <div style={{ fontSize: '13px', color: '#94a3b8', textAlign: 'center', marginBottom: '20px' }}>
-        Усього знайдено матеріалів у базі: {totalCount}
+        Усього сповіщень у системі: {totalCount}
       </div>
 
       {/* Основні кнопки */}
@@ -124,7 +107,7 @@ export default function HomePage() {
           disabled={loading}
           style={{ padding: '15px 20px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}
         >
-          📋 {loading ? 'Завантаження...' : `Центр можливостей (${totalCount})`}
+          📋 {loading ? 'Завантаження...' : `Центр сповіщень (${totalCount})`}
         </button>
         <a href="/profile" style={{ textAlign: 'center', padding: '15px 20px', backgroundColor: '#1e293b', color: '#fff', border: '1px solid #334155', textDecoration: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: '600' }}>
           ✏️ Мій профіль
@@ -152,14 +135,14 @@ export default function HomePage() {
       <NotificationsModal
         isOpen={isBellModalOpen}
         onClose={() => setIsBellModalOpen(false)}
-        notifications={recentNotifications}
+        notifications={notifications}
         title="Останні сповіщення"
       />
       <NotificationsModal
         isOpen={isCenterModalOpen}
         onClose={() => setIsCenterModalOpen(false)}
-        notifications={opportunities}
-        title={`Центр можливостей (${totalCount})`}
+        notifications={notifications}
+        title={`Центр сповіщень (${totalCount})`}
       />
     </main>
   );
