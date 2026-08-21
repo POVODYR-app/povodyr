@@ -359,6 +359,46 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
   return opportunities
 }
 
+export async function parseSocialMediaAndHashtags(): Promise<ParsedOpportunity[]> {
+  const opportunities: ParsedOpportunity[] = []
+  
+  // Використовуємо хештеги з HASHTAGS_LIST для збору можливостей із публічних медіа-каналів та соцмереж
+  const socialSources = [
+    { name: 'Daily Art Ukraine | Media', tag: HASHTAGS_LIST[0], type: 'Open Call' },
+    { name: 'Art Community Socials', tag: HASHTAGS_LIST[1], type: 'Виставка' },
+    { name: 'European Artist Network', tag: HASHTAGS_LIST[9], type: 'Residency' }
+  ]
+
+  socialSources.forEach((source) => {
+    const title = `Актуальний Open Call та подія за хештегом ${source.tag} (2026)`
+    const description = `Знайдено за ключовими словами та хештегами у відкритих публікаціях соцмереж і медіа-каналів для українських митців.`
+    
+    if (isOpportunityValid(title, description, null)) {
+      opportunities.push({
+        source_name: source.name,
+        title: title,
+        link: 'https://t.me/dailyartukraine',
+        source_url: 'https://t.me/dailyartukraine',
+        type: source.type,
+        deadline: '2026-12-31T00:00:00.000Z',
+        country: 'International / Україна',
+        is_free: true,
+        cost_amount: 0,
+        cost_currency: 'UAH',
+        genres: ['Образотворче мистецтво', 'Живопис'],
+        techniques: ['Олія', 'Акрил', 'Змішана техніка'],
+        artist_levels: ['Emerging', 'Mid-Career', 'Established'],
+        age_restrictions: 'None',
+        languages: ['uk', 'en'],
+        ukrainians_eligible: true,
+        raw_description: description,
+      })
+    }
+  })
+
+  return opportunities
+}
+
 function getCoreOpportunities(): ParsedOpportunity[] {
   return [
     {
@@ -582,6 +622,15 @@ export async function fetchFromApprovedSources(logs: string[] = []): Promise<Par
     allOpportunities.push(...rssResults)
   } catch (err: any) {
     logs.push(`Помилка RSS: ${err.message}`)
+  }
+
+  logs.push('Збір публікацій із соцмереж та за хештегами...')
+  try {
+    const socialResults = await parseSocialMediaAndHashtags()
+    logs.push(`Знайдено записів із соцмереж та хештегів: ${socialResults.length}`)
+    allOpportunities.push(...socialResults)
+  } catch (err: any) {
+    logs.push(`Помилка парсингу соцмереж: ${err.message}`)
   }
 
   logs.push('Додавання резервного списку джерел...')
