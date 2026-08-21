@@ -47,17 +47,16 @@ export async function POST(req: Request) {
     }
 
     const telegramIdStr = String(telegramUser.id)
-    const telegramIdNum = Number(telegramUser.id)
 
     if (text.startsWith('/start')) {
       const parts = text.split(/\s+/)
-      const rawParam = parts[1] // UUID з посилання, якщо він є
+      const rawParam = parts[1] // Це UUID профілю з посилання
 
-      console.log('Start command. Telegram ID:', telegramIdStr, 'Param:', rawParam, 'Chat ID:', chatId)
+      console.log('Start command received. Telegram ID:', telegramIdStr, 'Param:', rawParam, 'Chat ID:', chatId)
 
       let targetProfileId: string | null = null
 
-      // 1. Шукаємо за параметром з посилання (UUID)
+      // 1. Якщо передано UUID у параметрі /start (основний сценарій з кнопки на сайті)
       if (rawParam) {
         const { data: profileByParam } = await supabase
           .from('profiles')
@@ -70,20 +69,20 @@ export async function POST(req: Request) {
         }
       }
 
-      // 2. Якщо через посилання не знайшли, шукаємо за telegram_id у базі
+      // 2. Якщо параметра немає, шукаємо за вже прив'язаним telegram_id або telegram_chat_id
       if (!targetProfileId) {
-        const { data: profileByTgId } = await supabase
+        const { data: profileByTg } = await supabase
           .from('profiles')
           .select('id')
-          .or(`telegram_id.eq.${telegramIdStr},telegram_id.eq.${telegramIdNum}`)
+          .or(`telegram_id.eq.${telegramIdStr},telegram_chat_id.eq.${String(chatId)}`)
           .maybeSingle()
 
-        if (profileByTgId) {
-          targetProfileId = profileByTgId.id
+        if (profileByTg) {
+          targetProfileId = profileByTg.id
         }
       }
 
-      // 3. Якщо профіль знайдено — оновлюємо чат ID
+      // Якщо знайшли профіль — записуємо чат ID та ID користувача в базу
       if (targetProfileId) {
         const { error: updateError } = await supabase
           .from('profiles')
@@ -99,13 +98,15 @@ export async function POST(req: Request) {
             '✅ Ваш акаунт POVODYR успішно підключено! Тепер ви отримуватимете персональні сповіщення сюди.'
           )
           return NextResponse.json({ ok: true })
+        } else {
+          console.error('Database update error:', updateError)
         }
       }
 
-      // Якщо профіль не знайдено жодним способом
+      // Якщо профіль не знайдено в базі взагалі
       await sendTelegramMessage(
         chatId,
-        `Вітаємо у POVODYР! Ваш Telegram ID: <code>${telegramIdStr}</code>. Будь ласка, переконайтеся, що ви авторизовані в додатку через цей акаунт.`
+        `Вітаємо у POVODYR! Ваш Telegram ID: <code>${telegramIdStr}</code>. Будь ласка, переконайтеся, що ви авторизовані в додатку і та натиснули кнопку підключення з вашого кабінету.`
       )
     } else {
       await sendTelegramMessage(
