@@ -2,36 +2,38 @@
 
 import React, { useEffect, useState } from 'react';
 import NotificationsModal, { NotificationItem } from '../components/NotificationsModal';
+import TelegramConnect from '../components/TelegramConnect';
 import { supabase } from '../lib/supabase';
 
 export default function HomePage() {
+  const [user, setUser] = useState<any>(null);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isBellModalOpen, setIsBellModalOpen] = useState(false);
   const [isCenterModalOpen, setIsCenterModalOpen] = useState(false);
 
   useEffect(() => {
-    async function fetchUserNotifications() {
+    async function initData() {
       try {
         setLoading(true);
         
-        // Отримуємо поточну сесію та юзера
-        const { data: { session } } = await supabase.auth.getSession();
-        const user = session?.user;
+        // 1. Отримуємо поточного авторизованого користувача
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        console.log('Поточний Auth User ID:', user?.id);
-
-        if (!user) {
-          console.warn('Користувач не авторизований у Supabase на клієнті!');
+        if (sessionError || !session?.user) {
+          console.warn('Користувач не авторизований');
           setLoading(false);
           return;
         }
 
-        // Робимо запит до таблиці сповіщень саме для вашого user_id
+        const currentUser = session.user;
+        setUser(currentUser);
+
+        // 2. Робимо запит до сповіщень саме для цього user_id
         const { data, error } = await supabase
           .from('notifications')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('user_id', currentUser.id)
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -40,30 +42,32 @@ export default function HomePage() {
         }
 
         if (data) {
-          console.log(`Знайдено персональних записів для вашого профілю: ${data.length}`);
-          
           const formattedNotifications: NotificationItem[] = data.map((item: any) => ({
             id: item.id,
             title: item.title,
-            description: item.message,
-            link: item.link_url || 'https://povodyr.vercel.app/dashboard',
+            message: item.message,
+            description: item.description,
+            raw_description: item.raw_description,
             created_at: item.created_at,
+            link_url: item.link_url,
+            source_url: item.source_url,
+            link: item.link,
+            url: item.url,
             is_read: item.is_read
           }));
 
           setNotifications(formattedNotifications);
         }
       } catch (err) {
-        console.error('Помилка запиту:', err);
+        console.error('Помилка ініціалізації:', err);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchUserNotifications();
+    initData();
   }, []);
 
-  // Підраховуємо непрочитані сповіщення для дзвіночка
   const unreadCount = notifications.filter(n => !n.is_read).length;
   const totalCount = notifications.length;
 
@@ -88,22 +92,18 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Блок сповіщень Telegram */}
-      <div style={{ backgroundColor: '#161e2e', border: '1px solid #334155', borderRadius: '16px', padding: '20px', marginBottom: '20px' }}>
-        <h2 style={{ fontSize: '17px', margin: '0 0 6px 0', fontWeight: '600' }}>Сповіщення в Telegram</h2>
-        <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 14px 0' }}>Отримуйте оперативні добірки можливостей безпосередньо у ваш приватний чат.</p>
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #10b981', borderRadius: '10px', padding: '12px 14px', color: '#34d399', fontSize: '13px', fontWeight: '500' }}>
-          ✅ Персональні сповіщення в Telegram підключено
+      {/* Підключення Telegram (використовуємо реальний компонент із передачею юзера) */}
+      {user ? (
+        <TelegramConnect user={user} />
+      ) : (
+        <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 16, marginBottom: 20, color: '#94a3b8', fontSize: 13, textAlign: 'center' }}>
+          {loading ? 'Завантаження профілю...' : 'Будь ласка, авторизуйтесь для підключення Telegram'}
         </div>
-      </div>
+      )}
 
-      {/* Статус знайдених можливостей */}
+      {/* Статус можливостей */}
       <div style={{ backgroundColor: '#1e293b', border: '1px solid #3b82f6', borderRadius: '14px', padding: '16px', textAlign: 'center', marginBottom: '14px', color: '#93c5fd', fontSize: '15px', fontWeight: '500' }}>
-        🔍 {loading ? 'Пошук...' : `Отримано звітів за добу: ${totalCount}`}
-      </div>
-
-      <div style={{ fontSize: '13px', color: '#94a3b8', textAlign: 'center', marginBottom: '20px' }}>
-        Усього сповіщень у системі: {totalCount}
+        🔍 {loading ? 'Пошук...' : `Отримано звітів: ${totalCount}`}
       </div>
 
       {/* Основні кнопки */}
@@ -122,17 +122,17 @@ export default function HomePage() {
 
       <div style={{ borderTop: '1px solid #1e293b', margin: '24px 0' }} />
 
-      {/* Футер із текстом та логотипом */}
+      {/* Футер */}
       <div style={{ textAlign: 'center', paddingBottom: '30px' }}>
         <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 6px 0' }}>POVODYR</h3>
         <p style={{ fontSize: '12px', color: '#94a3b8', maxWidth: '360px', margin: '0 auto' }}>
           Ви створюєте картини. POVODYR допомагає їм знайти свій шлях.
         </p>
-        <div className="flex justify-center mt-4">
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
           <img 
             src="/icon-192.jpg" 
             alt="POVODYR Logo" 
-            className="w-24 h-24 rounded-2xl object-cover shadow-md mx-auto"
+            style={{ width: '96px', height: '96px', borderRadius: '16px', objectFit: 'cover', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
           />
         </div>
       </div>
@@ -148,7 +148,7 @@ export default function HomePage() {
         isOpen={isCenterModalOpen}
         onClose={() => setIsCenterModalOpen(false)}
         notifications={notifications}
-        title={`Центр сповіщень (${totalCount})`}
+        title="Центр можливостей"
       />
     </main>
   );
