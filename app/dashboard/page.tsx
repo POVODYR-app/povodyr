@@ -92,7 +92,7 @@ export default function DashboardPage() {
         telegram_chat_id: userProfile?.telegram_chat_id || null,
       })
 
-      // 2. Активні можливості (за останні 10 днів для розрахунку бази)
+      // 2. Активні можливості
       const nowISO = new Date().toISOString()
       const tenDaysAgoISO = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
 
@@ -113,9 +113,6 @@ export default function DashboardPage() {
 
       const allOpps = (opportunities || []) as Opportunity[]
       setTotalCount(allOpps.length)
-
-      // Виправляємо поріг свіжості: беремо реальні останні 24 години від поточного моменту
-      const recentThreshold = Date.now() - (24 * 60 * 60 * 1000)
 
       // 3. Фільтрація
       if (userProfile) {
@@ -158,28 +155,19 @@ export default function DashboardPage() {
           return true
         })
 
-        // Сортуємо за датою дедлайну
+        // Сортуємо за дедлайном
         matched.sort((a, b) => {
           const dateA = a.deadline ? new Date(a.deadline).getTime() : Infinity
           const dateB = b.deadline ? new Date(b.deadline).getTime() : Infinity
           return dateA - dateB
         })
 
-        // Формуємо свіжі за добу на основі реального часу
-        const recentMatched = matched.filter((opp) => {
-          const createdTime = opp.created_at ? new Date(opp.created_at).getTime() : 0
-          return createdTime >= recentThreshold
-        })
-
         setMatchedOpportunities(matched)
-        setDailyOpportunities(recentMatched)
+        // Виводимо актуальні підібрані можливості (наприклад, перші 10 найближчих або всі збіги)
+        setDailyOpportunities(matched)
       } else {
-        const recentMatched = allOpps.filter((opp) => {
-          const createdTime = opp.created_at ? new Date(opp.created_at).getTime() : 0
-          return createdTime >= recentThreshold
-        })
         setMatchedOpportunities(allOpps)
-        setDailyOpportunities(recentMatched)
+        setDailyOpportunities(allOpps)
       }
 
       setLoading(false)
@@ -211,7 +199,7 @@ export default function DashboardPage() {
     >
       <div style={{ maxWidth: 420, margin: '0 auto' }}>
         
-        {/* Шапка з вітанням та іконкою сповіщень */}
+        {/* Шапка */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
             Вітаю{userName ? `, ${userName}` : ''}!
@@ -251,7 +239,7 @@ export default function DashboardPage() {
 
         {userObj && <TelegramConnect user={userObj} />}
 
-        {/* Блок кількості знайдених можливостей за добу */}
+        {/* Блок знайдених можливостей */}
         <div 
           onClick={() => !loading && dailyOpportunities.length > 0 && setIsModalOpen(true)}
           style={{ 
@@ -268,8 +256,8 @@ export default function DashboardPage() {
             {loading
               ? 'Завантаження можливостей...'
               : dailyOpportunities.length > 0
-              ? `Знайдено ${dailyOpportunities.length} нових можливостей під ваш профіль!`
-              : 'Немає нових можливостей за добу. Продовжую шукати.'}
+              ? `Знайдено ${dailyOpportunities.length} актуальних можливостей під ваш профіль!`
+              : 'Немає нових можливостей.'}
           </p>
           <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
             Усього збережено матеріалів у базі за останні 10 днів: {totalCount}
@@ -316,7 +304,7 @@ export default function DashboardPage() {
           ✏️ Мій профіль
         </button>
 
-        {/* Брендинг з логотипом внизу */}
+        {/* Брендинг */}
         <div style={{ textAlign: 'center', marginTop: 32, borderTop: '1px solid #1e293b', paddingTop: 24 }}>
           <h3 style={{ margin: '0 0 8px 0', fontSize: 18, fontWeight: 700, letterSpacing: '1px' }}>POVODYR</h3>
           <p style={{ margin: '0 0 16px 0', fontSize: 13, color: '#94a3b8' }}>
