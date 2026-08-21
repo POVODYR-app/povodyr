@@ -136,30 +136,18 @@ export default function DashboardPage() {
               background: '#1e293b', 
               border: '1px solid #334155', 
               borderRadius: 12, 
-              padding: '10px 14px', 
+              padding: '10px 16px', 
               cursor: 'pointer', 
-              position: 'relative',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              gap: '8px',
+              color: '#fff',
+              fontSize: '14px',
+              fontWeight: '600'
             }}
           >
-            🔔
-            {upcomingDeadlinesCount > 0 && (
-              <span style={{ 
-                position: 'absolute', 
-                top: -4, 
-                right: -4, 
-                background: '#ef4444', 
-                color: 'white', 
-                fontSize: 10, 
-                fontWeight: 'bold', 
-                padding: '2px 6px', 
-                borderRadius: '50%' 
-              }}>
-                {upcomingDeadlinesCount}
-              </span>
-            )}
+            <span>🔔</span>
+            <span>{upcomingDeadlinesCount} DEADLINE</span>
           </button>
         </div>
 
