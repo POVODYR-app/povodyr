@@ -64,8 +64,22 @@ export async function GET(request: NextRequest) {
       matchedCount = monthlyOpps.filter(opp => {
         if (userCountries.length > 0 && opp.country) {
           const oppCountry = String(opp.country).toLowerCase();
-          const countryMatch = userCountries.some(c => oppCountry.includes(c) || c.includes(oppCountry));
-          if (!countryMatch && !oppCountry.includes('онлайн') && !oppCountry.includes('світ') && !oppCountry.includes('international')) {
+          
+          // Перевіряємо чи це глобальна подія / онлайн / світ
+          const isGlobal = oppCountry.includes('онлайн') || 
+                           oppCountry.includes('світ') || 
+                           oppCountry.includes('international') ||
+                           oppCountry.includes('worldwide') ||
+                           oppCountry.includes('усі');
+
+          // Суворіший збіг країн: перевіряємо чи користувач шукає саме цю країну
+          const countryMatch = userCountries.some(c => {
+            const cleanC = c.trim();
+            // Точний збіг або повне входження слова без хибних спрацьовувань коротких підрядків
+            return oppCountry === cleanC || oppCountry.split(/[,/]/).map(item => item.trim()).includes(cleanC);
+          });
+
+          if (!countryMatch && !isGlobal) {
             return false;
           }
         }
