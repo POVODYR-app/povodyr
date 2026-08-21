@@ -15,34 +15,22 @@ export default function HomePage() {
       try {
         setLoading(true);
         
-        // Отримуємо поточного авторизованого користувача
+        // 1. Отримуємо поточного авторизованого користувача
         const { data: { user } } = await supabase.auth.getUser();
         
-        // Базовий запит для отримання останніх сповіщень
-        let query = supabase
-          .from('notifications')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(50);
-
-        if (user) {
-          // Пробуємо отримати дані з фільтрацією за користувачем
-          const { data: userData, error: userError } = await supabase
-            .from('notifications')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(50);
-
-          if (!userError && userData && userData.length > 0) {
-            formatAndSetData(userData);
-            setLoading(false);
-            return;
-          }
+        if (!user) {
+          setNotifications([]);
+          setLoading(false);
+          return;
         }
 
-        // Запасний запит без жорсткої прив'язки до user_id для гарантованого відображення свіжих даних
-        const { data, error } = await query;
+        // 2. Робимо запит виключно для цього користувача за його user_id
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(100);
 
         if (error) {
           console.error('Помилка завантаження сповіщень:', error);
@@ -50,26 +38,22 @@ export default function HomePage() {
         }
 
         if (data) {
-          formatAndSetData(data);
+          const formattedNotifications: NotificationItem[] = data.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            description: item.message,
+            link: item.link_url || 'https://povodyr.vercel.app/dashboard',
+            created_at: item.created_at,
+            is_read: item.is_read
+          }));
+
+          setNotifications(formattedNotifications);
         }
       } catch (err) {
         console.error('Помилка запиту:', err);
       } finally {
         setLoading(false);
       }
-    }
-
-    function formatAndSetData(items: any[]) {
-      const formattedNotifications: NotificationItem[] = items.map((item: any) => ({
-        id: item.id,
-        title: item.title,
-        description: item.message,
-        link: item.link_url || 'https://povodyr.vercel.app/dashboard',
-        created_at: item.created_at,
-        is_read: item.is_read
-      }));
-
-      setNotifications(formattedNotifications);
     }
 
     fetchUserNotifications();
