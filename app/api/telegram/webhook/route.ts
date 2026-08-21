@@ -47,46 +47,66 @@ export async function POST(req: Request) {
     }
 
     const telegramIdStr = String(telegramUser.id)
+    const telegramIdNum = Number(telegramUser.id)
 
     if (text.startsWith('/start')) {
       const parts = text.split(/\s+/)
-      const rawParam = parts[1] // Це може бути UUID з посилання
+      const rawParam = parts[1] // UUID з посилання, якщо він є
 
-      console.log('Start command received. Telegram ID:', telegramIdStr, 'Param:', rawParam, 'Chat ID:', chatId)
+      console.log('Start command. Telegram ID:', telegramIdStr, 'Param:', rawParam, 'Chat ID:', chatId)
 
-      let updateError = null
+      let targetProfileId: string | null = null
 
+      // 1. Шукаємо за параметром з посилання (UUID)
       if (rawParam) {
-        // Якщо посилання містило UUID профілю (перший вхід)
-        const { error } = await supabase
+        const { data: profileByParam } = await supabase
           .from('profiles')
-          .update({ telegram_chat_id: String(chatId) })
+          .select('id')
           .eq('id', rawParam)
-        
-        updateError = error
-      } else {
-        // Якщо параметр не передався (бот вже відкривався раніше),
-        // шукаємо профіль за telegram_id, який вже прив'язаний до цього юзера на сайті
-        const { error } = await supabase
+          .maybeSingle()
+
+        if (profileByParam) {
+          targetProfileId = profileByParam.id
+        }
+      }
+
+      // 2. Якщо через посилання не знайшли, шукаємо за telegram_id у базі
+      if (!targetProfileId) {
+        const { data: profileByTgId } = await supabase
           .from('profiles')
-          .update({ telegram_chat_id: String(chatId) })
-          .eq('telegram_id', telegramIdStr)
+          .select('id')
+          .or(`telegram_id.eq.${telegramIdStr},telegram_id.eq.${telegramIdNum}`)
+          .maybeSingle()
 
-        updateError = error
+        if (profileByTgId) {
+          targetProfileId = profileByTgId.id
+        }
       }
 
-      if (!updateError) {
-        await sendTelegramMessage(
-          chatId,
-          '✅ Ваш акаунт POVODYR успішно підключено! Тепер ви отримуватимете персональні сповіщення сюди.'
-        )
-      } else {
-        // Якщо в базі ще немає запису з цим telegram_id або сталася помилка
-        await sendTelegramMessage(
-          chatId,
-          `Вітаємо у POVODYР! Ваш Telegram ID: <code>${telegramIdStr}</code>. Будь ласка, переконайтеся, що ви авторизовані на сайті через цей акаунт.`
-        )
+      // 3. Якщо профіль знайдено — оновлюємо чат ID
+      if (targetProfileId) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ 
+            telegram_chat_id: String(chatId),
+            telegram_id: telegramIdStr 
+          })
+          .eq('id', targetProfileId)
+
+        if (!updateError) {
+          await sendTelegramMessage(
+            chatId,
+            '✅ Ваш акаунт POVODYR успішно підключено! Тепер ви отримуватимете персональні сповіщення сюди.'
+          )
+          return NextResponse.json({ ok: true })
+        }
       }
+
+      // Якщо профіль не знайдено жодним способом
+      await sendTelegramMessage(
+        chatId,
+        `Вітаємо у POVODYР! Ваш Telegram ID: <code>${telegramIdStr}</code>. Будь ласка, переконайтеся, що ви авторизовані в додатку через цей акаунт.`
+      )
     } else {
       await sendTelegramMessage(
         chatId,
