@@ -313,7 +313,7 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
             <img 
               src="/icon-192" 
-              alt="icon-192" 
+              alt="public/icon-192" 
               style={{ width: 120, height: 'auto', borderRadius: 16, border: '1px solid #334155' }}
               onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
             />
