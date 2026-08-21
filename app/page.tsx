@@ -26,14 +26,25 @@ export default function HomePage() {
           return;
         }
 
-        const currentUser = session.user;
-        setUser(currentUser);
+        const authUser = session.user;
 
-        // 2. Робимо запит до сповіщень саме для цього user_id
+        // Дотягуємо дані профілю з таблиці profiles (включно з telegram_chat_id)
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+
+        setUser({
+          ...authUser,
+          ...(profileData || {}),
+        });
+
+        // 2. Робимо запит до сповіщень для цього user_id
         const { data, error } = await supabase
           .from('notifications')
           .select('*')
-          .eq('user_id', currentUser.id)
+          .eq('user_id', authUser.id)
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -92,7 +103,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Підключення Telegram (використовуємо реальний компонент із передачею юзера) */}
+      {/* Підключення Telegram */}
       {user ? (
         <TelegramConnect user={user} />
       ) : (
@@ -126,7 +137,7 @@ export default function HomePage() {
       <div style={{ textAlign: 'center', paddingBottom: '30px' }}>
         <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 6px 0' }}>POVODYR</h3>
         <p style={{ fontSize: '12px', color: '#94a3b8', maxWidth: '360px', margin: '0 auto' }}>
-          Ви створюєте картини. POVODYR допомагає їм знайти свій шлях.
+          Ви створюєте картини. POVODYR допомагає їм знайти шлях.
         </p>
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
           <img 
