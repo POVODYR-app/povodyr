@@ -40,6 +40,11 @@ export default function NotificationsModal({
 }: NotificationsModalProps) {
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [userId, setUserId] = useState<string | null>(null);
+  
+  // Стани для генератора заявок
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [generatedText, setGeneratedText] = useState<{ [key: string]: string }>({});
+  const [activeTab, setActiveTab] = useState<{ [key: string]: 'cover' | 'statement' | 'email' }>({});
 
   useEffect(() => {
     if (isOpen) {
@@ -94,6 +99,36 @@ export default function NotificationsModal({
     }
   };
 
+  const handleGenerateApplication = async (item: NotificationItem) => {
+    setGeneratingId(item.id);
+    try {
+      const response = await fetch('/api/generate-application', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          opportunityTitle: item.title,
+          opportunityDescription: item.message || item.description || item.raw_description || '',
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setGeneratedText((prev) => ({
+          ...prev,
+          [item.id]: data.text || 'Згенеровано успішно.',
+        }));
+        setActiveTab((prev) => ({ ...prev, [item.id]: 'cover' }));
+      } else {
+        alert(data.error || 'Поשлка генерації заявки');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Помилка підключення до сервера');
+    } finally {
+      setGeneratingId(null);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     try {
       return new Date(dateString).toLocaleDateString('uk-UA', {
@@ -128,7 +163,7 @@ export default function NotificationsModal({
           backgroundColor: '#1a1d2d',
           borderRadius: '16px',
           width: '100%',
-          maxWidth: '480px',
+          maxWidth: '560px',
           maxHeight: '85vh',
           display: 'flex',
           flexDirection: 'column',
@@ -178,6 +213,8 @@ export default function NotificationsModal({
               const targetUrl = item.source_url || item.link || item.link_url || item.url;
               const contentText = item.message || item.description || item.raw_description || '';
               const isSaved = savedIds.has(item.id);
+              const isGenerating = generatingId === item.id;
+              const currentResult = generatedText[item.id];
 
               return (
                 <div
@@ -187,7 +224,7 @@ export default function NotificationsModal({
                     border: '1px solid #334155',
                     borderRadius: '12px',
                     padding: '14px',
-                    marginBottom: '12px',
+                    marginBottom: '16px',
                     position: 'relative',
                   }}
                 >
@@ -253,8 +290,63 @@ export default function NotificationsModal({
                         lineHeight: '1.4',
                       }}
                     >
-                      {contentText.length > 150 ? contentText.substring(0, 150) + '...' : contentText}
+                      {contentText.length > 180 ? contentText.substring(0, 180) + '...' : contentText}
                     </p>
+                  )}
+
+                  {/* Кнопка генерації заявки */}
+                  <div style={{ margin: '12px 0 8px 0' }}>
+                    <button
+                      onClick={() => handleGenerateApplication(item)}
+                      disabled={isGenerating}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        backgroundColor: '#2563eb',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor: isGenerating ? 'not-allowed' : 'pointer',
+                        opacity: isGenerating ? 0.7 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      {isGenerating ? '⏳ Генерую пакет документів...' : '✨ Згенерувати пакет документів'}
+                    </button>
+                  </div>
+
+                  {/* Блок згенерованого результату */}
+                  {currentResult && (
+                    <div
+                      style={{
+                        marginTop: '10px',
+                        backgroundColor: '#1e293b',
+                        border: '1px solid #3b82f6',
+                        borderRadius: '8px',
+                        padding: '12px',
+                      }}
+                    >
+                      <div style={{ fontSize: '12px', fontWeight: '600', color: '#93c5fd', marginBottom: '6px' }}>
+                        Готовий пакет документів:
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: '#e2e8f0',
+                          whiteSpace: 'pre-wrap',
+                          maxHeight: '200px',
+                          overflowY: 'auto',
+                          lineHeight: '1.4',
+                        }}
+                      >
+                        {currentResult}
+                      </div>
+                    </div>
                   )}
 
                   <div
@@ -264,6 +356,7 @@ export default function NotificationsModal({
                       alignItems: 'center',
                       fontSize: '12px',
                       color: '#64748b',
+                      marginTop: '10px',
                     }}
                   >
                     <span>{formatDate(item.created_at)}</span>
