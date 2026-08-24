@@ -22,7 +22,6 @@ export default function FollowUpAlerts({ savedItems }: FollowUpAlertsProps) {
 
   const now = new Date();
 
-  // Генерація розумних нагадувань на основі дат та статусів
   const alerts: { id: string; text: string; type: 'warning' | 'info' | 'success' }[] = [];
 
   savedItems.forEach((item) => {
@@ -44,7 +43,7 @@ export default function FollowUpAlerts({ savedItems }: FollowUpAlertsProps) {
       } else if (diffDaysToDeadline <= 3 && diffDaysToDeadline > 1) {
         alerts.push({
           id: item.id,
-          text: `Ви зберегли «${title}» ${diffDaysFromSave} днів тому. Дедлайн через ${diffDaysToDeadline дні — час переходити до подачі.`,
+          text: `Ви зберегли «${title}» ${diffDaysFromSave} днів тому. Дедлайн через ${diffDaysToDeadline} дні — час переходити до подачі.`,
           type: 'info',
         });
       }
