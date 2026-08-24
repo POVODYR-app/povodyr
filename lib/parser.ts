@@ -362,10 +362,11 @@ export async function parseSocialMediaAndHashtags(): Promise<ParsedOpportunity[]
   const opportunities: ParsedOpportunity[] = []
   
   const socialSources = [
-    { name: 'Daily Art Ukraine | Media', link: 'https://t.me/dailyartukraine', type: 'Open Call' },
     { name: 'ArtBotMe Telegram', link: 'https://t.me/artbotme', type: 'Open Call' },
     { name: 'Art Salon Vizantia', link: 'https://www.instagram.com/art_salon_vizantia/', type: 'Виставка' },
-    { name: 'Globus Gallery', link: 'https://www.instagram.com/globus_gallery/', type: 'Виставка' }
+    { name: 'Globus Gallery', link: 'https://www.instagram.com/globus_gallery/', type: 'Виставка' },
+    { name: 'НСХУ Диререкція', link: 'https://t.me/nshu_dir', type: 'Open Call' },
+    { name: 'Gallery Globus', link: 'https://t.me/Gallery_Globus', type: 'Виставка / Open Call' }
   ]
 
   socialSources.forEach((source) => {
@@ -399,7 +400,7 @@ export async function parseUkrainianInstitutionsHTML(): Promise<ParsedOpportunit
   const ukrainianSources = [
     {
       name: 'Український культурний фонд (УКФ)',
-      url: 'https://ucf.in.ua',
+      url: 'https://ucf.in.ua/',
       type: 'Грант / Open Call',
       defaultDeadline: '2026-11-30T00:00:00.000Z'
     },
@@ -427,7 +428,7 @@ export async function parseUkrainianInstitutionsHTML(): Promise<ParsedOpportunit
         is_free: true,
         cost_amount: 0,
         cost_currency: 'UAH',
-        genres: ['Образотворче мистецтво', 'Живопис', 'Сучасне мистецтво'],
+        genres: ['Образотворче мистецтво', 'Живопис', 'Коллаж', 'Сучасне мистецтво'],
         techniques: ['Олія', 'Акрил', 'Змішана техніка'],
         artist_levels: ['Emerging', 'Mid-Career', 'Established'],
         age_restrictions: 'None',
@@ -474,7 +475,7 @@ function getCoreOpportunities(): ParsedOpportunity[] {
       cost_amount: 0,
       cost_currency: 'UAH',
       genres: ['Образотворче мистецтво', 'Живопис'],
-      techniques: ['Олія', 'Акрил', 'Змішана техніка'],
+      techniques: ['Олія', 'Акрил', 'Коллаж', 'Змішана техніка'],
       artist_levels: ['Emerging', 'Mid-Career', 'Established'],
       age_restrictions: 'None',
       languages: ['uk'],
@@ -492,7 +493,7 @@ function getCoreOpportunities(): ParsedOpportunity[] {
       is_free: true,
       cost_amount: 0,
       cost_currency: 'UAH',
-      genres: ['Образотворче мистецтво', 'Живопис'],
+      genres: ['Образотворче мистецтво', 'Коллаж', 'Живопис'],
       techniques: [],
       artist_levels: ['Emerging', 'Mid-Career', 'Established'],
       age_restrictions: 'None',
