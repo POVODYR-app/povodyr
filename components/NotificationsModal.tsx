@@ -40,20 +40,21 @@ export default function NotificationsModal({
 }: NotificationsModalProps) {
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   
-  // Стани для генератора заявок
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [generatedText, setGeneratedText] = useState<{ [key: string]: string }>({});
-  const [activeTab, setActiveTab] = useState<{ [key: string]: 'cover' | 'statement' | 'email' }>({});
+  const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
       
-      const fetchBookmarks = async () => {
+      const fetchData = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
         setUserId(user.id);
+        setUserEmail(user.email || null);
 
         const { data, error } = await supabase
           .from('saved_opportunities')
@@ -65,7 +66,7 @@ export default function NotificationsModal({
         }
       };
 
-      fetchBookmarks();
+      fetchData();
     } else {
       document.body.style.overflow = '';
     }
@@ -117,15 +118,60 @@ export default function NotificationsModal({
           ...prev,
           [item.id]: data.text || 'Згенеровано успішно.',
         }));
-        setActiveTab((prev) => ({ ...prev, [item.id]: 'cover' }));
       } else {
-        alert(data.error || 'Поשлка генерації заявки');
+        alert(data.error || 'Помилка генерації заявки');
       }
     } catch (err) {
       console.error(err);
       alert('Помилка підключення до сервера');
     } finally {
       setGeneratingId(null);
+    }
+  };
+
+  const handleCopyText = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert('Пакет документів скопійовано до буфера обміну!');
+  };
+
+  const handleDownloadTxt = (title: string, text: string) => {
+    const element = document.createElement('a');
+    const file = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    element.href = URL.createObjectURL(file);
+    element.download = `Заявка_${title.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_')}.txt`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  const handleSendToEmail = async (opportunityTitle: string, text: string) => {
+    if (!userEmail) {
+      alert('Не вдалося визначити пошту користувача.');
+      return;
+    }
+
+    setSendingEmailId(opportunityTitle);
+    try {
+      const response = await fetch('/api/send-document-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userEmail,
+          subject: `Пакет документів: ${opportunityTitle}`,
+          content: text,
+        }),
+      });
+
+      if (response.ok) {
+        alert(`Пакет документів успішно надіслано на пошту: ${userEmail}`);
+      } else {
+        alert('Не вдалося надіслати лист через сервер.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Помилка при відправці на пошту');
+    } finally {
+      setSendingEmailId(null);
     }
   };
 
@@ -172,7 +218,6 @@ export default function NotificationsModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Заголовок */}
         <div
           style={{
             display: 'flex',
@@ -200,14 +245,7 @@ export default function NotificationsModal({
           </button>
         </div>
 
-        {/* Список */}
-        <div
-          style={{
-            padding: '16px',
-            overflowY: 'auto',
-            flex: 1,
-          }}
-        >
+        <div style={{ padding: '16px', overflowY: 'auto', flex: 1 }}>
           {notifications && notifications.length > 0 ? (
             notifications.map((item) => {
               const targetUrl = item.source_url || item.link || item.link_url || item.url;
@@ -233,21 +271,6 @@ export default function NotificationsModal({
                       {item.title}
                     </h3>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                      {item.matchScore !== undefined && (
-                        <span
-                          style={{
-                            backgroundColor: item.matchScore >= 80 ? '#1e3a8a' : '#1e293b',
-                            color: item.matchScore >= 80 ? '#93c5fd' : '#cbd5e1',
-                            border: '1px solid #3b82f6',
-                            borderRadius: '6px',
-                            padding: '2px 6px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                          }}
-                        >
-                          {item.matchScore}% релевантність
-                        </span>
-                      )}
                       <button
                         onClick={(e) => toggleBookmark(item.id, e)}
                         title={isSaved ? "Видалити із закладок" : "Зберегти в закладки"}
@@ -269,32 +292,12 @@ export default function NotificationsModal({
                     </div>
                   </div>
 
-                  {item.recommendedAction && (
-                    <div style={{ fontSize: '12px', color: '#60a5fa', marginBottom: '6px', fontWeight: '500' }}>
-                      {item.recommendedAction}
-                    </div>
-                  )}
-
-                  {item.matchReasons && item.matchReasons.length > 0 && (
-                    <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '8px', fontStyle: 'italic' }}>
-                      {item.matchReasons.join(' • ')}
-                    </div>
-                  )}
-
                   {contentText && (
-                    <p
-                      style={{
-                        margin: '0 0 10px 0',
-                        fontSize: '13px',
-                        color: '#94a3b8',
-                        lineHeight: '1.4',
-                      }}
-                    >
+                    <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#94a3b8', lineHeight: '1.4' }}>
                       {contentText.length > 180 ? contentText.substring(0, 180) + '...' : contentText}
                     </p>
                   )}
 
-                  {/* Кнопка генерації заявки */}
                   <div style={{ margin: '12px 0 8px 0' }}>
                     <button
                       onClick={() => handleGenerateApplication(item)}
@@ -310,17 +313,12 @@ export default function NotificationsModal({
                         fontWeight: '600',
                         cursor: isGenerating ? 'not-allowed' : 'pointer',
                         opacity: isGenerating ? 0.7 : 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
                       }}
                     >
                       {isGenerating ? '⏳ Генерую пакет документів...' : '✨ Згенерувати пакет документів'}
                     </button>
                   </div>
 
-                  {/* Блок згенерованого результату */}
                   {currentResult && (
                     <div
                       style={{
@@ -331,42 +329,85 @@ export default function NotificationsModal({
                         padding: '12px',
                       }}
                     >
-                      <div style={{ fontSize: '12px', fontWeight: '600', color: '#93c5fd', marginBottom: '6px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: '600', color: '#93c5fd', marginBottom: '8px' }}>
                         Готовий пакет документів:
                       </div>
+                      
                       <div
                         style={{
                           fontSize: '12px',
                           color: '#e2e8f0',
                           whiteSpace: 'pre-wrap',
-                          maxHeight: '200px',
+                          maxHeight: '180px',
                           overflowY: 'auto',
                           lineHeight: '1.4',
+                          backgroundColor: '#0f172a',
+                          padding: '10px',
+                          borderRadius: '6px',
+                          border: '1px solid #334155',
+                          marginBottom: '10px',
                         }}
                       >
                         {currentResult}
                       </div>
+
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => handleCopyText(currentResult)}
+                          style={{
+                            flex: 1,
+                            padding: '6px 10px',
+                            backgroundColor: '#334155',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          📋 Копіювати текст
+                        </button>
+                        <button
+                          onClick={() => handleDownloadTxt(item.title, currentResult)}
+                          style={{
+                            flex: 1,
+                            padding: '6px 10px',
+                            backgroundColor: '#334155',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          💾 Завантажити (.txt)
+                        </button>
+                        <button
+                          onClick={() => handleSendToEmail(item.title, currentResult)}
+                          style={{
+                            flex: 1,
+                            padding: '6px 10px',
+                            backgroundColor: '#047857',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          ✉️ На пошту
+                        </button>
+                      </div>
                     </div>
                   )}
 
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      fontSize: '12px',
-                      color: '#64748b',
-                      marginTop: '10px',
-                    }}
-                  >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#64748b', marginTop: '10px' }}>
                     <span>{formatDate(item.created_at)}</span>
                     {targetUrl ? (
-                      <a
-                        href={targetUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: '500' }}
-                      >
+                      <a href={targetUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: '500' }}>
                         Перейти →
                       </a>
                     ) : (
@@ -383,7 +424,6 @@ export default function NotificationsModal({
           )}
         </div>
 
-        {/* Кнопка закрити */}
         <div style={{ padding: '16px', borderTop: '1px solid #334155' }}>
           <button
             onClick={onClose}
