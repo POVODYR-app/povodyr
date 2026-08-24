@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import TelegramConnect from '../../components/TelegramConnect'
 import NotificationsModal, { NotificationItem } from '../../components/NotificationsModal'
+import { calculateMatch, ArtistProfile, Opportunity as MatchOpportunity } from '../../lib/matchEngine'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -29,6 +30,9 @@ interface Opportunity {
   org_fee?: number | string | null
   techniques?: any
   genres?: any
+  themes?: any
+  eligible_countries?: any
+  required_level?: string | null
 }
 
 export default function DashboardPage() {
@@ -37,11 +41,10 @@ export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // Нові стани для показників з API
   const [dailyCount, setDailyCount] = useState<number>(0)
   const [monthlyMatchedCount, setMonthlyMatchedCount] = useState<number>(0)
   const [upcomingDeadlinesCount, setUpcomingDeadlinesCount] = useState<number>(0)
-  const [modalOpportunities, setModalOpportunities] = useState<Opportunity[]>([])
+  const [modalOpportunities, setModalOpportunities] = useState<NotificationItem[]>([])
 
   useEffect(() => {
     let isMounted = true
@@ -55,7 +58,21 @@ export default function DashboardPage() {
         return
       }
 
-      // 1. Завантажуємо профіль
+      // 1. Завантажуємо профіль (перевіряємо artist_profiles або profiles)
+      let artistProfileData: ArtistProfile = {
+        name: 'Ванда Орлова',
+        country: 'Україна',
+        city: 'Київ',
+        artistic_styles: ["Солярісм", "Сучасний станковий живопис"],
+        techniques: ["Олія на полотні", "Мультишаровий акриловий живопис", "Мастихінова техніка", "Золота поталь"],
+        materials: ["Полотно", "Олійні фарби", "Акрил", "Золота поталь"],
+        themes: ["Українська культурна спадщина", "Флористика та ботанічні мотиви", "Плинність життя"],
+        series: ["Квіткова спадщина", "Трояндовий рай", "Код Мазепи"],
+        professional_level: "Professional / Established",
+        target_countries: ["Україна", "Велика Британія", "Країни ЄС"],
+        preferred_opportunity_types: ["exhibition", "open_call", "competition", "residency", "grant"]
+      }
+
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
@@ -70,7 +87,30 @@ export default function DashboardPage() {
         telegram_chat_id: profile?.telegram_chat_id || null,
       })
 
-      // 2. Отримуємо статистику з нового API /api/user-stats
+      // Спробуємо підтягти розширений профіль художника, якщо він є
+      const { data: artProfile } = await supabase
+        .from('artist_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (artProfile) {
+        artistProfileData = {
+          name: artProfile.name || artistProfileData.name,
+          country: artProfile.country || artistProfileData.country,
+          city: artProfile.city || artistProfileData.city,
+          artistic_styles: artProfile.artistic_styles || artistProfileData.artistic_styles,
+          techniques: artProfile.techniques || artistProfileData.techniques,
+          materials: artProfile.materials || artistProfileData.materials,
+          themes: artProfile.themes || artistProfileData.themes,
+          series: artProfile.series || artistProfileData.series,
+          professional_level: artProfile.professional_level || artistProfileData.professional_level,
+          target_countries: artProfile.target_countries || artistProfileData.target_countries,
+          preferred_opportunity_types: artProfile.preferred_opportunity_types || artistProfileData.preferred_opportunity_types,
+        }
+      }
+
+      // 2. Отримуємо статистику з API /api/user-stats
       try {
         const res = await fetch(`/api/user-stats?user_id=${user.id}`)
         const json = await res.json()
@@ -79,7 +119,6 @@ export default function DashboardPage() {
           setMonthlyMatchedCount(json.monthly_matched_count || 0)
           setUpcomingDeadlinesCount(json.upcoming_deadlines_count || 0)
           
-          // Для Центру можливостей завантажимо також самі можливості за місяць
           const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
           const { data: opps } = await supabase
             .from('opportunities')
@@ -89,7 +128,38 @@ export default function DashboardPage() {
             .order('created_at', { ascending: false })
 
           if (opps && isMounted) {
-            setModalOpportunities(opps as Opportunity[])
+            // Проганяємо через Match Engine для розрахунку персонального фокусу та релевантності
+            const formattedOpps: NotificationItem[] = opps.map((opp: Opportunity) => {
+              const mappedOpp: MatchOpportunity = {
+                id: opp.id,
+                title: opp.title,
+                type: opp.type || 'open_call',
+                eligible_countries: opp.eligible_countries || ['Україна', 'Worldwide'],
+                deadline: opp.deadline || new Date().toISOString(),
+                fee: Number(opp.fee_amount || opp.cost_amount || opp.org_fee || 0),
+                currency: 'USD',
+                techniques: Array.isArray(opp.techniques) ? opp.techniques : [],
+                themes: Array.isArray(opp.themes) ? opp.themes : [],
+                required_level: opp.required_level || undefined,
+              }
+
+              const match = calculateMatch(artistProfileData, mappedOpp)
+
+              return {
+                id: opp.id,
+                title: opp.title,
+                description: opp.raw_description || opp.description || '',
+                created_at: opp.created_at || new Date().toISOString(),
+                link_url: opp.source_url || opp.link || opp.link_url || opp.url || undefined,
+                matchScore: match.score,
+                matchReasons: match.reasons,
+                recommendedAction: match.recommendedAction,
+              }
+            })
+
+            // Сортуємо за найвищим matchScore
+            formattedOpps.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
+            setModalOpportunities(formattedOpps)
           }
         }
       } catch (err) {
@@ -104,14 +174,6 @@ export default function DashboardPage() {
       isMounted = false
     }
   }, [])
-
-  const notificationItems: NotificationItem[] = modalOpportunities.map((opp) => ({
-    id: opp.id,
-    title: opp.title,
-    description: opp.raw_description || opp.description || '',
-    created_at: opp.created_at || new Date().toISOString(),
-    link_url: opp.source_url || opp.link || opp.link_url || opp.url || undefined,
-  }))
 
   return (
     <div
@@ -235,7 +297,7 @@ export default function DashboardPage() {
         <NotificationsModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          notifications={notificationItems}
+          notifications={modalOpportunities}
           title="Центр можливостей"
         />
       </div>
