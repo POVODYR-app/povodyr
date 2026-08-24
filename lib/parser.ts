@@ -454,7 +454,7 @@ function getCoreOpportunities(): ParsedOpportunity[] {
       is_free: true,
       cost_amount: 0,
       cost_currency: 'UAH',
-      genres: ['Образотворче мистецтво', 'Живопис', 'Графіка'],
+      genres: ['Образотворче мистецтво', 'Живопис', 'Коллаж', 'Графіка'],
       techniques: ['Олія', 'Акрил', 'Змішана техніка', 'Авторська техніка'],
       artist_levels: ['Emerging', 'Mid-Career', 'Established'],
       age_restrictions: 'None',
