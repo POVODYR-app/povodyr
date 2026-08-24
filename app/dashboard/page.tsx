@@ -48,9 +48,11 @@ export default function DashboardPage() {
   const [modalOpportunities, setModalOpportunities] = useState<NotificationItem[]>([])
   const [savedItemsForAlerts, setSavedItemsForAlerts] = useState<any[]>([])
 
-  // Стейт для головного екрана з дедлайнами та перевіркою за 7 днів
   const [recentRelevantOpps, setRecentRelevantOpps] = useState<any[]>([])
   const [hasNoRecentRelevant, setHasNoRecentRelevant] = useState(false)
+
+  // Стейт для розгортання деталей "Чому рекомендує" для кожної картки окремо за id
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -172,7 +174,6 @@ export default function DashboardPage() {
             formattedOpps.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
             setModalOpportunities(formattedOpps)
 
-            // Фільтрація релевантних за останні 7 днів для головного екрана з урахуванням порогу матчу (наприклад, > 30)
             const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).getTime()
             const recentRelevant = formattedOpps.filter(o => {
               const isRecent = new Date(o.created_at).getTime() >= sevenDaysAgo
@@ -202,8 +203,8 @@ export default function DashboardPage() {
     }
   }, [])
 
-  // Функція для визначення індикатора дедлайну
-  const getDeadlineBadge = (deadlineStr?: string) => {
+  // Функція для визначення дедлайну та точного підпису
+  const getDeadlineDetails = (deadlineStr?: string) => {
     if (!deadlineStr) return { indicator: '🟢', label: 'Довгострокова можливість' }
     
     const deadlineDate = new Date(deadlineStr)
@@ -211,13 +212,13 @@ export default function DashboardPage() {
     const diffDays = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 
     if (diffDays <= 7 && diffDays >= 0) {
-      return { indicator: '🔴', label: `Дедлайн через ${diffDays} дн.` }
+      return { indicator: '🔴', label: `Дедлайн через ${diffDays} дн. (до 7 днів)` }
     } else if (diffDays > 7 && diffDays <= 30) {
-      return { indicator: '🟡', label: `Дедлайн через ${diffDays} дн.` }
+      return { indicator: '🟡', label: `Дедлайн через ${diffDays} дн. (8–30 днів)` }
     } else if (diffDays < 0) {
-      return { indicator: '⚪', label: 'Термін вийшов' }
+      return { indicator: '⚪', label: 'Термін подачі вийшов' }
     } else {
-      return { indicator: '🟢', label: 'Довгострокова можливість' }
+      return { indicator: '🟢', label: `Дедлайн через ${diffDays} дн. (довгострокова)` }
     }
   }
 
@@ -262,7 +263,7 @@ export default function DashboardPage() {
 
         <FollowUpAlerts savedItems={savedItemsForAlerts} />
 
-        {/* Блок згідно з вимогою: "Сьогодні POVODYR знайшов для вас" */}
+        {/* Блок знайдених можливостей на головному екрані */}
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: '#f8fafc' }}>
             Сьогодні POVODYR знайшов для вас
@@ -296,32 +297,103 @@ export default function DashboardPage() {
                 >
                   Розширити тематику
                 </button>
-                <button 
-                  onClick={() => window.location.reload()} 
-                  style={{ background: '#334155', color: '#cbd5e1', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-                >
-                  Залишити критерії без змін
-                </button>
               </div>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {recentRelevantOpps.slice(0, 3).map((opp) => {
-                const badge = getDeadlineBadge(opp.deadline)
+                const deadlineInfo = getDeadlineDetails(opp.deadline)
+                const isExpanded = expandedCardId === opp.id
+
                 return (
                   <div 
                     key={opp.id} 
-                    onClick={() => setIsModalOpen(true)}
-                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 14, padding: 14, cursor: 'pointer' }}
+                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 14, padding: 14 }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 6 }}>
-                      <span title={badge.label} style={{ fontSize: '14px' }}>{badge.indicator}</span>
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#38bdf8' }}>Match: {opp.matchScore}%</span>
+                    {/* Рядок статусу дедлайну */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: 6, fontSize: '12px', color: '#cbd5e1' }}>
+                      <span>{deadlineInfo.indicator}</span>
+                      <span>{deadlineInfo.label}</span>
                     </div>
-                    <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', fontWeight: 600, color: '#fff' }}>{opp.title}</h4>
-                    <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+
+                    {/* Рядок відсотка відповідності з поясненням */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#38bdf8' }}>
+                        Match: {opp.matchScore}% (рівень персональної відповідності вашому профілю)
+                      </span>
+                    </div>
+
+                    <h4 style={{ margin: '0 0 6px 0', fontSize: '15px', fontWeight: 600, color: '#fff' }}>{opp.title}</h4>
+                    <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#94a3b8', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                       {opp.description}
                     </p>
+
+                    {/* Кнопка розгортання «Чому POVODYR рекомендує це мені?» */}
+                    <button
+                      onClick={() => setExpandedCardId(isExpanded ? null : opp.id)}
+                      style={{
+                        width: '100%',
+                        backgroundColor: '#0f172a',
+                        border: '1px solid #334155',
+                        borderRadius: 8,
+                        padding: '8px 12px',
+                        color: '#38bdf8',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        marginBottom: '10px',
+                        textAlign: 'left',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <span>Чому POVODYR рекомендує це мені?</span>
+                      <span>{isExpanded ? '▲' : '▼'}</span>
+                    </button>
+
+                    {/* Розгорнуті деталі рекомендації */}
+                    {isExpanded && (
+                      <div style={{ backgroundColor: '#0f172a', borderRadius: 8, padding: '10px', marginBottom: '10px', fontSize: '12px', color: '#e2e8f0', border: '1px solid #1e293b' }}>
+                        <p style={{ margin: '0 0 6px 0', fontWeight: 'bold', color: '#38bdf8' }}>Критерії збігу:</p>
+                        <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <li>✓ техніка відповідає вимогам</li>
+                          <li>✓ тематика відповідає вашій творчій практиці</li>
+                          <li>✓ ви відповідаєте географічним вимогам</li>
+                          <li>✓ рівень конкурсу відповідає вашому досвіду</li>
+                          <li>✓ opportunity відповідає вашій професійній цілі</li>
+                        </ul>
+                        {opp.matchReasons && opp.matchReasons.length > 0 && (
+                          <div style={{ marginTop: '6px', color: '#94a3b8', fontSize: '11px' }}>
+                            Деталі: {opp.matchReasons.join('. ')}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Посилання на першоджерело */}
+                    {opp.link_url && (
+                      <a
+                        href={opp.link_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-block',
+                          backgroundColor: '#2563eb',
+                          color: '#fff',
+                          textDecoration: 'none',
+                          borderRadius: 8,
+                          padding: '8px 14px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          textAlign: 'center',
+                          width: '100%',
+                          boxSizing: 'border-box'
+                        }}
+                      >
+                        🔗 Перейти до першоджерела
+                      </a>
+                    )}
                   </div>
                 )
               })}
