@@ -60,7 +60,6 @@ export default function DashboardPage() {
         return
       }
 
-      // 1. Завантажуємо профіль
       let artistProfileData: ArtistProfile = {
         name: 'Ванда Орлова',
         country: 'Україна',
@@ -111,7 +110,6 @@ export default function DashboardPage() {
         }
       }
 
-      // Завантажуємо збережені можливості для блок-трекінгу (FollowUpAlerts)
       const { data: savedOpps } = await supabase
         .from('saved_opportunities')
         .select('*, opportunity:opportunities(*)')
@@ -121,7 +119,6 @@ export default function DashboardPage() {
         setSavedItemsForAlerts(savedOpps)
       }
 
-      // 2. Отримуємо статистику з API /api/user-stats
       try {
         const res = await fetch(`/api/user-stats?user_id=${user.id}`)
         const json = await res.json()
@@ -160,6 +157,7 @@ export default function DashboardPage() {
                 title: opp.title,
                 description: opp.raw_description || opp.description || '',
                 created_at: opp.created_at || new Date().toISOString(),
+                deadline: opp.deadline || undefined,
                 link_url: opp.source_url || opp.link || opp.link_url || opp.url || undefined,
                 matchScore: match.score,
                 matchReasons: match.reasons,
@@ -196,7 +194,6 @@ export default function DashboardPage() {
     >
       <div style={{ maxWidth: 420, margin: '0 auto' }}>
         
-        {/* Шапка */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
             Вітаю{userName ? `, ${userName}` : ''}!
@@ -224,10 +221,8 @@ export default function DashboardPage() {
 
         {userObj && <TelegramConnect user={userObj} />}
 
-        {/* Автоматичні розумні нагадування (Follow-up) */}
         <FollowUpAlerts savedItems={savedItemsForAlerts} />
 
-        {/* Блок свіжих надходжень за добу */}
         <div 
           onClick={() => !loading && setIsModalOpen(true)}
           style={{ 
@@ -250,7 +245,6 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Кнопка Центр можливостей (за місяць) */}
         <button 
           onClick={() => setIsModalOpen(true)} 
           style={{ 
@@ -270,7 +264,6 @@ export default function DashboardPage() {
           📂 Центр можливостей ({monthlyMatchedCount})
         </button>
 
-        {/* Кнопка Мій профіль */}
         <button 
           onClick={() => window.location.href = '/profile'} 
           style={{ 
@@ -290,7 +283,6 @@ export default function DashboardPage() {
           ✏️ Мій профіль
         </button>
 
-        {/* Брендинг */}
         <div style={{ textAlign: 'center', marginTop: 32, borderTop: '1px solid #1e293b', paddingTop: 24 }}>
           <h3 style={{ margin: '0 0 8px 0', fontSize: 18, fontWeight: 700, letterSpacing: '1px' }}>POVODYR</h3>
           <p style={{ margin: '0 0 16px 0', fontSize: 13, color: '#94a3b8' }}>
