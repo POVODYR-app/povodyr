@@ -48,6 +48,10 @@ export default function DashboardPage() {
   const [modalOpportunities, setModalOpportunities] = useState<NotificationItem[]>([])
   const [savedItemsForAlerts, setSavedItemsForAlerts] = useState<any[]>([])
 
+  // Стейт для головного екрана з дедлайнами та перевіркою за 7 днів
+  const [recentRelevantOpps, setRecentRelevantOpps] = useState<any[]>([])
+  const [hasNoRecentRelevant, setHasNoRecentRelevant] = useState(false)
+
   useEffect(() => {
     let isMounted = true
 
@@ -167,6 +171,22 @@ export default function DashboardPage() {
 
             formattedOpps.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
             setModalOpportunities(formattedOpps)
+
+            // Фільтрація релевантних за останні 7 днів для головного екрана з урахуванням порогу матчу (наприклад, > 30)
+            const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).getTime()
+            const recentRelevant = formattedOpps.filter(o => {
+              const isRecent = new Date(o.created_at).getTime() >= sevenDaysAgo
+              const isRelevant = (o.matchScore || 0) >= 30
+              return isRecent && isRelevant
+            })
+
+            if (recentRelevant.length === 0) {
+              setHasNoRecentRelevant(true)
+              setRecentRelevantOpps([])
+            } else {
+              setHasNoRecentRelevant(false)
+              setRecentRelevantOpps(recentRelevant)
+            }
           }
         }
       } catch (err) {
@@ -181,6 +201,25 @@ export default function DashboardPage() {
       isMounted = false
     }
   }, [])
+
+  // Функція для визначення індикатора дедлайну
+  const getDeadlineBadge = (deadlineStr?: string) => {
+    if (!deadlineStr) return { indicator: '🟢', label: 'Довгострокова можливість' }
+    
+    const deadlineDate = new Date(deadlineStr)
+    const today = new Date()
+    const diffDays = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (diffDays <= 7 && diffDays >= 0) {
+      return { indicator: '🔴', label: `Дедлайн через ${diffDays} дн.` }
+    } else if (diffDays > 7 && diffDays <= 30) {
+      return { indicator: '🟡', label: `Дедлайн через ${diffDays} дн.` }
+    } else if (diffDays < 0) {
+      return { indicator: '⚪', label: 'Термін вийшов' }
+    } else {
+      return { indicator: '🟢', label: 'Довгострокова можливість' }
+    }
+  }
 
   return (
     <div
@@ -222,6 +261,73 @@ export default function DashboardPage() {
         {userObj && <TelegramConnect user={userObj} />}
 
         <FollowUpAlerts savedItems={savedItemsForAlerts} />
+
+        {/* Блок згідно з вимогою: "Сьогодні POVODYR знайшов для вас" */}
+        <div style={{ marginBottom: 20 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: '#f8fafc' }}>
+            Сьогодні POVODYR знайшов для вас
+          </h2>
+
+          {loading ? (
+            <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 16, textAlign: 'center', color: '#94a3b8' }}>
+              Завантаження можливостей...
+            </div>
+          ) : hasNoRecentRelevant ? (
+            <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 20, textAlign: 'center' }}>
+              <p style={{ fontSize: 14, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 16 }}>
+                «Нових можливостей для вашого поточного профілю не знайдено. Хочете розширити критерії пошуку?»
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <button 
+                  onClick={() => window.location.href = '/profile'} 
+                  style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Розширити географію
+                </button>
+                <button 
+                  onClick={() => window.location.href = '/profile'} 
+                  style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Розширити типи можливостей
+                </button>
+                <button 
+                  onClick={() => window.location.href = '/profile'} 
+                  style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Розширити тематику
+                </button>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  style={{ background: '#334155', color: '#cbd5e1', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Залишити критерії без змін
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {recentRelevantOpps.slice(0, 3).map((opp) => {
+                const badge = getDeadlineBadge(opp.deadline)
+                return (
+                  <div 
+                    key={opp.id} 
+                    onClick={() => setIsModalOpen(true)}
+                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 14, padding: 14, cursor: 'pointer' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 6 }}>
+                      <span title={badge.label} style={{ fontSize: '14px' }}>{badge.indicator}</span>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#38bdf8' }}>Match: {opp.matchScore}%</span>
+                    </div>
+                    <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', fontWeight: 600, color: '#fff' }}>{opp.title}</h4>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {opp.description}
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
 
         <div 
           onClick={() => !loading && setIsModalOpen(true)}
