@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import TelegramConnect from '../../components/TelegramConnect'
 import NotificationsModal, { NotificationItem } from '../../components/NotificationsModal'
+import FollowUpAlerts from '../../components/FollowUpAlerts'
 import { calculateMatch, ArtistProfile, Opportunity as MatchOpportunity } from '../../lib/matchEngine'
 
 const supabase = createClient(
@@ -45,6 +46,7 @@ export default function DashboardPage() {
   const [monthlyMatchedCount, setMonthlyMatchedCount] = useState<number>(0)
   const [upcomingDeadlinesCount, setUpcomingDeadlinesCount] = useState<number>(0)
   const [modalOpportunities, setModalOpportunities] = useState<NotificationItem[]>([])
+  const [savedItemsForAlerts, setSavedItemsForAlerts] = useState<any[]>([])
 
   useEffect(() => {
     let isMounted = true
@@ -58,7 +60,7 @@ export default function DashboardPage() {
         return
       }
 
-      // 1. Завантажуємо профіль (перевіряємо artist_profiles або profiles)
+      // 1. Завантажуємо профіль
       let artistProfileData: ArtistProfile = {
         name: 'Ванда Орлова',
         country: 'Україна',
@@ -87,7 +89,6 @@ export default function DashboardPage() {
         telegram_chat_id: profile?.telegram_chat_id || null,
       })
 
-      // Спробуємо підтягти розширений профіль художника, якщо він є
       const { data: artProfile } = await supabase
         .from('artist_profiles')
         .select('*')
@@ -110,6 +111,16 @@ export default function DashboardPage() {
         }
       }
 
+      // Завантажуємо збережені можливості для блок-трекінгу (FollowUpAlerts)
+      const { data: savedOpps } = await supabase
+        .from('saved_opportunities')
+        .select('*, opportunity:opportunities(*)')
+        .eq('user_id', user.id)
+
+      if (savedOpps && isMounted) {
+        setSavedItemsForAlerts(savedOpps)
+      }
+
       // 2. Отримуємо статистику з API /api/user-stats
       try {
         const res = await fetch(`/api/user-stats?user_id=${user.id}`)
@@ -128,7 +139,6 @@ export default function DashboardPage() {
             .order('created_at', { ascending: false })
 
           if (opps && isMounted) {
-            // Проганяємо через Match Engine для розрахунку персонального фокусу та релевантності
             const formattedOpps: NotificationItem[] = opps.map((opp: Opportunity) => {
               const mappedOpp: MatchOpportunity = {
                 id: opp.id,
@@ -157,7 +167,6 @@ export default function DashboardPage() {
               }
             })
 
-            // Сортуємо за найвищим matchScore
             formattedOpps.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
             setModalOpportunities(formattedOpps)
           }
@@ -214,6 +223,9 @@ export default function DashboardPage() {
         </div>
 
         {userObj && <TelegramConnect user={userObj} />}
+
+        {/* Автоматичні розумні нагадування (Follow-up) */}
+        <FollowUpAlerts savedItems={savedItemsForAlerts} />
 
         {/* Блок свіжих надходжень за добу */}
         <div 
