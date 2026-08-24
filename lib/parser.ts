@@ -100,9 +100,8 @@ function isOpportunityValid(title: string, description: string, deadline: string
   return true
 }
 
-export async function parseArtFineNationHTML(logs: string[] = []): Promise<ParsedOpportunity[]> {
+export async function parseArtFineNationHTML(): Promise<ParsedOpportunity[]> {
   const targetUrl = 'https://sites.google.com/view/artfinenation/open-call'
-  const originalUrl = 'https://artfinenation.com'
   const opportunities: ParsedOpportunity[] = []
   let textContent = ''
 
@@ -110,7 +109,7 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 6000)
 
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(originalUrl)}`
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
     const res = await fetch(proxyUrl, {
       signal: controller.signal,
       next: { revalidate: 0 }
@@ -122,7 +121,7 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
       textContent = await res.text()
     }
   } catch (e) {
-    // Ігноруємо
+    // Ігноруємо помилки мережі
   }
 
   if (textContent && textContent.length > 100) {
@@ -175,7 +174,7 @@ export async function parseArtFineNationHTML(logs: string[] = []): Promise<Parse
         }
       })
     } catch (err) {
-      // ignore
+      // Ігноруємо помилки парсингу DOM
     }
   }
 
@@ -369,7 +368,6 @@ export async function parseSocialMediaAndHashtags(): Promise<ParsedOpportunity[]
     { name: 'Globus Gallery', link: 'https://www.instagram.com/globus_gallery/', type: 'Виставка' }
   ]
 
-  // Повертаємо лише валідні записи з реальних каналів без шаблонів
   socialSources.forEach((source) => {
     opportunities.push({
       source_name: source.name,
@@ -641,9 +639,9 @@ function getCoreOpportunities(): ParsedOpportunity[] {
 export async function fetchFromApprovedSources(logs: string[] = []): Promise<ParsedOpportunity[]> {
   const allOpportunities: ParsedOpportunity[] = []
 
-  logs.push('Запуск парсингу Art Fine Nation HTML...')
+  logs.push('Запуск прямого парсингу Art Fine Nation HTML...')
   try {
-    const afnResults = await parseArtFineNationHTML(logs)
+    const afnResults = await parseArtFineNationHTML()
     logs.push(`Art Fine Nation знайшов записів: ${afnResults.length}`)
     allOpportunities.push(...afnResults)
   } catch (err: any) {
