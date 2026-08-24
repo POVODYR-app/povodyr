@@ -20,6 +20,9 @@ export interface NotificationItem {
   link?: string | null;
   url?: string | null;
   is_read?: boolean;
+  matchScore?: number;
+  matchReasons?: string[];
+  recommendedAction?: string;
 }
 
 interface NotificationsModalProps {
@@ -33,7 +36,7 @@ export default function NotificationsModal({
   isOpen,
   onClose,
   notifications,
-  title = 'Знайдені можливості',
+  title = 'Центр можливостей',
 }: NotificationsModalProps) {
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [userId, setUserId] = useState<string | null>(null);
@@ -188,30 +191,58 @@ export default function NotificationsModal({
                     position: 'relative',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                    <h3 style={{ margin: '0 0 8px 0', fontSize: '15px', fontWeight: '600', color: '#fff', flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '600', color: '#fff', flex: 1 }}>
                       {item.title}
                     </h3>
-                    <button
-                      onClick={(e) => toggleBookmark(item.id, e)}
-                      title={isSaved ? "Видалити із закладок" : "Зберегти в закладки"}
-                      style={{
-                        background: isSaved ? '#2563eb' : '#334155',
-                        border: 'none',
-                        borderRadius: '8px',
-                        width: '32px',
-                        height: '32px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {isSaved ? '🔖' : '🤍'}
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                      {item.matchScore !== undefined && (
+                        <span
+                          style={{
+                            backgroundColor: item.matchScore >= 80 ? '#1e3a8a' : '#1e293b',
+                            color: item.matchScore >= 80 ? '#93c5fd' : '#cbd5e1',
+                            border: '1px solid #3b82f6',
+                            borderRadius: '6px',
+                            padding: '2px 6px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                          }}
+                        >
+                          {item.matchScore}% релевантність
+                        </span>
+                      )}
+                      <button
+                        onClick={(e) => toggleBookmark(item.id, e)}
+                        title={isSaved ? "Видалити із закладок" : "Зберегти в закладки"}
+                        style={{
+                          background: isSaved ? '#2563eb' : '#334155',
+                          border: 'none',
+                          borderRadius: '8px',
+                          width: '32px',
+                          height: '32px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                        }}
+                      >
+                        {isSaved ? '🔖' : '🤍'}
+                      </button>
+                    </div>
                   </div>
+
+                  {item.recommendedAction && (
+                    <div style={{ fontSize: '12px', color: '#60a5fa', marginBottom: '6px', fontWeight: '500' }}>
+                      {item.recommendedAction}
+                    </div>
+                  )}
+
+                  {item.matchReasons && item.matchReasons.length > 0 && (
+                    <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '8px', fontStyle: 'italic' }}>
+                      {item.matchReasons.join(' • ')}
+                    </div>
+                  )}
 
                   {contentText && (
                     <p
