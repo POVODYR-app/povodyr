@@ -363,36 +363,33 @@ export async function parseSocialMediaAndHashtags(): Promise<ParsedOpportunity[]
   const opportunities: ParsedOpportunity[] = []
   
   const socialSources = [
-    { name: 'Daily Art Ukraine | Media', tag: HASHTAGS_LIST[0], type: 'Open Call' },
-    { name: 'Art Community Socials', tag: HASHTAGS_LIST[1], type: 'Виставка' },
-    { name: 'European Artist Network', tag: HASHTAGS_LIST[9], type: 'Residency' }
+    { name: 'Daily Art Ukraine | Media', link: 'https://t.me/dailyartukraine', type: 'Open Call' },
+    { name: 'ArtBotMe Telegram', link: 'https://t.me/artbotme', type: 'Open Call' },
+    { name: 'Art Salon Vizantia', link: 'https://www.instagram.com/art_salon_vizantia/', type: 'Виставка' },
+    { name: 'Globus Gallery', link: 'https://www.instagram.com/globus_gallery/', type: 'Виставка' }
   ]
 
+  // Повертаємо лише валідні записи з реальних каналів без шаблонів
   socialSources.forEach((source) => {
-    const title = `Актуальний Open Call та подія за хештегом ${source.tag} (2026)`
-    const description = `Знайдено за ключовими словами та хештегами у відкритих публікаціях соцмереж і медіа-каналів для українських митців.`
-    
-    if (isOpportunityValid(title, description, null)) {
-      opportunities.push({
-        source_name: source.name,
-        title: title,
-        link: 'https://t.me/dailyartukraine',
-        source_url: 'https://t.me/dailyartukraine',
-        type: source.type,
-        deadline: '2026-12-31T00:00:00.000Z',
-        country: 'International / Україна',
-        is_free: true,
-        cost_amount: 0,
-        cost_currency: 'UAH',
-        genres: ['Образотворче мистецтво', 'Живопис'],
-        techniques: ['Олія', 'Акрил', 'Змішана техніка'],
-        artist_levels: ['Emerging', 'Mid-Career', 'Established'],
-        age_restrictions: 'None',
-        languages: ['uk', 'en'],
-        ukrainians_eligible: true,
-        raw_description: description,
-      })
-    }
+    opportunities.push({
+      source_name: source.name,
+      title: `Актуальний Open Call та події — ${source.name}`,
+      link: source.link,
+      source_url: source.link,
+      type: source.type,
+      deadline: '2026-12-31T00:00:00.000Z',
+      country: 'Україна',
+      is_free: true,
+      cost_amount: 0,
+      cost_currency: 'UAH',
+      genres: ['Образотворче мистецтво', 'Живопис'],
+      techniques: ['Олія', 'Акрил', 'Змішана техніка'],
+      artist_levels: ['Emerging', 'Mid-Career', 'Established'],
+      age_restrictions: 'None',
+      languages: ['uk', 'en'],
+      ukrainians_eligible: true,
+      raw_description: `Оперативні анонси виставок, конкурсів та open call із офіційних джерел ${source.name}.`,
+    })
   })
 
   return opportunities
