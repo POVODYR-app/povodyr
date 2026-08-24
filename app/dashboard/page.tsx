@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import TelegramConnect from '../../components/TelegramConnect'
 import NotificationsModal, { NotificationItem } from '../../components/NotificationsModal'
-import { calculateMatch, ArtistProfile, Opportunity as MatchOpportunity } from '../lib/matchEngine'
+import { calculateMatch, ArtistProfile, Opportunity as MatchOpportunity } from '../../lib/matchEngine'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
