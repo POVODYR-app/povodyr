@@ -42,7 +42,6 @@ export default function NotificationsModal({
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   
-  // Стани для генератора заявок
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [generatedText, setGeneratedText] = useState<{ [key: string]: string }>({});
   const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
@@ -153,7 +152,6 @@ export default function NotificationsModal({
 
     setSendingEmailId(opportunityTitle);
     try {
-      // Тут можна налаштувати відправку через ваш API чи внутрішній сервіс
       const response = await fetch('/api/send-document-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -167,7 +165,6 @@ export default function NotificationsModal({
       if (response.ok) {
         alert(`Пакет документів успішно надіслано на вашу пошту: ${userEmail}`);
       } else {
-        // Якщо бекенд для пошти ще не створено, імітуємо або виводимо повідомлення
         alert(`Документи готові для відправки на ${userEmail}. (Створіть маршрут /api/send-document-email для реальної відправки).`);
       }
     } catch (err) {
@@ -301,7 +298,6 @@ export default function NotificationsModal({
                     </p>
                   )}
 
-                  {/* Кнопка генерації заявки */}
                   <div style={{ margin: '12px 0 8px 0' }}>
                     <button
                       onClick={() => handleGenerateApplication(item)}
@@ -323,7 +319,6 @@ export default function NotificationsModal({
                     </button>
                   </div>
 
-                  {/* Блок згенерованого результату з інструментами збереження */}
                   {currentResult && (
                     <div
                       style={{
@@ -356,7 +351,6 @@ export default function NotificationsModal({
                         {currentResult}
                       </div>
 
-                      {/* Кнопки збереження та експорту */}
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <button
                           onClick={() => handleCopyText(currentResult)}
