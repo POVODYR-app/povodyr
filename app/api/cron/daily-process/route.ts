@@ -100,6 +100,12 @@ export async function GET(request: NextRequest) {
       const orgFeeMax = Number(user.org_fee_max || user.max_fee_amount) || 0;
 
       const matchedOpps = (opportunities || []).filter(opp => {
+        // Виключаємо джерела з битими або закритими посиланнями (наприклад, сторінки пошуку TransArtists з авторизацією)
+        const currentLink = String(opp.source_url || opp.link || '').toLowerCase();
+        if (currentLink.includes('transartists.org/en/air')) {
+          return false;
+        }
+
         if (userCountries.length > 0 && opp.country) {
           const oppCountry = String(opp.country).toLowerCase();
           const countryMatch = userCountries.some(c => oppCountry.includes(c) || c.includes(oppCountry));
@@ -129,6 +135,7 @@ export async function GET(request: NextRequest) {
 
       const title = 'POVODYR: нові можливості для вас';
 
+      // Форматування для Telegram (з HTML-посиланнями)
       const oppListTelegram = matchedOpps.slice(0, 5).map(o => {
         const url = o.source_url || o.link || o.link_url || 'https://povodyr.vercel.app/dashboard';
         return `• <a href="${url}">${o.title || 'Мистецька можливість'}</a> (${o.country || 'Онлайн'})`;
@@ -136,15 +143,18 @@ export async function GET(request: NextRequest) {
 
       const telegramMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppListTelegram}\n\n<a href="https://povodyr.vercel.app/dashboard">Перегляньте деталі в особистому кабінеті</a>.`;
 
-      const oppListPlain = matchedOpps.slice(0, 5).map(o => {
-        return `• ${o.title || 'Мистецька можливість'} (${o.country || 'Онлайн'})`;
-      }).join('\n');
+      // Форматування для кабінету та бази нотифікацій (зберігаємо посилання для зручності перегляду в модалках/кабінеті)
+      const oppListCabinet = matchedOpps.slice(0, 5).map(o => {
+        const url = o.source_url || o.link || o.link_url || 'https://povodyr.vercel.app/dashboard';
+        return `• ${o.title || 'Мистецька можливість'} (${o.country || 'Онлайн'})\n  🔗 ${url}`;
+      }).join('\n\n');
 
-      const appMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppListPlain}\n\nПерегляньте деталі в особистому кабінеті.`;
+      const appMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppListCabinet}\n\nПерегляньте деталі в особистому кабінеті.`;
 
+      // HTML для Email
       const htmlItems = matchedOpps.slice(0, 5).map(o => {
         const url = o.source_url || o.link || o.link_url || 'https://povodyr.vercel.app/dashboard';
-        return `<li><a href="${url}"><strong>${o.title}</strong></a> (${o.country || 'Онлайн'})</li>`;
+        return `<li><a href="${url}" target="_blank"><strong>${o.title}</strong></a> (${o.country || 'Онлайн'})</li>`;
       }).join('');
       const emailHtml = `<p>Привіт${user.full_name ? ', ' + user.full_name : ''}!</p><p>Знайдено ${matchedOpps.length} нових можливостей під ваш профіль:</p><ul>${htmlItems}</ul><p><a href="https://povodyr.vercel.app/dashboard">Переглянути в кабінеті</a></p>`;
 
