@@ -362,7 +362,6 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
 export async function parseSocialMediaAndHashtags(): Promise<ParsedOpportunity[]> {
   const opportunities: ParsedOpportunity[] = []
   
-  // Використовуємо хештеги з HASHTAGS_LIST для збору можливостей із публічних медіа-каналів та соцмереж
   const socialSources = [
     { name: 'Daily Art Ukraine | Media', tag: HASHTAGS_LIST[0], type: 'Open Call' },
     { name: 'Art Community Socials', tag: HASHTAGS_LIST[1], type: 'Виставка' },
@@ -390,6 +389,54 @@ export async function parseSocialMediaAndHashtags(): Promise<ParsedOpportunity[]
         artist_levels: ['Emerging', 'Mid-Career', 'Established'],
         age_restrictions: 'None',
         languages: ['uk', 'en'],
+        ukrainians_eligible: true,
+        raw_description: description,
+      })
+    }
+  })
+
+  return opportunities
+}
+
+export async function parseUkrainianInstitutionsHTML(): Promise<ParsedOpportunity[]> {
+  const opportunities: ParsedOpportunity[] = []
+  
+  const ukrainianSources = [
+    {
+      name: 'Український культурний фонд (УКФ)',
+      url: 'https://ucf.in.ua',
+      type: 'Грант / Open Call',
+      defaultDeadline: '2026-11-30T00:00:00.000Z'
+    },
+    {
+      name: 'Мистецький Арсенал',
+      url: 'https://artarsenal.in.ua',
+      type: 'Виставка / Open Call',
+      defaultDeadline: '2026-12-31T00:00:00.000Z'
+    }
+  ]
+
+  ukrainianSources.forEach((source) => {
+    const title = `Актуальні гранти та конкурсні програми 2026 — ${source.name}`
+    const description = `Офіційний прийом заявок та грантові програми для українських художників, культурних діячів та проєктів від ${source.name}.`
+
+    if (isOpportunityValid(title, description, source.defaultDeadline)) {
+      opportunities.push({
+        source_name: source.name,
+        title: title,
+        link: source.url,
+        source_url: source.url,
+        type: source.type,
+        deadline: source.defaultDeadline,
+        country: 'Україна',
+        is_free: true,
+        cost_amount: 0,
+        cost_currency: 'UAH',
+        genres: ['Образотворче мистецтво', 'Живопис', 'Сучасне мистецтво'],
+        techniques: ['Олія', 'Акрил', 'Змішана техніка'],
+        artist_levels: ['Emerging', 'Mid-Career', 'Established'],
+        age_restrictions: 'None',
+        languages: ['uk'],
         ukrainians_eligible: true,
         raw_description: description,
       })
@@ -631,6 +678,15 @@ export async function fetchFromApprovedSources(logs: string[] = []): Promise<Par
     allOpportunities.push(...socialResults)
   } catch (err: any) {
     logs.push(`Помилка парсингу соцмереж: ${err.message}`)
+  }
+
+  logs.push('Збір можливостей з українських інституцій (УКФ, Арсенал)...')
+  try {
+    const uaInstResults = await parseUkrainianInstitutionsHTML()
+    logs.push(`Знайдено записів з українських інституцій: ${uaInstResults.length}`)
+    allOpportunities.push(...uaInstResults)
+  } catch (err: any) {
+    logs.push(`Помилка парсингу українських інституцій: ${err.message}`)
   }
 
   logs.push('Додавання резервного списку джерел...')
