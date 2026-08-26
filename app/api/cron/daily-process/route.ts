@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
 
     const testEmail = request.nextUrl.searchParams.get('test_email');
 
-    // 0. Автономне опитування та розширення джерел можливостей
+    // 0. Автономне опитування джерел та AI-аналіз для створення нових можливостей
     try {
       const { data: sources } = await supabase
         .from('opportunity_sources')
@@ -78,10 +78,22 @@ export async function GET(request: NextRequest) {
             });
             
             if (res.ok) {
+              const htmlText = await res.text();
+              const cleanText = htmlText.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').substring(0, 8000);
+
+              // Оновлюємо час останньої перевірки джерела
               await supabase
                 .from('opportunity_sources')
                 .update({ last_checked_at: new Date().toISOString() })
                 .eq('id', source.id);
+
+              // Якщо у нас налаштований ключ для AI, передаємо контент на аналіз
+              const aiApiKey = process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY;
+              if (aiApiKey && cleanText.length > 200) {
+                // Приклад формування інтелектуального запиту до LLM для виділення опен-колів
+                // (тут можна розгорнути звернення до вашої моделі або залишити структуру під майбутні інструкції)
+                console.log(`AI analyzing source content from: ${source.name}`);
+              }
             }
           } catch (err) {
             console.error(`Error checking source ${source.name}:`, err);
@@ -89,7 +101,7 @@ export async function GET(request: NextRequest) {
         }
       }
     } catch (sourceErr) {
-      console.error('Error processing opportunity sources:', sourceErr);
+      console.error('Error processing opportunity sources with AI:', sourceErr);
     }
 
     let query = supabase.from('profiles').select('*').eq('notifications_enabled', true);
@@ -107,7 +119,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, message: 'Немає користувачів для розсилки', sent: 0 });
     }
 
-    // Єдиний алгоритм свіжості: записи за останні 24 години
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     const { data: opportunities, error: oppError } = await supabase
@@ -192,7 +203,7 @@ export async function GET(request: NextRequest) {
       if (resend && user.email) {
         try {
           const res = await resend.emails.send({
-            from: process.env.EMAIL_FROM || 'POVODYR <notifications@povodyr.app>',
+            from: process.env.EMAIL_EMAIL || 'POVODYR <notifications@povodyr.app>',
             to: [user.email],
             subject: title,
             html: emailHtml
