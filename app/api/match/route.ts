@@ -21,6 +21,7 @@ interface ScoringResult {
   potential_benefit: string;
   application_complexity: string;
   estimated_time: string;
+  commercial_fit?: number;
 }
 
 export async function POST(request: Request) {
@@ -75,12 +76,20 @@ export async function POST(request: Request) {
     // 3. AI-скоринг
     for (const opp of opportunities) {
       try {
-        const completion = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: `Ти — AI-асистент арт-агенції POVODYR. Проаналізуй сумісність профілю українського митця та арт-можливості.
+        const isCommercial = opp.opportunity_type === 'commercial_opportunity';
+
+        const systemContent = isCommercial
+          ? `Ти — AI-асистент арт-агенції POVODYR. Проаналізуй сумісність профілю митця та КОМЕРЦІЙНОЇ можливості. Оцінюй не художню якість, а відповідність комерційному запиту (техніка, стиль, ціновий сегмент, формат).
+Поверни відповідь СТРОГО у форматі JSON:
+{
+  "match_score": число від 0 до 100 (Commercial Fit),
+  "commercial_fit": число від 0 до 100,
+  "reasons_uk": ["пункт чому підходить 1", "пункт 2", "пункт 3"],
+  "potential_benefit": "Опис потенційної комерційної вигоди (1 речення українською)",
+  "application_complexity": "Низька | Середня | Висока",
+  "estimated_time": "Наприклад: 1-2 години"
+}`
+          : `Ти — AI-асистент арт-агенції POVODYR. Проаналізуй сумісність профілю українського митця та арт-можливості.
 Поверни відповідь СТРОГО у форматі JSON:
 {
   "match_score": число від 0 до 100,
@@ -88,11 +97,26 @@ export async function POST(request: Request) {
   "potential_benefit": "Опис потенційної користі для кар'єри (1 речення українською)",
   "application_complexity": "Низька | Середня | Висока",
   "estimated_time": "Наприклад: 1-2 години або 2-3 дні"
-}`,
-            },
-            {
-              role: 'user',
-              content: `Профіль художника:
+}`;
+
+        const userContent = isCommercial
+          ? `Профіль художника:
+- ПІБ: ${profile.full_name || 'Не вказано'}
+- Техніки: ${JSON.stringify(profile.techniques) || 'Не вказано'}
+- Стилі: ${JSON.stringify(profile.styles || profile.art_styles) || 'Не вказано'}
+- Жанри: ${JSON.stringify(profile.genres) || 'Не вказано'}
+- Ціновий діапазон / мін. ціна: ${profile.min_price || profile.price_min || 'Не вказано'}
+- Країни інтересу: ${JSON.stringify(profile.search_countries || profile.target_countries) || 'Не вказано'}
+
+Комерційна можливість:
+- Назва: ${opp.title}
+- Підтип: ${opp.subtype || 'Не вказано'}
+- Організація: ${opp.organization || 'Не вказано'}
+- Опис: ${opp.description || opp.raw_description || ''}
+- Що потрібно: ${opp.what_is_needed || 'Не вказано'}
+- Бюджет / ціна: ${opp.budget || opp.price_range || 'Не вказано'}
+- Бажані техніки: ${JSON.stringify(opp.preferred_techniques || opp.techniques) || '[]'}`
+          : `Профіль художника:
 - ПІБ: ${profile.full_name || 'Не вказано'}
 - Техніки: ${JSON.stringify(profile.techniques) || 'Не вказано'}
 - Напрямки: ${profile.directions || 'Не вказано'}
@@ -112,8 +136,13 @@ export async function POST(request: Request) {
 - Жанри: ${JSON.stringify(opp.genres) || '[]'}
 - Вартість: ${opp.is_free ? 'Безкоштовно' : (opp.cost_amount || opp.fee_amount || 0) + ' ' + (opp.cost_currency || '')}
 - Дедлайн: ${opp.deadline || 'Не вказано'}
-- Приймають українців: ${opp.ukrainians_eligible || opp.accepts_ukrainians ? 'Так' : 'Невідомо'}`,
-            },
+- Приймають українців: ${opp.ukrainians_eligible || opp.accepts_ukrainians ? 'Так' : 'Невідомо'}`;
+
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemContent },
+            { role: 'user', content: userContent },
           ],
           response_format: { type: 'json_object' },
           temperature: 0.3,
@@ -123,6 +152,10 @@ export async function POST(request: Request) {
         if (!parsedContent) continue;
 
         const scoreData: ScoringResult = JSON.parse(parsedContent);
+        const finalScore = Math.max(0, Math.min(100, Math.round(scoreData.match_score)));
+        const commercialFitVal = isCommercial
+          ? Math.max(0, Math.min(100, Math.round(scoreData.commercial_fit || finalScore)))
+          : null;
 
         const { error: upsertError } = await supabase
           .from('user_opportunity_matches')
@@ -130,7 +163,8 @@ export async function POST(request: Request) {
             {
               user_id: userId,
               opportunity_id: opp.id,
-              match_score: Math.max(0, Math.min(100, Math.round(scoreData.match_score))),
+              match_score: finalScore,
+              commercial_fit: commercialFitVal,
               reasons_uk: scoreData.reasons_uk || [],
               potential_benefit: scoreData.potential_benefit || '',
               application_complexity: scoreData.application_complexity || 'Середня',
