@@ -48,6 +48,7 @@ export default function DashboardPage() {
   const [monthlyMatchedCount, setMonthlyMatchedCount] = useState<number>(0)
   const [upcomingDeadlinesCount, setUpcomingDeadlinesCount] = useState<number>(0)
   const [modalOpportunities, setModalOpportunities] = useState<any[]>([])
+  const [commercialOpportunities, setCommercialOpportunities] = useState<any[]>([])
   const [savedItemsForAlerts, setSavedItemsForAlerts] = useState<any[]>([])
 
   const [recentRelevantOpps, setRecentRelevantOpps] = useState<any[]>([])
@@ -127,6 +128,44 @@ export default function DashboardPage() {
 
       if (savedOpps && isMounted) {
         setSavedItemsForAlerts(savedOpps)
+      }
+
+      // Завантаження комерційних можливостей із таблиці commercial_opportunities
+      const { data: commOpps } = await supabase
+        .from('commercial_opportunities')
+        .select('*')
+        .order('date_added', { ascending: false })
+
+      if (commOpps && isMounted) {
+        const formattedComm = commOpps.map((comm: any) => {
+          const mappedCommOpp: MatchOpportunity = {
+            id: comm.id,
+            title: comm.title,
+            type: 'commercial',
+            eligible_countries: [comm.country || 'Україна'],
+            deadline: comm.deadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            fee: 0,
+            currency: comm.currency || 'UAH',
+            techniques: [],
+            themes: [],
+          }
+          const match = calculateMatch(artistProfileData, mappedCommOpp)
+          return {
+            id: comm.id,
+            title: comm.title,
+            description: comm.description || '',
+            what_is_needed: comm.what_is_needed || '',
+            budget: comm.budget,
+            currency: comm.currency || 'UAH',
+            organization: comm.organization,
+            contact_person: comm.contact_person,
+            created_at: comm.date_added || new Date().toISOString(),
+            deadline: comm.deadline || undefined,
+            matchScore: match.score > 0 ? match.score : 85, // високий базовий матч для цільових комерційних запитів
+            matchReasons: match.reasons,
+          }
+        })
+        setCommercialOpportunities(formattedComm)
       }
 
       try {
@@ -217,7 +256,7 @@ export default function DashboardPage() {
         body: JSON.stringify({
           opportunityId: opp.id,
           opportunityTitle: opp.title,
-          opportunityDescription: opp.description,
+          opportunityDescription: `${opp.description} ${opp.what_is_needed ? 'Що потрібно: ' + opp.what_is_needed : ''}`,
           matchReasons: opp.matchReasons,
         }),
       })
@@ -639,6 +678,7 @@ export default function DashboardPage() {
           title="Центр можливостей (за 7 днів)"
         />
 
+        {/* Комерційні можливості (окреме модальне вікно для таблиці commercial_opportunities) */}
         {isCommercialModalOpen && (
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -666,21 +706,26 @@ export default function DashboardPage() {
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {modalOpportunities.filter(o => o.matchScore && o.matchScore > 30).length === 0 ? (
+                {commercialOpportunities.length === 0 ? (
                   <p style={{ textAlign: 'center', color: '#94a3b8', padding: '20px 0' }}>Наразі немає активних комерційних запитів.</p>
                 ) : (
-                  modalOpportunities.filter(o => o.matchScore && o.matchScore > 30).slice(0, 5).map((opp: any) => (
-                    <div key={opp.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}>
+                  commercialOpportunities.map((comm: any) => (
+                    <div key={comm.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '11px', color: '#38bdf8' }}>
-                        <span>Match: {opp.matchScore}%</span>
-                        <span>{opp.deadline ? `Дедлайн: ${opp.deadline.substring(0, 10)}` : 'Постійно'}</span>
+                        <span>Match: {comm.matchScore}%</span>
+                        <span>Бюджет: {comm.budget} {comm.currency}</span>
                       </div>
-                      <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 600, color: '#fff' }}>{opp.title}</h4>
-                      <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#94a3b8', lineHeight: 1.4 }}>{opp.description}</p>
+                      <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 600, color: '#fff' }}>{comm.title}</h4>
+                      <p style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#94a3b8', lineHeight: 1.4 }}>{comm.description}</p>
+                      {comm.what_is_needed && (
+                        <p style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#34d399', lineHeight: 1.3 }}>
+                          <strong>Вимоги:</strong> {comm.what_is_needed}
+                        </p>
+                      )}
                       
                       <button
-                        onClick={() => handleGenerateProposal(opp)}
-                        disabled={generatingProposalId === opp.id}
+                        onClick={() => handleGenerateProposal(comm)}
+                        disabled={generatingProposalId === comm.id}
                         style={{
                           width: '100%',
                           backgroundColor: '#10b981',
@@ -694,7 +739,7 @@ export default function DashboardPage() {
                           textAlign: 'center'
                         }}
                       >
-                        {generatingProposalId === opp.id ? '⏳ Генерація пропозиції...' : '✍️ Підготувати пропозицію'}
+                        {generatingProposalId === comm.id ? '⏳ Генерація пропозиції...' : '✍️ Підготувати пропозицію'}
                       </button>
                     </div>
                   ))
