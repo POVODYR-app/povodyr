@@ -210,7 +210,7 @@ export default function DashboardPage() {
     setGeneratingProposalId(opp.id)
 
     try {
-      const res = await fetch('/api/generate-proposal', {
+      const res = await fetch('/api/generate-application', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -229,7 +229,7 @@ export default function DashboardPage() {
 
       setProposalModalData({
         title: `Пакет документів / пропозиція для: ${opp.title}`,
-        text: data.proposalText
+        text: data.text
       })
 
     } catch (err: any) {
