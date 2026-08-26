@@ -81,27 +81,64 @@ export async function GET(request: NextRequest) {
               const htmlText = await res.text();
               const cleanText = htmlText.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').substring(0, 8000);
 
-              // Оновлюємо час останньої перевірки джерела
               await supabase
                 .from('opportunity_sources')
                 .update({ last_checked_at: new Date().toISOString() })
                 .eq('id', source.id);
 
-              // Якщо у нас налаштований ключ для AI, передаємо контент на аналіз
-              const aiApiKey = process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY;
-              if (aiApiKey && cleanText.length > 200) {
-                // Приклад формування інтелектуального запиту до LLM для виділення опен-колів
-                // (тут можна розгорнути звернення до вашої моделі або залишити структуру під майбутні інструкції)
-                console.log(`AI analyzing source content from: ${source.name}`);
+              const openAiKey = process.env.OPENAI_API_KEY;
+              if (openAiKey && cleanText.length > 200) {
+                const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${openAiKey}`
+                  },
+                  body: JSON.stringify({
+                    model: 'gpt-4o-mini',
+                    messages: [
+                      {
+                        role: 'system',
+                        content: 'Ви — асистент, який аналізує тексти мистецьких сайтів та шукає опен-коли, резиденції чи гранти для художників. Поверніть масив JSON обʼєктів з полями: title, description, country, deadline, link, is_free (boolean).'
+                      },
+                      {
+                        role: 'user',
+                        content: `Проаналізуй цей текст з джерела ${source.url} та знайди актуальні можливості для митців:\n\n${cleanText}`
+                      }
+                    ],
+                    response_format: { type: 'json_object' }
+                  })
+                });
+
+                if (aiResponse.ok) {
+                  const aiData = await aiResponse.json();
+                  // Парсимо результат від AI та додаємо нові записи до таблиці opportunities
+                  const parsedContent = JSON.parse(aiData.choices[0].message.content);
+                  const items = parsedContent.opportunities || parsedContent.items || [];
+
+                  for (const item of items) {
+                    if (item.title) {
+                      await supabase.from('opportunities').insert({
+                        title: item.title,
+                        description: item.description || '',
+                        country: item.country || 'Онлайн',
+                        source_url: item.link || source.url,
+                        is_free: item.is_free ?? true,
+                        is_active: true,
+                        created_at: new Date().toISOString()
+                      });
+                    }
+                  }
+                }
               }
             }
           } catch (err) {
-            console.error(`Error checking source ${source.name}:`, err);
+            console.error(`Error processing source ${source.name}:`, err);
           }
         }
       }
     } catch (sourceErr) {
-      console.error('Error processing opportunity sources with AI:', sourceErr);
+      console.error('Error in AI opportunity parser:', sourceErr);
     }
 
     let query = supabase.from('profiles').select('*').eq('notifications_enabled', true);
@@ -203,7 +240,7 @@ export async function GET(request: NextRequest) {
       if (resend && user.email) {
         try {
           const res = await resend.emails.send({
-            from: process.env.EMAIL_EMAIL || 'POVODYR <notifications@povodyr.app>',
+            from: process.env.EMAIL_FROM || 'POVODYR <notifications@povodyr.app>',
             to: [user.email],
             subject: title,
             html: emailHtml
