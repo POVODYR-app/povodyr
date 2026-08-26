@@ -52,6 +52,7 @@ export default function DashboardPage() {
   const [hasNoRecentRelevant, setHasNoRecentRelevant] = useState(false)
   const [isTop3Open, setIsTop3Open] = useState(true)
   const [generatingProposalId, setGeneratingProposalId] = useState<string | null>(null)
+  const [generatingMatchingWorksId, setGeneratingMatchingWorksId] = useState<string | null>(null)
   const [proposalModalData, setProposalModalData] = useState<{ title: string; text: string; contactPerson?: string; organization?: string } | null>(null)
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
 
@@ -114,7 +115,6 @@ export default function DashboardPage() {
         }
       }
 
-      // Коректива 2: фільтруємо лише реально подані/відправлені заявки (status або позначані як відправлені)
       const { data: savedOpps } = await supabase
         .from('saved_opportunities')
         .select('*, opportunity:opportunities(*)')
@@ -127,7 +127,6 @@ export default function DashboardPage() {
         setSavedItemsForAlerts(submittedOnly)
       }
 
-      // Завантаження комерційних можливостей із таблиці commercial_opportunities
       const { data: commOpps } = await supabase
         .from('commercial_opportunities')
         .select('*')
@@ -212,7 +211,6 @@ export default function DashboardPage() {
             formattedOpps.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
             setModalOpportunities(formattedOpps)
 
-            // Коректива 3: суворо обмежуємо видачу можливостями, створеними не пізніше ніж 7 днів тому
             const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).getTime()
             const recentRelevant = formattedOpps.filter(o => {
               const isRecent = new Date(o.created_at).getTime() >= sevenDaysAgo
@@ -273,6 +271,38 @@ export default function DashboardPage() {
     }
   }
 
+  // Обробник для формування презентації робіт із червоним повідомленням "зачекайте, я формую"
+  const handleGenerateMatchingWorks = async (reqItem: any) => {
+    setGeneratingMatchingWorksId(reqItem.id)
+    try {
+      const res = await fetch('/api/generate-application', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          opportunityId: reqItem.id,
+          opportunityTitle: `Добір робіт під запит: ${reqItem.title}`,
+          opportunityDescription: `${reqItem.description} ${reqItem.what_is_needed ? 'Вимоги: ' + reqItem.what_is_needed : ''} Рекомендовані твори: ${getSpecificArtworksForQuery(reqItem.title)}`,
+          matchReasons: reqItem.matchReasons,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || `Помилка сервера: ${res.status}`)
+      }
+      setProposalModalData({
+        title: `Презентація робіт для: ${reqItem.title}`,
+        text: data.text,
+        contactPerson: reqItem.contact_person,
+        organization: reqItem.organization
+      })
+    } catch (err: any) {
+      console.error('Помилка генерації презентації:', err)
+      alert(`Не вдалося згенерувати презентацію: ${err.message || 'Невідома помилка'}`)
+    } finally {
+      setGeneratingMatchingWorksId(null)
+    }
+  }
+
   const getDeadlineDetails = (deadlineStr?: string) => {
     if (!deadlineStr) return { indicator: '🟢', label: 'Довгострокова можливість' }
     
@@ -290,17 +320,16 @@ export default function DashboardPage() {
     }
   }
 
-  // Допоміжна функція для підбору конкретних картин під запит (Коректива 1)
   const getSpecificArtworksForQuery = (queryTitle: string) => {
     const lower = queryTitle.toLowerCase()
-    if (lower.includes('інтерєр') || lower.includes('ресторан') || lower.includes('готель') || lower.includes('офіс')) {
-      return 'Картини: «Лагуна спокою», «Погляд у Вись» (Серія «Сакральні сади», мультишаровий акриловий живопис, золота поталь).'
+    if (lower.includes('інтерєр') || lower.includes('ресторан') || lower.includes('готель') || lower.includes('офіс') || lower.includes('львові')) {
+      return 'Картини: «Синхронізація», «Перша скрипка» (Серія «Квіткова спадщина», техніка солярісм, сусальне золото).'
     } else if (lower.includes('квіт') || lower.includes('ботанік') || lower.includes('весна')) {
       return 'Картини: «Ранкове марево», «Сновидіння» (Серія «Квіткова спадщина», олія на полотні, мастихінова техніка).'
     } else if (lower.includes('істор') || lower.includes('національн') || lower.includes('традиц') || lower.includes('гетьман')) {
       return 'Картини: «Код Мазепи», «Березова Катедрала» (Серія «Код Мазепи», солярісм, акрилові текстури).'
     } else {
-      return 'Картини: «Синхронізація», «Перша скрипка» (Серія «Квіткова спадщина», техніка солярісм, сусальне золото).'
+      return 'Картини: «Лагуна спокою», «Погляд у Вись» (Серія «Сакральні сади», мультишаровий акриловий живопис, золота поталь).'
     }
   }
 
@@ -537,7 +566,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Коректива 1: Добір конкретних картин (назва та серія) під актуальні комерційні запити */}
+        {/* Добір робіт під актуальні запити з червоним повідомленням під час формування */}
         <div style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden' }}>
           <button
             onClick={() => setIsMatchingWorksOpen(!isMatchingWorksOpen)}
@@ -573,33 +602,43 @@ export default function DashboardPage() {
                   Немає активних запитів для підбору робіт.
                 </div>
               ) : (
-                (commercialOpportunities.length > 0 ? commercialOpportunities : recentRelevantOpps).slice(0, 2).map((reqItem) => (
-                  <div key={`match-work-${reqItem.id}`} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}>
-                    <div style={{ fontSize: '11px', color: '#38bdf8', marginBottom: 4, fontWeight: 600 }}>
-                      Запит: {reqItem.title}
+                (commercialOpportunities.length > 0 ? commercialOpportunities : recentRelevantOpps).slice(0, 2).map((reqItem) => {
+                  const isGeneratingThis = generatingMatchingWorksId === reqItem.id
+                  return (
+                    <div key={`match-work-${reqItem.id}`} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}>
+                      <div style={{ fontSize: '11px', color: '#38bdf8', marginBottom: 4, fontWeight: 600 }}>
+                        Запит: {reqItem.title}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#e2e8f0', marginBottom: 8, backgroundColor: '#1e293b', padding: 8, borderRadius: 8 }}>
+                        <span style={{ color: '#34d399', fontWeight: 600 }}>Рекомендовані твори:</span> {getSpecificArtworksForQuery(reqItem.title)}
+                      </div>
+                      <button
+                        onClick={() => handleGenerateMatchingWorks(reqItem)}
+                        disabled={isGeneratingThis}
+                        style={{
+                          width: '100%',
+                          backgroundColor: isGeneratingThis ? '#047857' : '#059669',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 8,
+                          padding: '8px 10px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: isGeneratingThis ? 'not-allowed' : 'pointer',
+                          textAlign: 'center',
+                          opacity: isGeneratingThis ? 0.8 : 1
+                        }}
+                      >
+                        ✨ Формувати презентацію робіт
+                      </button>
+                      {isGeneratingThis && (
+                        <div style={{ color: '#ef4444', fontSize: '11px', fontWeight: 600, textAlign: 'center', marginTop: '6px' }}>
+                          Зачекайте, я формую
+                        </div>
+                      )}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#e2e8f0', marginBottom: 8, backgroundColor: '#1e293b', padding: 8, borderRadius: 8 }}>
-                      <span style={{ color: '#34d399', fontWeight: 600 }}>Рекомендовані твори:</span> {getSpecificArtworksForQuery(reqItem.title)}
-                    </div>
-                    <button
-                      onClick={() => handleGenerateProposal(reqItem)}
-                      style={{
-                        width: '100%',
-                        backgroundColor: '#059669',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: 8,
-                        padding: '8px 10px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        textAlign: 'center'
-                      }}
-                    >
-                      ✨ Формувати презентацію робіт
-                    </button>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           )}
@@ -673,7 +712,6 @@ export default function DashboardPage() {
           title="Центр можливостей (за 7 днів)"
         />
 
-        {/* Комерційні можливості з відображенням контактів та замовника */}
         {isCommercialModalOpen && (
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -717,7 +755,6 @@ export default function DashboardPage() {
                         </p>
                       )}
                       
-                      {/* Блок Контактів замовника */}
                       <div style={{ backgroundColor: '#1e293b', borderRadius: 8, padding: '8px', marginBottom: '10px', fontSize: '11px', border: '1px solid #334155' }}>
                         <div style={{ color: '#f8fafc', fontWeight: 600, marginBottom: 2 }}>🏢 Замовник: {comm.organization}</div>
                         <div style={{ color: '#cbd5e1' }}>👤 Контактна особа: {comm.contact_person}</div>
