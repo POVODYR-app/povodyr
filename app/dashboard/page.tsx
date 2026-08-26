@@ -211,63 +211,41 @@ export default function DashboardPage() {
     }
   }, [])
 
-  // Оновлена надійна функція генерації пропозиції / пакету документів із захистом від таймаутів та retry-механізмом
+  // Оновлена функція з точним виведенням помилки від сервера
   const handleGenerateProposal = async (opp: any) => {
     setGeneratingProposalId(opp.id)
-    const maxRetries = 3
-    const delay = 2000
 
-    for (let i = 0; i < maxRetries; i++) {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 50000) // 50 секунд таймаут
+    try {
+      const res = await fetch('/api/generate-proposal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          opportunityId: opp.id,
+          opportunityTitle: opp.title,
+          opportunityDescription: opp.description,
+          matchReasons: opp.matchReasons,
+        }),
+      })
 
-      try {
-        const res = await fetch('/api/generate-proposal', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            opportunityId: opp.id,
-            opportunityTitle: opp.title,
-            opportunityDescription: opp.description,
-            matchReasons: opp.matchReasons,
-          }),
-          signal: controller.signal
-        })
+      const data = await res.json()
 
-        clearTimeout(timeoutId)
-        const data = await res.json()
-
-        if (!res.ok || !data.success) {
-          if (res.status >= 500 && i < maxRetries - 1) {
-            throw new Error(`Помилка сервера: ${res.status}`)
-          }
-          throw new Error(data.error || 'Не вдалося згенерувати пакет документів.')
-        }
-
-        setProposalModalData({
-          title: `Пакет документів / пропозиція для: ${opp.title}`,
-          text: data.proposalText
-        })
-        break // Успіх — виходимо з циклу
-
-      } catch (err: any) {
-        clearTimeout(timeoutId)
-        console.warn(`Спроба ${i + 1} генерації не вдалася:`, err.message)
-
-        if (i === maxRetries - 1) {
-          let errorMessage = 'Помилка мережі при генерації. Перевірте підключення та спробуйте ще раз.'
-          if (err.name === 'AbortError') {
-            errorMessage = 'Час очікування вичерпано. Сервер обробляє запит занадто довго.'
-          }
-          alert(errorMessage)
-        } else {
-          await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)))
-        }
-      } finally {
-        if (i === maxRetries - 1) {
-          setGeneratingProposalId(null)
-        }
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || `Помилка сервера: ${res.status}`)
       }
+
+      setProposalModalData({
+        title: `Пакет документів / пропозиція для: ${opp.title}`,
+        text: data.proposalText
+      })
+
+    } catch (err: any) {
+      console.error('Помилка генерації:', err)
+      // Виводимо реальний текст помилки, щоб розуміти в чому річ
+      alert(`Не вдалося згенерувати: ${err.message || 'Невідома помилка'}`)
+    } finally {
+      setGeneratingProposalId(null)
+    }
+  }
     }
   }
 
