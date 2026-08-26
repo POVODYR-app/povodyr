@@ -31,6 +31,13 @@ export default function CommercialOpportunitiesPage() {
   const [opportunities, setOpportunities] = useState<any[]>([])
   const [selectedSubtype, setSelectedSubtype] = useState<string>('all')
   const [userArtworks, setUserArtworks] = useState<any[]>([])
+  const [userProfile, setUserProfile] = useState<any>(null)
+
+  // Стан для модального вікна генерації пропозиції
+  const [activeModalOpp, setActiveModalOpp] = useState<any>(null)
+  const [selectedArtworks, setSelectedArtworks] = useState<string[]>([])
+  const [generatedProposal, setGeneratedProposal] = useState<string>('')
+  const [isGenerating, setIsGenerating] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -40,25 +47,27 @@ export default function CommercialOpportunitiesPage() {
         return
       }
 
-      // Завантаження комерційних можливостей
-      const { data: opps, error } = await supabase
+      // Профіль користувача
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+      if (profile) setUserProfile(profile)
+
+      // Комерційні можливості
+      const { data: opps } = await supabase
         .from('commercial_opportunities')
         .select('*')
         .order('date_added', { ascending: false })
+      if (opps) setOpportunities(opps)
 
-      if (opps) {
-        setOpportunities(opps)
-      }
-
-      // Завантаження робіт користувача для рекомендацій
+      // Роботи художника
       const { data: artworks } = await supabase
         .from('artist_artworks')
         .select('*')
         .eq('user_id', user.id)
-
-      if (artworks) {
-        setUserArtworks(artworks)
-      }
+      if (artworks) setUserArtworks(artworks)
 
       setLoading(false)
     }
@@ -69,6 +78,44 @@ export default function CommercialOpportunitiesPage() {
   const filteredOpportunities = selectedSubtype === 'all' 
     ? opportunities 
     : opportunities.filter(o => o.subtype === selectedSubtype)
+
+  const handleOpenProposalModal = (opp: any) => {
+    setActiveModalOpp(opp)
+    // Автоматично обираємо перші до 3 робіт за наявності
+    const defaultIds = userArtworks.slice(0, 3).map(a => a.id)
+    setSelectedArtworks(defaultIds)
+    setGeneratedProposal('')
+  }
+
+  const handleGenerateProposalText = () => {
+    setIsGenerating(true)
+    setTimeout(() => {
+      const artistName = userProfile?.full_name || 'Художник'
+      const oppTitle = activeModalOpp?.title || 'вашого проєкту'
+      const orgName = activeModalOpp?.organization || 'команди'
+      
+      const chosenArtworksDetails = userArtworks
+        .filter(a => selectedArtworks.includes(a.id))
+        .map(a => `• «${a.title}» (${a.technique || 'живопис'}, ${a.format_size || 'зручний формат'})`)
+        .join('\n')
+
+      const text = `Добрий день, команда ${orgName}!
+
+Мене зацікавила можливість співпраці щодо ${oppTitle}. Я професійний художник із Києва, працюю у власній унікальній техніці солярісму, поєднуючи багатошарові акрилові заливки, олійний живопис та поталь.
+
+Для вашого запиту я ретельно відібрав(-ла) кілька робіт із мого портфоліо, які ідеально пасують за стилістикою та естетикою:
+${chosenArtworksDetails || '• Роботи із актуальних серій пейзажного та сучасного живопису'}
+
+Буду радий(-а) обговорити деталі, надати додаткові фото робіт у високій роздільній здатності або підготувати індивідуальну добірку.
+
+З повагою,
+${artistName}
+Телефон / Контакти через POVODYR`
+
+      setGeneratedProposal(text)
+      setIsGenerating(false)
+    }, 600)
+  }
 
   if (loading) {
     return (
@@ -143,7 +190,7 @@ export default function CommercialOpportunitiesPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {filteredOpportunities.length === 0 ? (
             <div style={{ backgroundColor: '#1e293b', padding: 24, borderRadius: 12, textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>
-              Наразі немає активних комерційних можливостей у цій категорії. База оновлюється автоматично.
+              Наразі немає активних комерційних можливостей у цій категорії.
             </div>
           ) : (
             filteredOpportunities.map((opp) => (
@@ -199,7 +246,7 @@ export default function CommercialOpportunitiesPage() {
                 {/* Дії / CTA */}
                 <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
                   <button
-                    onClick={() => alert('Функція підготовки комерційної пропозиції буде доступна на наступному кроці.')}
+                    onClick={() => handleOpenProposalModal(opp)}
                     style={{ backgroundColor: '#2563eb', color: '#ffffff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 12 }}
                   >
                     Підготувати пропозицію
@@ -220,6 +267,143 @@ export default function CommercialOpportunitiesPage() {
             ))
           )}
         </div>
+
+        {/* МОДАЛЬНЕ ВІКНО ПІДГОТОВКИ ПРОПОЗИЦІЇ */}
+        {activeModalOpp && (
+          <div style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: 16
+          }}>
+            <div style={{
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: 16,
+              maxWidth: 560,
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: 24,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+              color: '#ffffff'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
+                  Підготувати комерційну пропозицію
+                </h3>
+                <button
+                  onClick={() => setActiveModalOpp(null)}
+                  style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
+                {activeModalOpp.title} — {activeModalOpp.organization}
+              </p>
+
+              {/* Вибір робіт з портфоліо */}
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 8 }}>
+                  Рекомендовані роботи з вашого портфоліо:
+                </label>
+                {userArtworks.length === 0 ? (
+                  <div style={{ fontSize: 12, color: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: 10, borderRadius: 8 }}>
+                    У вашому профілі ще немає доданих робіт. Письмо буде згенеровано загальним описом.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 140, overflowY: 'auto' }}>
+                    {userArtworks.map((art) => (
+                      <label key={art.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', backgroundColor: '#0f172a', padding: 8, borderRadius: 6 }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedArtworks.includes(art.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedArtworks([...selectedArtworks, art.id])
+                            } else {
+                              setSelectedArtworks(selectedArtworks.filter(id => id !== art.id))
+                            }
+                          }}
+                        />
+                        <span>{art.title} ({art.technique || 'живопис'})</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={handleGenerateProposalText}
+                disabled={isGenerating}
+                style={{
+                  backgroundColor: '#3b82f6',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '12px',
+                  borderRadius: 10,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: 'pointer'
+                }}
+              >
+                {isGenerating ? 'Генерую персоналізований текст...' : 'Згенерувати пропозицію'}
+              </button>
+
+              {generatedProposal && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#10b981' }}>
+                    Готовий текст пропозиції:
+                  </label>
+                  <textarea
+                    value={generatedProposal}
+                    onChange={(e) => setGeneratedProposal(e.target.value)}
+                    rows={8}
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#0f172a',
+                      color: '#ffffff',
+                      border: '1px solid #334155',
+                      borderRadius: 8,
+                      padding: 12,
+                      fontSize: 13,
+                      fontFamily: 'sans-serif',
+                      outline: 'none',
+                      resize: 'vertical'
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedProposal)
+                      alert('Текст пропозиції скопійовано в буфер обміну!')
+                    }}
+                    style={{
+                      backgroundColor: '#10b981',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '10px',
+                      borderRadius: 8,
+                      fontWeight: 600,
+                      fontSize: 13,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Копіювати текст пропозиції
+                  </button>
+                </div>
+              )}
+
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
