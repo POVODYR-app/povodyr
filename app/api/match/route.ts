@@ -22,6 +22,7 @@ interface ScoringResult {
   application_complexity: string;
   estimated_time: string;
   commercial_fit?: number;
+  best_matching_artwork?: string; // Назва найкращої картини для цієї можливості
 }
 
 export async function POST(request: Request) {
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Ключ OPENAI_API_KEY не налаштовано' }, { status: 500 });
     }
 
-    // 1. Профіль
+    // 1. Отримуємо профіль художника
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
@@ -46,6 +47,16 @@ export async function POST(request: Request) {
 
     if (profileError || !profile) {
       return NextResponse.json({ error: 'Профіль художника не знайдено' }, { status: 404 });
+    }
+
+    // 1.1. Отримуємо розширене портфоліо робіт митця
+    const { data: artworks, error: artError } = await supabase
+      .from('artist_artworks')
+      .select('*')
+      .eq('user_id', userId);
+
+    if (artError) {
+      console.error('Помилка завантаження портфоліо:', artError.message);
     }
 
     // 2. Актуальні можливості
@@ -73,13 +84,29 @@ export async function POST(request: Request) {
     let createdMatchesCount = 0;
     const errors: string[] = [];
 
-    // 3. AI-скоринг
+    // Форматуємо портфоліо для передачі в AI
+    const formattedArtworks = artworks && artworks.length > 0 
+      ? artworks.map((art, idx) => `
+        [Робота ${idx + 1}]
+        - Назва: "${art.title}"
+        - Посилання на фото: ${art.image_url || 'не вказано'}
+        - Стилі: ${JSON.stringify(art.styles || [])}
+        - Техніки: ${JSON.stringify(art.techniques_list || [])}
+        - Матеріали: ${JSON.stringify(art.materials || [])}
+        - Теми: ${JSON.stringify(art.themes || [])}
+        - Типи робіт: ${JSON.stringify(art.work_types || [])}
+        - Формати: категорія "${art.size_category}", основний формат: ${art.format_size}, мін: ${art.min_size}, макс: ${art.max_size || 'не вказано'}, великі формати можливі: ${art.large_format_possible ? 'так' : 'ні'}
+        - Підходящі комерційні простори: ${JSON.stringify(art.suitable_spaces || [])}
+      `).join('\n')
+      : 'Портфоліо робіт ще не заповнено.';
+
+    // 3. AI-скоринг з урахуванням конкретних картин
     for (const opp of opportunities) {
       try {
         const isCommercial = opp.opportunity_type === 'commercial_opportunity';
 
         const systemContent = isCommercial
-          ? `Ти — AI-асистент арт-агенції POVODYR. Проаналізуй сумісність профілю митця та КОМЕРЦІЙНОЇ можливості. Оцінюй не художню якість, а відповідність комерційному запиту (техніка, стиль, ціновий сегмент, формат).
+          ? `Ти — головний куратор та AI-асистент арт-агенції POVODYR. Проаналізуй сумісність портфоліо робіт митця та КОМЕРЦІЙНОГО запиту. Зістав параметри конкретних картин (стилі, матеріали як сусальне золоте, техніки, формати, комерційні простори на кшталт готелів чи офісів) із запитом замовника.
 Поверни відповідь СТРОГО у форматі JSON:
 {
   "match_score": число від 0 до 100 (Commercial Fit),
@@ -87,26 +114,29 @@ export async function POST(request: Request) {
   "reasons_uk": ["пункт чому підходить 1", "пункт 2", "пункт 3"],
   "potential_benefit": "Опис потенційної комерційної вигоди (1 речення українською)",
   "application_complexity": "Низька | Середня | Висока",
-  "estimated_time": "Наприклад: 1-2 години"
+  "estimated_time": "Наприклад: 1-2 години",
+  "best_matching_artwork": "Назва найкращої картини з портфоліо для цього запиту або загальний висновок"
 }`
-          : `Ти — AI-асистент арт-агенції POVODYR. Проаналізуй сумісність профілю українського митця та арт-можливості.
+          : `Ти — AI-асистент арт-агенції POVODYR. Проаналізуй сумісність профілю українського митця та його конкретних робіт із арт-можливістю (Open Call, резиденція, виставка).
 Поверни відповідь СТРОГО у форматі JSON:
 {
   "match_score": число від 0 до 100,
   "reasons_uk": ["короткий пункт чому підходить 1", "короткий пункт 2", "короткий пункт 3"],
   "potential_benefit": "Опис потенційної користі для кар'єри (1 речення українською)",
   "application_complexity": "Низька | Середня | Висока",
-  "estimated_time": "Наприклад: 1-2 години або 2-3 дні"
+  "estimated_time": "Наприклад: 1-2 години або 2-3 дні",
+  "best_matching_artwork": "Назва найбільш релевантної картини з портфоліо (якщо застосовно)"
 }`;
 
         const userContent = isCommercial
           ? `Профіль художника:
 - ПІБ: ${profile.full_name || 'Не вказано'}
-- Техніки: ${JSON.stringify(profile.techniques) || 'Не вказано'}
-- Стилі: ${JSON.stringify(profile.styles || profile.art_styles) || 'Не вказано'}
-- Жанри: ${JSON.stringify(profile.genres) || 'Не вказано'}
-- Ціновий діапазон / мін. ціна: ${profile.min_price || profile.price_min || 'Не вказано'}
-- Країни інтересу: ${JSON.stringify(profile.search_countries || profile.target_countries) || 'Не вказано'}
+- Біографія / Концепція: ${profile.bio || 'Не вказано'}
+- Рівень митця: ${profile.artist_level || 'Не вказано'}
+- Країни інтересу: ${JSON.stringify(profile.search_countries || [])}
+
+ДЕТАЛЬНЕ ПОРТФОЛІО РОБІТ МИТЦЯ:
+${formattedArtworks}
 
 Комерційна можливість:
 - Назва: ${opp.title}
@@ -118,14 +148,12 @@ export async function POST(request: Request) {
 - Бажані техніки: ${JSON.stringify(opp.preferred_techniques || opp.techniques) || '[]'}`
           : `Профіль художника:
 - ПІБ: ${profile.full_name || 'Не вказано'}
-- Техніки: ${JSON.stringify(profile.techniques) || 'Не вказано'}
-- Напрямки: ${profile.directions || 'Не вказано'}
-- Жанри: ${JSON.stringify(profile.genres) || 'Не вказано'}
-- Країни інтересу: ${JSON.stringify(profile.search_countries || profile.target_countries) || 'Не вказано'}
-- Рівень: ${profile.professional_level || 'Не вказано'}
-- Цілі: ${JSON.stringify(profile.goals) || 'Не вказано'}
-- Макс. вартість участі: ${profile.org_fee_max || profile.max_fee_amount || 'Не вказано'}
-- Біо: ${profile.bio || 'Не вказано'}
+- Біографія: ${profile.bio || 'Не вказано'}
+- Рівень митця: ${profile.artist_level || 'Не вказано'}
+- Країни інтересу: ${JSON.stringify(profile.search_countries || [])}
+
+ДЕТАЛЬНЕ ПОРТФОЛІО РОБІТ МИТЦЯ:
+${formattedArtworks}
 
 Картка можливості:
 - Назва: ${opp.title}
@@ -134,7 +162,6 @@ export async function POST(request: Request) {
 - Країна: ${opp.country || 'International'}
 - Техніки: ${JSON.stringify(opp.techniques) || '[]'}
 - Жанри: ${JSON.stringify(opp.genres) || '[]'}
-- Вартість: ${opp.is_free ? 'Безкоштовно' : (opp.cost_amount || opp.fee_amount || 0) + ' ' + (opp.cost_currency || '')}
 - Дедлайн: ${opp.deadline || 'Не вказано'}
 - Приймають українців: ${opp.ukrainians_eligible || opp.accepts_ukrainians ? 'Так' : 'Невідомо'}`;
 
