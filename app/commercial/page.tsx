@@ -25,6 +25,17 @@ const SUBTYPES_MAP: Record<string, string> = {
   other: 'Інше'
 }
 
+const STATUSES_MAP: Record<string, { label: string, color: string }> = {
+  found: { label: 'Знайдено', color: '#64748b' },
+  interested: { label: 'Цікаво', color: '#3b82f6' },
+  proposal_prepared: { label: 'Пропозиція готова', color: '#8b5cf6' },
+  sent: { label: 'Надіслано', color: '#0ea5e9' },
+  waiting: { label: 'Очікування відповіді', color: '#f59e0b' },
+  negotiation: { label: 'Перемовини', color: '#ec4899' },
+  deal: { label: 'Угода 🎉', color: '#10b981' },
+  rejected: { label: 'Відмова', color: '#ef4444' }
+}
+
 export default function CommercialOpportunitiesPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -32,6 +43,7 @@ export default function CommercialOpportunitiesPage() {
   const [selectedSubtype, setSelectedSubtype] = useState<string>('all')
   const [userArtworks, setUserArtworks] = useState<any[]>([])
   const [userProfile, setUserProfile] = useState<any>(null)
+  const [userTracking, setUserTracking] = useState<Record<string, string>>({})
 
   // Стан для модального вікна генерації пропозиції
   const [activeModalOpp, setActiveModalOpp] = useState<any>(null)
@@ -69,11 +81,41 @@ export default function CommercialOpportunitiesPage() {
         .eq('user_id', user.id)
       if (artworks) setUserArtworks(artworks)
 
+      // Трекінг статусів користувача
+      const { data: tracking } = await supabase
+        .from('commercial_user_tracking')
+        .select('*')
+        .eq('user_id', user.id)
+      
+      if (tracking) {
+        const trackingMap: Record<string, string> = {}
+        tracking.forEach(t => {
+          trackingMap[t.opportunity_id] = t.status
+        })
+        setUserTracking(trackingMap)
+      }
+
       setLoading(false)
     }
 
     loadData()
   }, [router])
+
+  const handleStatusChange = async (oppId: string, newStatus: string) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    setUserTracking(prev => ({ ...prev, [oppId]: newStatus }))
+
+    await supabase
+      .from('commercial_user_tracking')
+      .upsert({
+        user_id: user.id,
+        opportunity_id: oppId,
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,opportunity_id' })
+  }
 
   const filteredOpportunities = selectedSubtype === 'all' 
     ? opportunities 
@@ -81,7 +123,6 @@ export default function CommercialOpportunitiesPage() {
 
   const handleOpenProposalModal = (opp: any) => {
     setActiveModalOpp(opp)
-    // Автоматично обираємо перші до 3 робіт за наявності
     const defaultIds = userArtworks.slice(0, 3).map(a => a.id)
     setSelectedArtworks(defaultIds)
     setGeneratedProposal('')
@@ -114,6 +155,11 @@ ${artistName}
 
       setGeneratedProposal(text)
       setIsGenerating(false)
+
+      // Автоматично оновлюємо статус на "Пропозиція готова"
+      if (activeModalOpp?.id) {
+        handleStatusChange(activeModalOpp.id, 'proposal_prepared')
+      }
     }, 600)
   }
 
@@ -193,78 +239,110 @@ ${artistName}
               Наразі немає активних комерційних можливостей у цій категорії.
             </div>
           ) : (
-            filteredOpportunities.map((opp) => (
-              <div 
-                key={opp.id}
-                style={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
-                  borderRadius: 12,
-                  padding: 20,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 12
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <span style={{ fontSize: 11, backgroundColor: '#3b82f6', color: '#ffffff', padding: '3px 8px', borderRadius: 4, fontWeight: 600, textTransform: 'uppercase' }}>
-                      {SUBTYPES_MAP[opp.subtype] || opp.subtype}
-                    </span>
-                    <h3 style={{ fontSize: 16, fontWeight: 700, margin: '8px 0 4px 0', color: '#ffffff' }}>
-                      {opp.title}
-                    </h3>
-                    <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
-                      📍 {opp.city ? `${opp.city}, ` : ''}{opp.country || 'Україна'} • Організація: <strong style={{ color: '#e2e8f0' }}>{opp.organization}</strong>
-                    </p>
+            filteredOpportunities.map((opp) => {
+              const currentStatus = userTracking[opp.id] || 'found'
+              const statusInfo = STATUSES_MAP[currentStatus] || STATUSES_MAP['found']
+
+              return (
+                <div 
+                  key={opp.id}
+                  style={{
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #334155',
+                    borderRadius: 12,
+                    padding: 20,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 12
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                    <div>
+                      <span style={{ fontSize: 11, backgroundColor: '#3b82f6', color: '#ffffff', padding: '3px 8px', borderRadius: 4, fontWeight: 600, textTransform: 'uppercase' }}>
+                        {SUBTYPES_MAP[opp.subtype] || opp.subtype}
+                      </span>
+                      <h3 style={{ fontSize: 16, fontWeight: 700, margin: '8px 0 4px 0', color: '#ffffff' }}>
+                        {opp.title}
+                      </h3>
+                      <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
+                        📍 {opp.city ? `${opp.city}, ` : ''}{opp.country || 'Україна'} • Організація: <strong style={{ color: '#e2e8f0' }}>{opp.organization}</strong>
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '4px 8px', borderRadius: 6 }}>
+                        Fit: 91%
+                      </span>
+                    </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '4px 8px', borderRadius: 6 }}>
-                      Commercial Fit: 91%
-                    </span>
-                  </div>
-                </div>
 
-                <p style={{ fontSize: 13, color: '#cbd5e1', margin: 0, lineHeight: 1.5 }}>
-                  {opp.description || opp.what_is_needed}
-                </p>
-
-                {opp.budget && (
-                  <div style={{ fontSize: 13, color: '#38bdf8', fontWeight: 600 }}>
-                    💰 Бюджет: {opp.budget} {opp.currency || 'UAH'}
-                  </div>
-                )}
-
-                {/* Чому це підходить */}
-                <div style={{ backgroundColor: '#0f172a', padding: 12, borderRadius: 8, fontSize: 12, color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span style={{ fontWeight: 700, color: '#ffffff', marginBottom: 2 }}>Чому POVODYR рекомендує це вам:</span>
-                  <span>✓ ваша техніка відповідає запиту проєкту;</span>
-                  <span>✓ ціновий сегмент збігається з бюджетом замовника;</span>
-                  <span>✓ формати робіт відповідають параметрам інтер'єру.</span>
-                </div>
-
-                {/* Дії / CTA */}
-                <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
-                  <button
-                    onClick={() => handleOpenProposalModal(opp)}
-                    style={{ backgroundColor: '#2563eb', color: '#ffffff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 12 }}
-                  >
-                    Підготувати пропозицію
-                  </button>
-                  {opp.source_url && (
-                    <a
-                      href={opp.source_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ backgroundColor: '#334155', color: '#ffffff', textDecoration: 'none', padding: '8px 14px', borderRadius: 8, fontWeight: 600, fontSize: 12, display: 'inline-flex', alignItems: 'center' }}
+                  {/* Вибір статусу пайплайну */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, backgroundColor: '#0f172a', padding: 10, borderRadius: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Статус у пайплайні:</span>
+                    <select
+                      value={currentStatus}
+                      onChange={(e) => handleStatusChange(opp.id, e.target.value)}
+                      style={{
+                        backgroundColor: '#1e293b',
+                        color: statusInfo.color,
+                        border: '1px solid #334155',
+                        borderRadius: 6,
+                        padding: '4px 8px',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        outline: 'none'
+                      }}
                     >
-                      Переглянути джерело ↗
-                    </a>
-                  )}
-                </div>
+                      {Object.entries(STATUSES_MAP).map(([sKey, sVal]) => (
+                        <option key={sKey} value={sKey} style={{ color: '#ffffff', backgroundColor: '#1e293b' }}>
+                          {sVal.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              </div>
-            ))
+                  <p style={{ fontSize: 13, color: '#cbd5e1', margin: 0, lineHeight: 1.5 }}>
+                    {opp.description || opp.what_is_needed}
+                  </p>
+
+                  {opp.budget && (
+                    <div style={{ fontSize: 13, color: '#38bdf8', fontWeight: 600 }}>
+                      💰 Бюджет: {opp.budget} {opp.currency || 'UAH'}
+                    </div>
+                  )}
+
+                  {/* Чому це підходить */}
+                  <div style={{ backgroundColor: '#0f172a', padding: 12, borderRadius: 8, fontSize: 12, color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={{ fontWeight: 700, color: '#ffffff', marginBottom: 2 }}>Чому POVODYR рекомендує це вам:</span>
+                    <span>✓ ваша техніка відповідає запиту проєкту;</span>
+                    <span>✓ ціновий сегмент збігається з бюджетом замовника;</span>
+                    <span>✓ формати робіт відповідають параметрам інтер'єру.</span>
+                  </div>
+
+                  {/* Дії / CTA */}
+                  <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => handleOpenProposalModal(opp)}
+                      style={{ backgroundColor: '#2563eb', color: '#ffffff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 12 }}
+                    >
+                      Підготувати пропозицію
+                    </button>
+                    {opp.source_url && (
+                      <a
+                        href={opp.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ backgroundColor: '#334155', color: '#ffffff', textDecoration: 'none', padding: '8px 14px', borderRadius: 8, fontWeight: 600, fontSize: 12, display: 'inline-flex', alignItems: 'center' }}
+                      >
+                        Переглянути джерело ↗
+                      </a>
+                    )}
+                  </div>
+
+                </div>
+              )
+            })
           )}
         </div>
 
@@ -310,7 +388,6 @@ ${artistName}
                 {activeModalOpp.title} — {activeModalOpp.organization}
               </p>
 
-              {/* Вибір робіт з портфоліо */}
               <div>
                 <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 8 }}>
                   Рекомендовані роботи з вашого портфоліо:
@@ -361,7 +438,7 @@ ${artistName}
               {generatedProposal && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
                   <label style={{ fontSize: 13, fontWeight: 600, color: '#10b981' }}>
-                    Готовий текст пропозиції:
+                    Готовий текст пропозиції (статус оновлено до «Пропозиція готова»):
                   </label>
                   <textarea
                     value={generatedProposal}
