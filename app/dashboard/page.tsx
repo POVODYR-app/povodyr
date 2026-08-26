@@ -41,6 +41,7 @@ export default function DashboardPage() {
   const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isCommercialModalOpen, setIsCommercialModalOpen] = useState(false)
+  const [isMatchingWorksOpen, setIsMatchingWorksOpen] = useState(true)
   const [loading, setLoading] = useState(true)
 
   const [dailyCount, setDailyCount] = useState<number>(0)
@@ -500,26 +501,96 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* Окремий компонент: Добір робіт під актуальні запити */}
+        <div style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden' }}>
+          <button
+            onClick={() => setIsMatchingWorksOpen(!isMatchingWorksOpen)}
+            style={{
+              width: '100%',
+              backgroundColor: '#1e293b',
+              border: 'none',
+              padding: '16px',
+              color: '#f8fafc',
+              fontSize: '15px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              textAlign: 'left'
+            }}
+          >
+            <span>🎨 Добір робіт під актуальні запити</span>
+            <span style={{ fontSize: '14px', color: '#38bdf8' }}>{isMatchingWorksOpen ? '▲ Згорнути' : '▼ Розгорнути'}</span>
+          </button>
+
+          {isMatchingWorksOpen && (
+            <div style={{ padding: '0 16px 16px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0, lineHeight: 1.4 }}>
+                Підбір найкращих творів із ваших серій під поточні вимоги галерей, open calls та колекціонерів.
+              </p>
+              {loading ? (
+                <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12, textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                  Аналіз творчої практики...
+                </div>
+              ) : recentRelevantOpps.length === 0 ? (
+                <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12, textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                  Немає активних запитів для підбору робіт.
+                </div>
+              ) : (
+                recentRelevantOpps.slice(0, 2).map((opp) => (
+                  <div key={`match-work-${opp.id}`} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}>
+                    <div style={{ fontSize: '11px', color: '#38bdf8', marginBottom: 4, fontWeight: 600 }}>
+                      Запит: {opp.title}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#e2e8f0', marginBottom: 8, backgroundColor: '#1e293b', padding: 8, borderRadius: 8 }}>
+                      <span style={{ color: '#34d399', fontWeight: 600 }}>Рекомендовані серії/твори:</span> Серія «Квіткова спадщина», картини у техніці мультишарового акрилу та золота.
+                    </div>
+                    <button
+                      onClick={() => handleGenerateProposal(opp)}
+                      style={{
+                        width: '100%',
+                        backgroundColor: '#059669',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '8px 10px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        textAlign: 'center'
+                      }}
+                    >
+                      ✨ Формувати презентацію робіт
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Блок «Мої заявки» — активний для відстеження */}
         <div style={{ marginBottom: 20 }}>
-          <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#94a3b8' }}>
-            📋 Мої заявки — Відстежувати результат (Coming soon)
+          <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#38bdf8' }}>
+            📋 Мої заявки — Відстежувати результат
           </div>
           <button 
-            disabled
+            onClick={() => setIsModalOpen(true)} 
             style={{ 
               width: '100%',
               backgroundColor: '#1e293b', 
-              color: '#64748b',
+              color: 'white',
               border: '1px solid #334155',
               borderRadius: 16, 
               padding: 16, 
               fontSize: 16,
               fontWeight: 600,
-              cursor: 'not-allowed',
+              cursor: 'pointer',
               textAlign: 'center'
             }}
           >
-            📋 Мої заявки та результати
+            📋 Мої заявки та результати ({savedItemsForAlerts.length})
           </button>
         </div>
 
@@ -657,7 +728,6 @@ export default function DashboardPage() {
                 }}
               />
               
-              {/* Блок із кнопками дій як на скріні */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
                 <button
                   onClick={() => {
