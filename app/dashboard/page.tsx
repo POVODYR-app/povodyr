@@ -46,7 +46,7 @@ export default function DashboardPage() {
   const [dailyCount, setDailyCount] = useState<number>(0)
   const [monthlyMatchedCount, setMonthlyMatchedCount] = useState<number>(0)
   const [upcomingDeadlinesCount, setUpcomingDeadlinesCount] = useState<number>(0)
-  const [modalOpportunities, setModalOpportunities] = useState<NotificationItem[]>([])
+  const [modalOpportunities, setModalOpportunities] = useState<any[]>([])
   const [savedItemsForAlerts, setSavedItemsForAlerts] = useState<any[]>([])
 
   const [recentRelevantOpps, setRecentRelevantOpps] = useState<any[]>([])
@@ -147,7 +147,7 @@ export default function DashboardPage() {
             .order('created_at', { ascending: false })
 
           if (opps && isMounted) {
-            const formattedOpps: NotificationItem[] = opps.map((opp: Opportunity) => {
+            const formattedOpps = opps.map((opp: Opportunity) => {
               const mappedOpp: MatchOpportunity = {
                 id: opp.id,
                 title: opp.title,
@@ -588,7 +588,7 @@ export default function DashboardPage() {
                 {modalOpportunities.filter(o => o.matchScore && o.matchScore > 30).length === 0 ? (
                   <p style={{ textAlign: 'center', color: '#94a3b8', padding: '20px 0' }}>Наразі немає активних комерційних запитів.</p>
                 ) : (
-                  modalOpportunities.filter(o => o.matchScore && o.matchScore > 30).slice(0, 5).map((opp) => (
+                  modalOpportunities.filter(o => o.matchScore && o.matchScore > 30).slice(0, 5).map((opp: any) => (
                     <div key={opp.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '11px', color: '#38bdf8' }}>
                         <span>Match: {opp.matchScore}%</span>
