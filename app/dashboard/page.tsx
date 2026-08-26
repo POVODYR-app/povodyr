@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import TelegramConnect from '../../components/TelegramConnect'
-import NotificationsModal, { NotificationItem } from '../../components/NotificationsModal'
+import NotificationsModal from '../../components/NotificationsModal'
 import FollowUpAlerts from '../../components/FollowUpAlerts'
 import { calculateMatch, ArtistProfile, Opportunity as MatchOpportunity } from '../../lib/matchEngine'
 
@@ -52,14 +52,9 @@ export default function DashboardPage() {
   const [recentRelevantOpps, setRecentRelevantOpps] = useState<any[]>([])
   const [hasNoRecentRelevant, setHasNoRecentRelevant] = useState(false)
 
-  // Стейт для розгортання блоку "Топ-3 найкращі"
   const [isTop3Open, setIsTop3Open] = useState(true)
-
-  // Стейти для генерації пропозицій / пакетів документів
   const [generatingProposalId, setGeneratingProposalId] = useState<string | null>(null)
   const [proposalModalData, setProposalModalData] = useState<{ title: string; text: string } | null>(null)
-
-  // Стейт для розгортання деталей "Чому рекомендує" для кожної картки окремо за id
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -199,7 +194,7 @@ export default function DashboardPage() {
           }
         }
       } catch (err) {
-        console.error('Помилка завантаження статистики користувача:', err)
+        console.error('Помилка завантаження статистики:', err)
       }
 
       if (isMounted) setLoading(false)
@@ -211,7 +206,6 @@ export default function DashboardPage() {
     }
   }, [])
 
-  // Оновлена функція з точним виведенням помилки від сервера
   const handleGenerateProposal = async (opp: any) => {
     setGeneratingProposalId(opp.id)
 
@@ -240,16 +234,12 @@ export default function DashboardPage() {
 
     } catch (err: any) {
       console.error('Помилка генерації:', err)
-      // Виводимо реальний текст помилки, щоб розуміти в чому річ
       alert(`Не вдалося згенерувати: ${err.message || 'Невідома помилка'}`)
     } finally {
       setGeneratingProposalId(null)
     }
   }
-    }
-  }
 
-  // Функція для визначення дедлайну та точного підпису
   const getDeadlineDetails = (deadlineStr?: string) => {
     if (!deadlineStr) return { indicator: '🟢', label: 'Довгострокова можливість' }
     
@@ -309,9 +299,6 @@ export default function DashboardPage() {
 
         <FollowUpAlerts savedItems={savedItemsForAlerts} />
 
-        {/* --- ОСНОВНА НАВІГАЦІЯ --- */}
-
-        {/* 1. Можливості / Розвиток кар'єри */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#38bdf8' }}>
             🧭 Можливості — Розвиток кар'єри
@@ -335,7 +322,6 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* 2. Можливості для продажу / Знайти шлях до покупця */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#34d399' }}>
             💰 Можливості для продажу — Знайти шлях до покупця
@@ -359,7 +345,6 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* 3. ТОП-3 Рекомендації на сьогодні */}
         <div style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden' }}>
           <button
             onClick={() => setIsTop3Open(!isTop3Open)}
@@ -410,13 +395,11 @@ export default function DashboardPage() {
                       key={opp.id} 
                       style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}
                     >
-                      {/* Рядок статусу дедлайну */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: 6, fontSize: '12px', color: '#cbd5e1' }}>
                         <span>{deadlineInfo.indicator}</span>
                         <span>{deadlineInfo.label}</span>
                       </div>
 
-                      {/* Рядок відсотка відповідності з поясненням */}
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                         <span style={{ fontSize: '12px', fontWeight: 600, color: '#38bdf8' }}>
                           Match: {opp.matchScore}% (рівень персональної відповідності профілю)
@@ -428,7 +411,6 @@ export default function DashboardPage() {
                         {opp.description}
                       </p>
 
-                      {/* Кнопка розгортання «Чому POVODYR рекомендує це мені?» */}
                       <button
                         onClick={() => setExpandedCardId(isExpanded ? null : opp.id)}
                         style={{
@@ -452,7 +434,6 @@ export default function DashboardPage() {
                         <span>{isExpanded ? '▲' : '▼'}</span>
                       </button>
 
-                      {/* Розгорнуті деталі рекомендації */}
                       {isExpanded && (
                         <div style={{ backgroundColor: '#1e293b', borderRadius: 8, padding: '8px', marginBottom: '8px', fontSize: '11px', color: '#e2e8f0', border: '1px solid #334155' }}>
                           <p style={{ margin: '0 0 4px 0', fontWeight: 'bold', color: '#38bdf8' }}>Критерії збігу:</p>
@@ -469,7 +450,6 @@ export default function DashboardPage() {
                         </div>
                       )}
 
-                      {/* Кнопка генерації пакета документів */}
                       <button
                         onClick={() => handleGenerateProposal(opp)}
                         disabled={generatingProposalId === opp.id}
@@ -490,7 +470,6 @@ export default function DashboardPage() {
                         {generatingProposalId === opp.id ? '⏳ Генерація пакету документів...' : '📄 Згенерувати пакет документів'}
                       </button>
 
-                      {/* Посилання на першоджерело */}
                       {opp.link_url && (
                         <a
                           href={opp.link_url}
@@ -521,7 +500,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* 4. Мої заявки */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#94a3b8' }}>
             📋 Мої заявки — Відстежувати результат (Coming soon)
@@ -545,7 +523,6 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* 5. Мій профіль */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#94a3b8' }}>
             👤 Мій профіль — Налаштувати POVODYR
@@ -591,7 +568,6 @@ export default function DashboardPage() {
           title="Центр можливостей (за 7 днів)"
         />
 
-        {/* Модальне вікно Комерційних можливостей */}
         {isCommercialModalOpen && (
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -657,7 +633,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Модальне вікно предпросмотру згенерованого пакету документів */}
         {proposalModalData && (
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
