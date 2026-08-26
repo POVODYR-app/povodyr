@@ -8,9 +8,32 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-const TECHNIQUES_LIST = [
-  'Акрил', 'Олійний живопис', 'Графіка', 'Імпасто', 
-  'Колаж', 'Акварель', 'Пастель', 'Цифровий живопис', 'Змішана техніка'
+const STYLES_OPTIONS = [
+  'Contemporary art', 'Contemporary painting', 'Авторський стиль Solarism / Солярісм', 
+  'Symbolism', 'Figurative / semi-abstract landscape', 'Abstract elements'
+]
+
+const TECHNIQUES_OPTIONS = [
+  'Acrylic', 'Oil', 'Mixed media', 'Gold leaf / gold potal', 'Textured painting', 'Layered painting'
+]
+
+const MATERIALS_OPTIONS = [
+  'acrylic paint', 'oil paint', 'gold potal', 'texture paste', 'canvas'
+]
+
+const THEMES_OPTIONS = [
+  'Light', 'Nature', 'Landscape', 'Dawn', 'Sunlight', 'Water', 'Trees', 
+  'Birch groves', 'Ukrainian cultural heritage', 'Ukrainian history', 'Memory', 'Hope', 'Human connection with nature'
+]
+
+const WORK_TYPES_OPTIONS = [
+  'original paintings', 'unique artworks', 'commissioned artworks', 
+  'works for interior design', 'works for hospitality spaces', 'works for corporate spaces'
+]
+
+const SPACES_OPTIONS = [
+  'приватний інтер’єр', 'готель', 'ресторан', 'офіс', 
+  'медичний простір', 'beauty-простір', 'громадський простір', 'галерея'
 ]
 
 export default function ProfilePage() {
@@ -23,34 +46,36 @@ export default function ProfilePage() {
   const [bio, setBio] = useState('')
   const [artistLevel, setArtistLevel] = useState('вільний художник')
   const [countries, setCountries] = useState<string[]>([])
-  const [techniques, setTechniques] = useState<string[]>([])
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
 
-  const [orgFeeUa, setOrgFeeUa] = useState<number | string>(0)
-  const [orgFeeEu, setOrgFeeEu] = useState<number | string>(0)
-  const [orgFeeUs, setOrgFeeUs] = useState<number | string>(0)
-
-  const [regFeeUa, setRegFeeUa] = useState<number | string>(0)
-  const [regFeeEu, setRegFeeEu] = useState<number | string>(0)
-  const [regFeeUs, setRegFeeUs] = useState<number | string>(0)
-
-  // Стан для робіт портфоліо (таблиця artist_artworks)
+  // Стан для робіт портфоліо
   const [artworks, setArtworks] = useState<any[]>([])
-  const [newArtTitle, setNewArtTitle] = useState('')
-  const [newArtTechnique, setNewArtTechnique] = useState('Акрил')
-  const [newArtFormat, setNewArtFormat] = useState('')
+  
+  // Поля нової картини
+  const [newTitle, setNewTitle] = useState('')
+  const [newImageUrl, setNewImageUrl] = useState('')
+  const [newFormatSize, setNewFormatSize] = useState('')
+  const [newMinSize, setNewMinSize] = useState('30 × 40 см')
+  const [newMaxSize, setNewMaxSize] = useState('')
+  const [newSizeCategory, setNewSizeCategory] = useState('medium')
+  const [newLargeFormat, setNewLargeFormat] = useState(false)
+  
+  const [newStyles, setNewStyles] = useState<string[]>([])
+  const [newTechniques, setNewTechniques] = useState<string[]>([])
+  const [newMaterials, setNewMaterials] = useState<string[]>([])
+  const [newThemes, setNewThemes] = useState<string[]>([])
+  const [newWorkTypes, setNewWorkTypes] = useState<string[]>([])
+  const [newSpaces, setNewSpaces] = useState<string[]>([])
 
   useEffect(() => {
-    async function loadProfileAndArtworks() {
+    async function loadData() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         router.push('/login')
         return
       }
-
       setUserId(user.id)
 
-      // Завантаження профілю
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
@@ -67,36 +92,11 @@ export default function ProfilePage() {
         if (Array.isArray(profile.search_countries)) {
           parsedCountries = profile.search_countries
         } else if (typeof profile.search_countries === 'string') {
-          try {
-            parsedCountries = JSON.parse(profile.search_countries)
-          } catch {
-            parsedCountries = profile.search_countries.split(',').map((s: string) => s.trim())
-          }
+          try { parsedCountries = JSON.parse(profile.search_countries) } catch { parsedCountries = profile.search_countries.split(',').map((s: string) => s.trim()) }
         }
         setCountries(parsedCountries)
-
-        let parsedTechniques: string[] = []
-        if (Array.isArray(profile.techniques)) {
-          parsedTechniques = profile.techniques
-        } else if (typeof profile.techniques === 'string') {
-          try {
-            parsedTechniques = JSON.parse(profile.techniques)
-          } catch {
-            parsedTechniques = profile.techniques.split(',').map((s: string) => s.trim())
-          }
-        }
-        setTechniques(parsedTechniques)
-
-        setOrgFeeUa(profile.org_fee_ua ?? 0)
-        setOrgFeeEu(profile.org_fee_eu ?? 0)
-        setOrgFeeUs(profile.org_fee_us ?? 0)
-
-        setRegFeeUa(profile.reg_fee_ua ?? 0)
-        setRegFeeEu(profile.reg_fee_eu ?? 0)
-        setRegFeeUs(profile.reg_fee_us ?? 0)
       }
 
-      // Завантаження робіт митця з таблиці artist_artworks
       const { data: works } = await supabase
         .from('artist_artworks')
         .select('*')
@@ -109,45 +109,59 @@ export default function ProfilePage() {
       setLoading(false)
     }
 
-    loadProfileAndArtworks()
+    loadData()
   }, [router])
 
+  const handleToggle = (list: string[], setList: (val: string[]) => void, item: string) => {
+    setList(list.includes(item) ? list.filter(i => i !== item) : [...list, item])
+  }
+
   const handleCountryToggle = (country: string) => {
-    setCountries(prev => 
-      prev.includes(country) ? prev.filter(c => c !== country) : [...prev, country]
-    )
+    setCountries(prev => prev.includes(country) ? prev.filter(c => c !== country) : [...prev, country])
   }
 
-  const handleTechniqueToggle = (tech: string) => {
-    setTechniques(prev => 
-      prev.includes(tech) ? prev.filter(t => t !== tech) : [...prev, tech]
-    )
-  }
-
-  // Додавання нової картини в artist_artworks
   const handleAddArtwork = async () => {
-    if (!newArtTitle.trim() || !userId) return
+    if (!newTitle.trim() || !userId) return
+
+    const newArtData = {
+      user_id: userId,
+      title: newTitle.trim(),
+      image_url: newImageUrl.trim(),
+      format_size: newFormatSize.trim() || 'Стандартний формат',
+      min_size: newMinSize,
+      max_size: newMaxSize.trim() || null,
+      size_category: newSizeCategory,
+      large_format_possible: newLargeFormat,
+      styles: newStyles,
+      techniques_list: newTechniques,
+      materials: newMaterials,
+      themes: newThemes,
+      work_types: newWorkTypes,
+      suitable_spaces: newSpaces
+    }
 
     const { data, error } = await supabase
       .from('artist_artworks')
-      .insert({
-        user_id: userId,
-        title: newArtTitle.trim(),
-        technique: newArtTechnique,
-        format_size: newArtFormat.trim() || 'Стандартний формат'
-      })
+      .insert(newArtData)
       .select()
 
     if (!error && data) {
       setArtworks([...artworks, data[0]])
-      setNewArtTitle('')
-      setNewArtFormat('')
+      setNewTitle('')
+      setNewImageUrl('')
+      setNewFormatSize('')
+      setNewMaxSize('')
+      setNewStyles([])
+      setNewTechniques([])
+      setNewMaterials([])
+      setNewThemes([])
+      setNewWorkTypes([])
+      setNewSpaces([])
     } else {
       alert('Помилка додавання твору: ' + error?.message)
     }
   }
 
-  // Видалення твору
   const handleDeleteArtwork = async (artId: string) => {
     const { error } = await supabase
       .from('artist_artworks')
@@ -161,7 +175,7 @@ export default function ProfilePage() {
     }
   }
 
-  const handleSave = async () => {
+  const handleSaveProfile = async () => {
     if (!userId) return
     setSaving(true)
 
@@ -171,20 +185,13 @@ export default function ProfilePage() {
       bio: bio,
       artist_level: artistLevel,
       search_countries: countries,
-      techniques: techniques,
       notifications_enabled: notificationsEnabled,
-      org_fee_ua: Number(orgFeeUa) || 0,
-      org_fee_eu: Number(orgFeeEu) || 0,
-      org_fee_us: Number(orgFeeUs) || 0,
-      reg_fee_ua: Number(regFeeUa) || 0,
-      reg_fee_eu: Number(regFeeEu) || 0,
-      reg_fee_us: Number(regFeeUs) || 0,
       updated_at: new Date().toISOString(),
     }
 
     const { error } = await supabase.from('profiles').upsert(updates)
-
     setSaving(false)
+
     if (!error) {
       window.location.href = '/dashboard'
     } else {
@@ -195,16 +202,17 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', color: '#ffffff', padding: 20 }}>
-        Завантаження профілю та портфоліо...
+        Завантаження розширеного профілю...
       </div>
     )
   }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', padding: '24px 16px', color: '#ffffff', fontFamily: 'sans-serif' }}>
-      <div style={{ maxWidth: 600, margin: '0 auto' }}>
+      <div style={{ maxWidth: 700, margin: '0 auto' }}>
+        
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#ffffff' }}>Мій профіль та портфоліо</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#ffffff' }}>Комерційний профіль POVODYR</h1>
           <button 
             onClick={() => { window.location.href = '/dashboard' }}
             style={{ backgroundColor: '#334155', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
@@ -213,172 +221,258 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           
-          {/* Повне ім'я */}
-          <div>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: '#ffffff' }}>
-              Повне ім'я *
-            </label>
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#1e293b', color: '#ffffff', outline: 'none' }}
-            />
-          </div>
-
-          {/* Біографія / CV митця */}
-          <div>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: '#ffffff' }}>
-              Біографія та опис стилю (CV / Bio)
-            </label>
-            <textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              rows={5}
-              placeholder="Опишіть ваш творчий шлях, стиль та концепцію (напр. авторський стиль солярісм...)"
-              style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#1e293b', color: '#ffffff', outline: 'none', resize: 'vertical', fontFamily: 'sans-serif' }}
-            />
-          </div>
-
-          {/* БЛОК ПОРТФОЛІО (artist_artworks) */}
+          {/* Загальна інформація */}
           <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#ffffff' }}>
-              🎨 Портфоліо робіт для комерційного підбору
-            </h3>
-            <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>
-              Додайте картини, які система пропонуватиме під час генерації пропозицій для готелів, дизайнерів та колекціонерів.
-            </p>
-
-            {/* Список існуючих робіт */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 200, overflowY: 'auto' }}>
-              {artworks.length === 0 ? (
-                <div style={{ fontSize: 13, color: '#94a3b8', fontStyle: 'italic', padding: 8 }}>
-                  У вашому портфоліо поки немає доданих робіт.
-                </div>
-              ) : (
-                artworks.map((art) => (
-                  <div key={art.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '10px 12px', borderRadius: 8 }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: '#ffffff' }}>«{art.title}»</div>
-                      <div style={{ fontSize: 12, color: '#94a3b8' }}>{art.technique} • {art.format_size}</div>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteArtwork(art.id)}
-                      style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: 'none', padding: '6px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
-                    >
-                      Видалити
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Форма додавання нової роботи */}
-            <div style={{ borderTop: '1px solid #334155', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#cbd5e1' }}>Додати новий твір:</span>
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#ffffff' }}>👤 Загальна інформація</h3>
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Повне ім'я *</label>
               <input
                 type="text"
-                placeholder="Назва картини (напр. Березова Катедрала)"
-                value={newArtTitle}
-                onChange={(e) => setNewArtTitle(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', fontSize: 13 }}
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
               />
-              <div style={{ display: 'flex', gap: 8 }}>
-                <select
-                  value={newArtTechnique}
-                  onChange={(e) => setNewArtTechnique(e.target.value)}
-                  style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', fontSize: 13 }}
-                >
-                  {TECHNIQUES_LIST.map(t => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Біографія та концепція (CV / Bio)</label>
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                rows={4}
+                style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', resize: 'vertical' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Рівень митця *</label>
+              <select
+                value={artistLevel}
+                onChange={(e) => setArtistLevel(e.target.value)}
+                style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
+              >
+                <option value="вільний художник">вільний художник</option>
+                <option value="початківець">початківець</option>
+                <option value="професіонал">професіонал</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Країни пошуку можливостей</label>
+              <div style={{ display: 'flex', gap: 16 }}>
+                {['Україна', 'ЄС', 'США'].map((c) => (
+                  <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={countries.includes(c)}
+                      onChange={() => handleCountryToggle(c)}
+                    />
+                    <span style={{ fontSize: 13 }}>{c}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* РОЗШИРЕНЕ ПОРТФОЛІО */}
+          <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#ffffff' }}>🎨 Розширене портфоліо робіт</h3>
+            <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>
+              Кожна робота містить клікабельне посилання на фото, формати та контекст для точного матчингу POVODYR з комерційними запитами.
+            </p>
+
+            {/* Список робіт */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {artworks.map((art) => (
+                <div key={art.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', backgroundColor: '#0f172a', padding: 12, borderRadius: 8, border: '1px solid #334155' }}>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    {art.image_url ? (
+                      <a href={art.image_url} target="_blank" rel="noopener noreferrer">
+                        <img src={art.image_url} alt={art.title} style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 6, border: '1px solid #3b82f6' }} />
+                      </a>
+                    ) : (
+                      <div style={{ width: 50, height: 50, backgroundColor: '#334155', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#94a3b8' }}>нема фото</div>
+                    )}
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>
+                        {art.image_url ? (
+                          <a href={art.image_url} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'underline' }}>
+                            «{art.title}» ↗
+                          </a>
+                        ) : `«${art.title}»`}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>Формат: {art.format_size} | Категорія: {art.size_category}</div>
+                      {art.suitable_spaces && art.suitable_spaces.length > 0 && (
+                        <div style={{ fontSize: 11, color: '#34d399', marginTop: 2 }}>Простори: {art.suitable_spaces.join(', ')}</div>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteArtwork(art.id)}
+                    style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: 'none', padding: '6px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                  >
+                    Видалити
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Форма додавання картини */}
+            <div style={{ borderTop: '1px solid #334155', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#38bdf8' }}>+ Додати новий твір у портфоліо</span>
+              
+              <div style={{ display: 'flex', gap: 10 }}>
                 <input
                   type="text"
-                  placeholder="Формат (напр. 80х100 см)"
-                  value={newArtFormat}
-                  onChange={(e) => setNewArtFormat(e.target.value)}
-                  style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', fontSize: 13 }}
+                  placeholder="Назва картини (напр. Сновидіння)"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  style={{ flex: 2, padding: '10px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', fontSize: 13 }}
+                />
+                <input
+                  type="url"
+                  placeholder="Клікабельне посилання на фото (URL)"
+                  value={newImageUrl}
+                  onChange={(e) => setNewImageUrl(e.target.value)}
+                  style={{ flex: 3, padding: '10px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', fontSize: 13 }}
                 />
               </div>
+
+              {/* Розміри та формат */}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <input
+                  type="text"
+                  placeholder="Основний формат (напр. 80х100 см)"
+                  value={newFormatSize}
+                  onChange={(e) => setNewFormatSize(e.target.value)}
+                  style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', fontSize: 13 }}
+                />
+                <input
+                  type="text"
+                  placeholder="Макс. формат (напр. 150х200 см)"
+                  value={newMaxSize}
+                  onChange={(e) => setNewMaxSize(e.target.value)}
+                  style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', fontSize: 13 }}
+                />
+                <select
+                  value={newSizeCategory}
+                  onChange={(e) => setNewSizeCategory(e.target.value)}
+                  style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', fontSize: 13 }}
+                >
+                  <option value="small">small (малий)</option>
+                  <option value="medium">medium (середній)</option>
+                  <option value="large">large (великий)</option>
+                  <option value="oversized">oversized (надвеликий)</option>
+                </select>
+              </div>
+
+              <div style={{ fontSize: 12, color: '#94a3b8' }}>Мінімальний формат за замовчуванням: 30 × 40 см</div>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                <input type="checkbox" checked={newLargeFormat} onChange={(e) => setNewLargeFormat(e.target.checked)} />
+                Можливе виконання великих форматів (на замовлення)
+              </label>
+
+              {/* Стилі твору */}
+              <div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 4 }}>Стиль / напрям:</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {STYLES_OPTIONS.map(st => (
+                    <label key={st} style={{ display: 'flex', alignItems: 'center', gap: 4, backgroundColor: '#0f172a', padding: '4px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid #334155' }}>
+                      <input type="checkbox" checked={newStyles.includes(st)} onChange={() => handleToggle(newStyles, setNewStyles, st)} />
+                      {st}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Основні техніки */}
+              <div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 4 }}>Основні техніки:</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {TECHNIQUES_OPTIONS.map(tech => (
+                    <label key={tech} style={{ display: 'flex', alignItems: 'center', gap: 4, backgroundColor: '#0f172a', padding: '4px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid #334155' }}>
+                      <input type="checkbox" checked={newTechniques.includes(tech)} onChange={() => handleToggle(newTechniques, setNewTechniques, tech)} />
+                      {tech}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Матеріали */}
+              <div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 4 }}>Матеріали:</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {MATERIALS_OPTIONS.map(mat => (
+                    <label key={mat} style={{ display: 'flex', alignItems: 'center', gap: 4, backgroundColor: '#0f172a', padding: '4px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid #334155' }}>
+                      <input type="checkbox" checked={newMaterials.includes(mat)} onChange={() => handleToggle(newMaterials, setNewMaterials, mat)} />
+                      {mat}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Основні теми */}
+              <div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 4 }}>Основні теми:</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {THEMES_OPTIONS.map(th => (
+                    <label key={th} style={{ display: 'flex', alignItems: 'center', gap: 4, backgroundColor: '#0f172a', padding: '4px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid #334155' }}>
+                      <input type="checkbox" checked={newThemes.includes(th)} onChange={() => handleToggle(newThemes, setNewThemes, th)} />
+                      {th}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Типи робіт */}
+              <div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 4 }}>Типи робіт:</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {WORK_TYPES_OPTIONS.map(wt => (
+                    <label key={wt} style={{ display: 'flex', alignItems: 'center', gap: 4, backgroundColor: '#0f172a', padding: '4px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid #334155' }}>
+                      <input type="checkbox" checked={newWorkTypes.includes(wt)} onChange={() => handleToggle(newWorkTypes, setNewWorkTypes, wt)} />
+                      {wt}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Комерційні простори */}
+              <div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#34d399', display: 'block', marginBottom: 4 }}>Для яких комерційних просторів підходить ця робота?</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {SPACES_OPTIONS.map(space => (
+                    <label key={space} style={{ display: 'flex', alignItems: 'center', gap: 4, backgroundColor: '#0f172a', padding: '4px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid #059669' }}>
+                      <input type="checkbox" checked={newSpaces.includes(space)} onChange={() => handleToggle(newSpaces, setNewSpaces, space)} />
+                      {space}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <button
                 onClick={handleAddArtwork}
-                style={{ backgroundColor: '#2563eb', color: '#ffffff', border: 'none', padding: '10px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer', marginTop: 4 }}
+                style={{ backgroundColor: '#2563eb', color: '#ffffff', border: 'none', padding: '12px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: 'pointer', marginTop: 8 }}
               >
-                + Додати роботу в портфоліо
+                + Зберегти роботу з повним комерційним контекстом
               </button>
             </div>
           </div>
 
-          {/* Рівень митця */}
-          <div>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: '#ffffff' }}>
-              Рівень митця *
+          {/* Сповіщення та збереження */}
+          <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={notificationsEnabled}
+                onChange={(e) => setNotificationsEnabled(e.target.checked)}
+              />
+              <span style={{ fontSize: 14 }}>Отримувати щоденні сповіщення від POVODYR</span>
             </label>
-            <select
-              value={artistLevel}
-              onChange={(e) => setArtistLevel(e.target.value)}
-              style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#1e293b', color: '#ffffff', outline: 'none' }}
-            >
-              <option value="вільний художник" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>вільний художник</option>
-              <option value="початківець" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>початківець</option>
-              <option value="професіонал" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>професіонал</option>
-            </select>
           </div>
 
-          {/* Країни пошуку */}
-          <div>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#ffffff' }}>
-              Країни пошуку можливостей
-            </label>
-            <div style={{ display: 'flex', gap: 16 }}>
-              {['Україна', 'ЄС', 'США'].map((c) => (
-                <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={countries.includes(c)}
-                    onChange={() => handleCountryToggle(c)}
-                  />
-                  <span style={{ color: '#ffffff', fontSize: 14 }}>{c}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Техніки */}
-          <div>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#ffffff' }}>
-              Техніки *
-            </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {TECHNIQUES_LIST.map((tech) => (
-                <label key={tech} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={techniques.includes(tech)}
-                    onChange={() => handleTechniqueToggle(tech)}
-                  />
-                  <span style={{ color: '#ffffff', fontSize: 13 }}>{tech}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Чекбокс сповіщень */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 6 }}>
-            <input
-              type="checkbox"
-              checked={notificationsEnabled}
-              onChange={(e) => setNotificationsEnabled(e.target.checked)}
-            />
-            <span style={{ color: '#ffffff', fontSize: 14 }}>Отримувати щоденні сповіщення від POVODYR</span>
-          </label>
-
-          {/* Кнопка збереження */}
           <button
-            onClick={handleSave}
+            onClick={handleSaveProfile}
             disabled={saving}
             style={{
               backgroundColor: '#3b82f6',
@@ -388,12 +482,12 @@ export default function ProfilePage() {
               borderRadius: 12,
               border: 'none',
               fontSize: 16,
-              cursor: 'pointer',
-              marginTop: 10
+              cursor: 'pointer'
             }}
           >
-            {saving ? 'Збереження...' : 'Зберегти профіль та портфоліо'}
+            {saving ? 'Збереження...' : 'Зберегти зміни профілю'}
           </button>
+
         </div>
       </div>
     </div>
