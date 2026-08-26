@@ -1,5 +1,4 @@
 'use client'
-
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import TelegramConnect from '../../components/TelegramConnect'
@@ -43,17 +42,14 @@ export default function DashboardPage() {
   const [isCommercialModalOpen, setIsCommercialModalOpen] = useState(false)
   const [isMatchingWorksOpen, setIsMatchingWorksOpen] = useState(true)
   const [loading, setLoading] = useState(true)
-
   const [dailyCount, setDailyCount] = useState<number>(0)
   const [monthlyMatchedCount, setMonthlyMatchedCount] = useState<number>(0)
   const [upcomingDeadlinesCount, setUpcomingDeadlinesCount] = useState<number>(0)
   const [modalOpportunities, setModalOpportunities] = useState<any[]>([])
   const [commercialOpportunities, setCommercialOpportunities] = useState<any[]>([])
   const [savedItemsForAlerts, setSavedItemsForAlerts] = useState<any[]>([])
-
   const [recentRelevantOpps, setRecentRelevantOpps] = useState<any[]>([])
   const [hasNoRecentRelevant, setHasNoRecentRelevant] = useState(false)
-
   const [isTop3Open, setIsTop3Open] = useState(true)
   const [generatingProposalId, setGeneratingProposalId] = useState<string | null>(null)
   const [proposalModalData, setProposalModalData] = useState<{ title: string; text: string; contactPerson?: string; organization?: string } | null>(null)
@@ -61,10 +57,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let isMounted = true
-
     const loadDashboardData = async () => {
       setLoading(true)
-
       const { data: { user } } = await supabase.auth.getUser()
       if (!user || !isMounted) {
         setLoading(false)
@@ -92,7 +86,6 @@ export default function DashboardPage() {
         .maybeSingle()
 
       if (!isMounted) return
-
       if (profile?.full_name) setUserName(profile.full_name)
       setUserObj({
         id: user.id,
@@ -121,13 +114,17 @@ export default function DashboardPage() {
         }
       }
 
+      // Коректива 2: фільтруємо лише реально подані/відправлені заявки (status або позначані як відправлені)
       const { data: savedOpps } = await supabase
         .from('saved_opportunities')
         .select('*, opportunity:opportunities(*)')
         .eq('user_id', user.id)
 
       if (savedOpps && isMounted) {
-        setSavedItemsForAlerts(savedOpps)
+        const submittedOnly = savedOpps.filter((item: any) => 
+          item.status === 'submitted' || item.status === 'applied' || item.is_submitted === true || item.applied === true
+        )
+        setSavedItemsForAlerts(submittedOnly)
       }
 
       // Завантаження комерційних можливостей із таблиці commercial_opportunities
@@ -176,7 +173,7 @@ export default function DashboardPage() {
           setDailyCount(json.daily_count || 0)
           setMonthlyMatchedCount(json.monthly_matched_count || 0)
           setUpcomingDeadlinesCount(json.upcoming_deadlines_count || 0)
-          
+
           const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
           const { data: opps } = await supabase
             .from('opportunities')
@@ -199,9 +196,7 @@ export default function DashboardPage() {
                 themes: Array.isArray(opp.themes) ? opp.themes : [],
                 required_level: opp.required_level || undefined,
               }
-
               const match = calculateMatch(artistProfileData, mappedOpp)
-
               return {
                 id: opp.id,
                 title: opp.title,
@@ -214,10 +209,10 @@ export default function DashboardPage() {
                 recommendedAction: match.recommendedAction,
               }
             })
-
             formattedOpps.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
             setModalOpportunities(formattedOpps)
 
+            // Коректива 3: суворо обмежуємо видачу можливостями, створеними не пізніше ніж 7 днів тому
             const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).getTime()
             const recentRelevant = formattedOpps.filter(o => {
               const isRecent = new Date(o.created_at).getTime() >= sevenDaysAgo
@@ -249,7 +244,6 @@ export default function DashboardPage() {
 
   const handleGenerateProposal = async (opp: any) => {
     setGeneratingProposalId(opp.id)
-
     try {
       const res = await fetch('/api/generate-application', {
         method: 'POST',
@@ -261,20 +255,16 @@ export default function DashboardPage() {
           matchReasons: opp.matchReasons,
         }),
       })
-
       const data = await res.json()
-
       if (!res.ok || !data.success) {
         throw new Error(data.error || `Помилка сервера: ${res.status}`)
       }
-
       setProposalModalData({
         title: `Пакет документів / пропозиція для: ${opp.title}`,
         text: data.text,
         contactPerson: opp.contact_person,
         organization: opp.organization
       })
-
     } catch (err: any) {
       console.error('Помилка генерації:', err)
       alert(`Не вдалося згенерувати: ${err.message || 'Невідома помилка'}`)
@@ -289,7 +279,6 @@ export default function DashboardPage() {
     const deadlineDate = new Date(deadlineStr)
     const today = new Date()
     const diffDays = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-
     if (diffDays <= 7 && diffDays >= 0) {
       return { indicator: '🔴', label: `Дедлайн через ${diffDays} дн. (до 7 днів)` }
     } else if (diffDays > 7 && diffDays <= 30) {
@@ -298,6 +287,20 @@ export default function DashboardPage() {
       return { indicator: '⚪', label: 'Термін подачі вийшов' }
     } else {
       return { indicator: '🟢', label: `Дедлайн через ${diffDays} дн. (довгострокова)` }
+    }
+  }
+
+  // Допоміжна функція для підбору конкретних картин під запит (Коректива 1)
+  const getSpecificArtworksForQuery = (queryTitle: string) => {
+    const lower = queryTitle.toLowerCase()
+    if (lower.includes('інтерєр') || lower.includes('ресторан') || lower.includes('готель') || lower.includes('офіс')) {
+      return 'Картини: «Лагуна спокою», «Погляд у Вись» (Серія «Сакральні сади», мультишаровий акриловий живопис, золота поталь).'
+    } else if (lower.includes('квіт') || lower.includes('ботанік') || lower.includes('весна')) {
+      return 'Картини: «Ранкове марево», «Сновидіння» (Серія «Квіткова спадщина», олія на полотні, мастихінова техніка).'
+    } else if (lower.includes('істор') || lower.includes('національн') || lower.includes('традиц') || lower.includes('гетьман')) {
+      return 'Картини: «Код Мазепи», «Березова Катедрала» (Серія «Код Мазепи», солярісм, акрилові текстури).'
+    } else {
+      return 'Картини: «Синхронізація», «Перша скрипка» (Серія «Квіткова спадщина», техніка солярісм, сусальне золото).'
     }
   }
 
@@ -339,7 +342,6 @@ export default function DashboardPage() {
         </div>
 
         {userObj && <TelegramConnect user={userObj} />}
-
         <FollowUpAlerts savedItems={savedItemsForAlerts} />
 
         <div style={{ marginBottom: 20 }}>
@@ -409,7 +411,6 @@ export default function DashboardPage() {
             <span>✨ Сьогодні POVODYR знайшов для вас (Топ-3 найкращі)</span>
             <span style={{ fontSize: '14px', color: '#38bdf8' }}>{isTop3Open ? '▲ Згорнути' : '▼ Розгорнути'}</span>
           </button>
-
           {isTop3Open && (
             <div style={{ padding: '0 16px 16px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {loading ? (
@@ -432,7 +433,6 @@ export default function DashboardPage() {
                 recentRelevantOpps.slice(0, 3).map((opp) => {
                   const deadlineInfo = getDeadlineDetails(opp.deadline)
                   const isExpanded = expandedCardId === opp.id
-
                   return (
                     <div 
                       key={opp.id} 
@@ -442,18 +442,15 @@ export default function DashboardPage() {
                         <span>{deadlineInfo.indicator}</span>
                         <span>{deadlineInfo.label}</span>
                       </div>
-
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                         <span style={{ fontSize: '12px', fontWeight: 600, color: '#38bdf8' }}>
                           Match: {opp.matchScore}%
                         </span>
                       </div>
-
                       <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', fontWeight: 600, color: '#fff' }}>{opp.title}</h4>
                       <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#94a3b8', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         {opp.description}
                       </p>
-
                       <button
                         onClick={() => setExpandedCardId(isExpanded ? null : opp.id)}
                         style={{
@@ -476,7 +473,6 @@ export default function DashboardPage() {
                         <span>Чому POVODYR рекомендує це мені?</span>
                         <span>{isExpanded ? '▲' : '▼'}</span>
                       </button>
-
                       {isExpanded && (
                         <div style={{ backgroundColor: '#1e293b', borderRadius: 8, padding: '8px', marginBottom: '8px', fontSize: '11px', color: '#e2e8f0', border: '1px solid #334155' }}>
                           <p style={{ margin: '0 0 4px 0', fontWeight: 'bold', color: '#38bdf8' }}>Критерії збігу:</p>
@@ -492,7 +488,6 @@ export default function DashboardPage() {
                           )}
                         </div>
                       )}
-
                       <button
                         onClick={() => handleGenerateProposal(opp)}
                         disabled={generatingProposalId === opp.id}
@@ -512,7 +507,6 @@ export default function DashboardPage() {
                       >
                         {generatingProposalId === opp.id ? '⏳ Генерація пакету документів...' : '📄 Згенерувати пакет документів'}
                       </button>
-
                       {opp.link_url && (
                         <a
                           href={opp.link_url}
@@ -543,6 +537,7 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* Коректива 1: Добір конкретних картин (назва та серія) під актуальні комерційні запити */}
         <div style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden' }}>
           <button
             onClick={() => setIsMatchingWorksOpen(!isMatchingWorksOpen)}
@@ -564,31 +559,30 @@ export default function DashboardPage() {
             <span>🎨 Добір робіт під актуальні запити</span>
             <span style={{ fontSize: '14px', color: '#38bdf8' }}>{isMatchingWorksOpen ? '▲ Згорнути' : '▼ Розгорнути'}</span>
           </button>
-
           {isMatchingWorksOpen && (
             <div style={{ padding: '0 16px 16px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0, lineHeight: 1.4 }}>
-                Підбір найкращих творів із ваших серій під поточні вимоги галерей, open calls та колекціонерів.
+                Конкретні картини та серії з вашого каталогу, які найкраще підходять під параметри знайдених запитів.
               </p>
               {loading ? (
                 <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12, textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
                   Аналіз творчої практики...
                 </div>
-              ) : recentRelevantOpps.length === 0 ? (
+              ) : commercialOpportunities.length === 0 && recentRelevantOpps.length === 0 ? (
                 <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12, textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
                   Немає активних запитів для підбору робіт.
                 </div>
               ) : (
-                recentRelevantOpps.slice(0, 2).map((opp) => (
-                  <div key={`match-work-${opp.id}`} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}>
+                (commercialOpportunities.length > 0 ? commercialOpportunities : recentRelevantOpps).slice(0, 2).map((reqItem) => (
+                  <div key={`match-work-${reqItem.id}`} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}>
                     <div style={{ fontSize: '11px', color: '#38bdf8', marginBottom: 4, fontWeight: 600 }}>
-                      Запит: {opp.title}
+                      Запит: {reqItem.title}
                     </div>
                     <div style={{ fontSize: '11px', color: '#e2e8f0', marginBottom: 8, backgroundColor: '#1e293b', padding: 8, borderRadius: 8 }}>
-                      <span style={{ color: '#34d399', fontWeight: 600 }}>Рекомендовані серії/твори:</span> Серія «Квіткова спадщина», картини у техніці мультишарового акрилу та золота.
+                      <span style={{ color: '#34d399', fontWeight: 600 }}>Рекомендовані твори:</span> {getSpecificArtworksForQuery(reqItem.title)}
                     </div>
                     <button
-                      onClick={() => handleGenerateProposal(opp)}
+                      onClick={() => handleGenerateProposal(reqItem)}
                       style={{
                         width: '100%',
                         backgroundColor: '#059669',
@@ -701,11 +695,9 @@ export default function DashboardPage() {
                   ✕
                 </button>
               </div>
-
               <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: 16 }}>
                 Запити від інтер'єрних студій, готелів, галерей та приватних колекціонерів на придбання та розміщення картин.
               </p>
-
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {commercialOpportunities.length === 0 ? (
                   <p style={{ textAlign: 'center', color: '#94a3b8', padding: '20px 0' }}>Наразі немає активних комерційних запитів.</p>
@@ -724,7 +716,7 @@ export default function DashboardPage() {
                           <strong>Вимоги:</strong> {comm.what_is_needed}
                         </p>
                       )}
-
+                      
                       {/* Блок Контактів замовника */}
                       <div style={{ backgroundColor: '#1e293b', borderRadius: 8, padding: '8px', marginBottom: '10px', fontSize: '11px', border: '1px solid #334155' }}>
                         <div style={{ color: '#f8fafc', fontWeight: 600, marginBottom: 2 }}>🏢 Замовник: {comm.organization}</div>
@@ -758,100 +750,98 @@ export default function DashboardPage() {
         )}
 
         {proposalModalData && (
-  <div style={{
-    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    zIndex: 1000, padding: 16
-  }}>
-    <div style={{
-      backgroundColor: '#1e293b', border: '1px solid #334155',
-      borderRadius: 16, padding: 20, width: '100%', maxWidth: 440,
-      maxHeight: '85dvh', overflowY: 'auto', color: '#fff'
-    }}>
-      <h3 style={{ margin: '0 0 8px 0', fontSize: 16, color: '#38bdf8' }}>{proposalModalData.title}</h3>
-      
-      {proposalModalData.organization && (
-        <div style={{ backgroundColor: '#0f172a', padding: 8, borderRadius: 8, marginBottom: 10, fontSize: '12px', border: '1px solid #334155' }}>
-          <div style={{ color: '#34d399', fontWeight: 600 }}>Замовник: {proposalModalData.organization}</div>
-          <div style={{ color: '#cbd5e1' }}>Контактна особа: {proposalModalData.contactPerson}</div>
-        </div>
-      )}
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: 16
+          }}>
+            <div style={{
+              backgroundColor: '#1e293b', border: '1px solid #334155',
+              borderRadius: 16, padding: 20, width: '100%', maxWidth: 440,
+              maxHeight: '85dvh', overflowY: 'auto', color: '#fff'
+            }}>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: 16, color: '#38bdf8' }}>{proposalModalData.title}</h3>
+              
+              {proposalModalData.organization && (
+                <div style={{ backgroundColor: '#0f172a', padding: 8, borderRadius: 8, marginBottom: 10, fontSize: '12px', border: '1px solid #334155' }}>
+                  <div style={{ color: '#34d399', fontWeight: 600 }}>Замовник: {proposalModalData.organization}</div>
+                  <div style={{ color: '#cbd5e1' }}>Контактна особа: {proposalModalData.contactPerson}</div>
+                </div>
+              )}
 
-      {/* Текстове поле тепер доступне для редагування */}
-      <textarea
-        value={proposalModalData.text}
-        onChange={(e) => setProposalModalData({ ...proposalModalData, text: e.target.value })}
-        style={{
-          width: '100%', height: 160, backgroundColor: '#0f172a',
-          color: '#e2e8f0', border: '1px solid #334155', borderRadius: 8,
-          padding: 10, fontSize: '13px', resize: 'none', boxSizing: 'border-box',
-          marginBottom: 12, outline: 'none'
-        }}
-      />
-      
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(proposalModalData.text)
-            alert('Текст скопійовано до буферу обміну!')
-          }}
-          style={{ 
-            backgroundColor: '#334155', color: '#fff', border: '1px solid #475569', 
-            borderRadius: 8, padding: '10px 8px', fontSize: '12px', fontWeight: 600, 
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' 
-          }}
-        >
-          <span>📋</span> Копіювати текст
-        </button>
+              <textarea
+                value={proposalModalData.text}
+                onChange={(e) => setProposalModalData({ ...proposalModalData, text: e.target.value })}
+                style={{
+                  width: '100%', height: 160, backgroundColor: '#0f172a',
+                  color: '#e2e8f0', border: '1px solid #334155', borderRadius: 8,
+                  padding: 10, fontSize: '13px', resize: 'none', boxSizing: 'border-box',
+                  marginBottom: 12, outline: 'none'
+                }}
+              />
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(proposalModalData.text)
+                    alert('Текст скопійовано до буферу обміну!')
+                  }}
+                  style={{ 
+                    backgroundColor: '#334155', color: '#fff', border: '1px solid #475569', 
+                    borderRadius: 8, padding: '10px 8px', fontSize: '12px', fontWeight: 600, 
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' 
+                  }}
+                >
+                  <span>📋</span> Копіювати текст
+                </button>
+                <button
+                  onClick={() => {
+                    const blob = new Blob([proposalModalData.text], { type: 'text/plain;charset=utf-8' })
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = 'proposal.txt'
+                    a.click()
+                    URL.revokeObjectURL(url)
+                  }}
+                  style={{ 
+                    backgroundColor: '#334155', color: '#fff', border: '1px solid #475569', 
+                    borderRadius: 8, padding: '10px 8px', fontSize: '12px', fontWeight: 600, 
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' 
+                  }}
+                >
+                  <span>💾</span> Завантажити (.txt)
+                </button>
+              </div>
 
-        <button
-          onClick={() => {
-            const blob = new Blob([proposalModalData.text], { type: 'text/plain;charset=utf-8' })
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = 'proposal.txt'
-            a.click()
-            URL.revokeObjectURL(url)
-          }}
-          style={{ 
-            backgroundColor: '#334155', color: '#fff', border: '1px solid #475569', 
-            borderRadius: 8, padding: '10px 8px', fontSize: '12px', fontWeight: 600, 
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' 
-          }}
-        >
-          <span>💾</span> Завантажити (.txt)
-        </button>
-      </div>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                <a
+                  href={`mailto:art.fine.nation@gmail.com?subject=${encodeURIComponent(proposalModalData.title)}&body=${encodeURIComponent(proposalModalData.text)}`}
+                  style={{ 
+                    flex: 1, backgroundColor: '#059669', color: '#fff', textDecoration: 'none',
+                    borderRadius: 8, padding: '10px', fontSize: '12px', fontWeight: 600, 
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <span>✉️</span> Написати замовнику (Email)
+                </a>
+              </div>
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-        <a
-          href={`mailto:art.fine.nation@gmail.com?subject=${encodeURIComponent(proposalModalData.title)}&body=${encodeURIComponent(proposalModalData.text)}`}
-          style={{ 
-            flex: 1, backgroundColor: '#059669', color: '#fff', textDecoration: 'none',
-            borderRadius: 8, padding: '10px', fontSize: '12px', fontWeight: 600, 
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-            boxSizing: 'border-box'
-          }}
-        >
-          <span>✉️</span> Написати замовнику (Email)
-        </a>
-      </div>
-
-      <button
-        onClick={() => setProposalModalData(null)}
-        style={{
-          width: '100%', backgroundColor: '#1e293b', color: '#94a3b8',
-          border: '1px solid #334155', borderRadius: 8, padding: '8px',
-          fontSize: '12px', fontWeight: 600, cursor: 'pointer'
-        }}
-      >
-        Закрити вікно
-      </button>
-    </div>
-  </div>
-)}
+              <button
+                onClick={() => setProposalModalData(null)}
+                style={{
+                  width: '100%', backgroundColor: '#1e293b', color: '#94a3b8',
+                  border: '1px solid #334155', borderRadius: 8, padding: '8px',
+                  fontSize: '12px', fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                Закрити вікно
+              </button>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
