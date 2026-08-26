@@ -56,7 +56,7 @@ export default function DashboardPage() {
 
   const [isTop3Open, setIsTop3Open] = useState(true)
   const [generatingProposalId, setGeneratingProposalId] = useState<string | null>(null)
-  const [proposalModalData, setProposalModalData] = useState<{ title: string; text: string } | null>(null)
+  const [proposalModalData, setProposalModalData] = useState<{ title: string; text: string; contactPerson?: string; organization?: string } | null>(null)
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -157,11 +157,12 @@ export default function DashboardPage() {
             what_is_needed: comm.what_is_needed || '',
             budget: comm.budget,
             currency: comm.currency || 'UAH',
-            organization: comm.organization,
-            contact_person: comm.contact_person,
+            organization: comm.organization || 'Партнерський проєкт',
+            contact_person: comm.contact_person || 'Менеджер проєкту',
+            contact_method: comm.contact_method || 'art.fine.nation@gmail.com',
             created_at: comm.date_added || new Date().toISOString(),
             deadline: comm.deadline || undefined,
-            matchScore: match.score > 0 ? match.score : 85, // високий базовий матч для цільових комерційних запитів
+            matchScore: match.score > 0 ? match.score : 85,
             matchReasons: match.reasons,
           }
         })
@@ -269,7 +270,9 @@ export default function DashboardPage() {
 
       setProposalModalData({
         title: `Пакет документів / пропозиція для: ${opp.title}`,
-        text: data.text
+        text: data.text,
+        contactPerson: opp.contact_person,
+        organization: opp.organization
       })
 
     } catch (err: any) {
@@ -442,7 +445,7 @@ export default function DashboardPage() {
 
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                         <span style={{ fontSize: '12px', fontWeight: 600, color: '#38bdf8' }}>
-                          Match: {opp.matchScore}% (рівень персональної відповідності профілю)
+                          Match: {opp.matchScore}%
                         </span>
                       </div>
 
@@ -540,7 +543,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Окремий компонент: Добір робіт під актуальні запити */}
         <div style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden' }}>
           <button
             onClick={() => setIsMatchingWorksOpen(!isMatchingWorksOpen)}
@@ -609,7 +611,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Блок «Мої заявки» — активний для відстеження */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#38bdf8' }}>
             📋 Мої заявки — Відстежувати результат
@@ -678,7 +679,7 @@ export default function DashboardPage() {
           title="Центр можливостей (за 7 днів)"
         />
 
-        {/* Комерційні можливості (окреме модальне вікно для таблиці commercial_opportunities) */}
+        {/* Комерційні можливості з відображенням контактів та замовника */}
         {isCommercialModalOpen && (
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -717,11 +718,18 @@ export default function DashboardPage() {
                       </div>
                       <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 600, color: '#fff' }}>{comm.title}</h4>
                       <p style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#94a3b8', lineHeight: 1.4 }}>{comm.description}</p>
+                      
                       {comm.what_is_needed && (
-                        <p style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#34d399', lineHeight: 1.3 }}>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '11px', color: '#34d399', lineHeight: 1.3 }}>
                           <strong>Вимоги:</strong> {comm.what_is_needed}
                         </p>
                       )}
+
+                      {/* Блок Контактів замовника */}
+                      <div style={{ backgroundColor: '#1e293b', borderRadius: 8, padding: '8px', marginBottom: '10px', fontSize: '11px', border: '1px solid #334155' }}>
+                        <div style={{ color: '#f8fafc', fontWeight: 600, marginBottom: 2 }}>🏢 Замовник: {comm.organization}</div>
+                        <div style={{ color: '#cbd5e1' }}>👤 Контактна особа: {comm.contact_person}</div>
+                      </div>
                       
                       <button
                         onClick={() => handleGenerateProposal(comm)}
@@ -739,7 +747,7 @@ export default function DashboardPage() {
                           textAlign: 'center'
                         }}
                       >
-                        {generatingProposalId === comm.id ? '⏳ Генерація пропозиції...' : '✍️ Підготувати пропозицію'}
+                        {generatingProposalId === comm.id ? '⏳ Генерація пропозиції...' : '✍️ Підготувати пропозицію та контакти'}
                       </button>
                     </div>
                   ))
@@ -761,12 +769,20 @@ export default function DashboardPage() {
               borderRadius: 16, padding: 20, width: '100%', maxWidth: 440,
               maxHeight: '85dvh', overflowY: 'auto', color: '#fff'
             }}>
-              <h3 style={{ margin: '0 0 12px 0', fontSize: 16, color: '#38bdf8' }}>{proposalModalData.title}</h3>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: 16, color: '#38bdf8' }}>{proposalModalData.title}</h3>
+              
+              {proposalModalData.organization && (
+                <div style={{ backgroundColor: '#0f172a', padding: 8, borderRadius: 8, marginBottom: 10, fontSize: '12px', border: '1px solid #334155' }}>
+                  <div style={{ color: '#34d399', fontWeight: 600 }}>Замовник: {proposalModalData.organization}</div>
+                  <div style={{ color: '#cbd5e1' }}>Контактна особа: {proposalModalData.contactPerson}</div>
+                </div>
+              )}
+
               <textarea
                 readOnly
                 value={proposalModalData.text}
                 style={{
-                  width: '100%', height: 180, backgroundColor: '#0f172a',
+                  width: '100%', height: 160, backgroundColor: '#0f172a',
                   color: '#e2e8f0', border: '1px solid #334155', borderRadius: 8,
                   padding: 10, fontSize: '13px', resize: 'none', boxSizing: 'border-box',
                   marginBottom: 12
@@ -809,18 +825,17 @@ export default function DashboardPage() {
               </div>
 
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                <button
-                  onClick={() => {
-                    alert('Функцію відправки на пошту буде активовано найближчим часом!')
-                  }}
+                <a
+                  href={`mailto:art.fine.nation@gmail.com?subject=${encodeURIComponent(proposalModalData.title)}&body=${encodeURIComponent(proposalModalData.text)}`}
                   style={{ 
-                    flex: 1, backgroundColor: '#059669', color: '#fff', border: 'none', 
+                    flex: 1, backgroundColor: '#059669', color: '#fff', textDecoration: 'none',
                     borderRadius: 8, padding: '10px', fontSize: '12px', fontWeight: 600, 
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' 
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                    boxSizing: 'border-box'
                   }}
                 >
-                  <span>✉️</span> На пошту
-                </button>
+                  <span>✉️</span> Написати замовнику (Email)
+                </a>
               </div>
 
               <button
