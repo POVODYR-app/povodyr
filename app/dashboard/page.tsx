@@ -40,6 +40,7 @@ export default function DashboardPage() {
   const [userName, setUserName] = useState('')
   const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isCommercialModalOpen, setIsCommercialModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const [dailyCount, setDailyCount] = useState<number>(0)
@@ -50,6 +51,10 @@ export default function DashboardPage() {
 
   const [recentRelevantOpps, setRecentRelevantOpps] = useState<any[]>([])
   const [hasNoRecentRelevant, setHasNoRecentRelevant] = useState(false)
+
+  // Стейти для генерації пропозицій
+  const [generatingProposalId, setGeneratingProposalId] = useState<string | null>(null)
+  const [proposalModalData, setProposalModalData] = useState<{ title: string; text: string } | null>(null)
 
   // Стейт для розгортання деталей "Чому рекомендує" для кожної картки окремо за id
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
@@ -203,6 +208,37 @@ export default function DashboardPage() {
     }
   }, [])
 
+  // Функція генерації пропозиції
+  const handleGenerateProposal = async (opp: any) => {
+    setGeneratingProposalId(opp.id)
+    try {
+      const res = await fetch('/api/generate-proposal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          opportunityId: opp.id,
+          opportunityTitle: opp.title,
+          opportunityDescription: opp.description,
+          matchReasons: opp.matchReasons,
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setProposalModalData({
+          title: `Пропозиція для: ${opp.title}`,
+          text: data.proposalText
+        })
+      } else {
+        alert('Не вдалося згенерувати пропозицію. Спробуйте ще раз.')
+      }
+    } catch (err) {
+      console.error(err)
+      alert('Помилка мережі при генерації пропозиції.')
+    } finally {
+      setGeneratingProposalId(null)
+    }
+  }
+
   // Функція для визначення дедлайну та точного підпису
   const getDeadlineDetails = (deadlineStr?: string) => {
     if (!deadlineStr) return { indicator: '🟢', label: 'Довгострокова можливість' }
@@ -263,11 +299,61 @@ export default function DashboardPage() {
 
         <FollowUpAlerts savedItems={savedItemsForAlerts} />
 
-        {/* Блок знайдених можливостей на головному екрані */}
+        {/* --- ОСНОВНА НАВІГАЦІЯ --- */}
+
+        {/* 1. Можливості / Розвиток кар'єри */}
         <div style={{ marginBottom: 20 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: '#f8fafc' }}>
-            Сьогодні POVODYR знайшов для вас
-          </h2>
+          <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#38bdf8' }}>
+            🧭 Можливості — Розвиток кар'єри
+          </div>
+          <button 
+            onClick={() => setIsModalOpen(true)} 
+            style={{ 
+              width: '100%',
+              backgroundColor: '#2563eb', 
+              color: 'white',
+              border: 'none',
+              borderRadius: 16, 
+              padding: 16, 
+              fontSize: 16,
+              fontWeight: 600,
+              cursor: 'pointer',
+              textAlign: 'center'
+            }}
+          >
+            📂 Центр можливостей ({monthlyMatchedCount})
+          </button>
+        </div>
+
+        {/* 2. Можливості для продажу / Знайти шлях до покупця */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#34d399' }}>
+            💰 Можливості для продажу — Знайти шлях до покупця
+          </div>
+          <button 
+            onClick={() => setIsCommercialModalOpen(true)} 
+            style={{ 
+              width: '100%',
+              backgroundColor: '#059669', 
+              color: 'white',
+              border: 'none',
+              borderRadius: 16, 
+              padding: 16, 
+              fontSize: 16,
+              fontWeight: 600,
+              cursor: 'pointer',
+              textAlign: 'center'
+            }}
+          >
+            🏷️ Комерційні можливості (Sales & B2B)
+          </button>
+        </div>
+
+        {/* 3. ТОП-3 Рекомендації на сьогодні */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#f8fafc' }}>
+            ✨ Сьогодні POVODYR знайшов для вас (Топ-3 найкращі)
+          </div>
 
           {loading ? (
             <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 16, textAlign: 'center', color: '#94a3b8' }}>
@@ -401,65 +487,53 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div 
-          onClick={() => !loading && setIsModalOpen(true)}
-          style={{ 
-            backgroundColor: '#1e293b', 
-            border: '1px solid #334155', 
-            borderRadius: 16, 
-            padding: 16, 
-            marginBottom: 16, 
-            cursor: loading ? 'default' : 'pointer',
-            textAlign: 'center'
-          }}
-        >
-          <p style={{ margin: 0, fontSize: 15, fontWeight: 500 }}>
-            {loading
-              ? 'Завантаження можливостей...'
-              : `Свіжі надходження за добу: ${dailyCount}`}
-          </p>
-          <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
-            {loading ? '' : `Усього матеріалів у базі за останні 24 години: ${dailyCount}`}
-          </p>
+        {/* 4. Мої заявки (Перспективний блок / заглушка на майбутнє) */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#94a3b8' }}>
+            📋 Мої заявки — Відстежувати результат (Coming soon)
+          </div>
+          <button 
+            disabled
+            style={{ 
+              width: '100%',
+              backgroundColor: '#1e293b', 
+              color: '#64748b',
+              border: '1px solid #334155',
+              borderRadius: 16, 
+              padding: 16, 
+              fontSize: 16,
+              fontWeight: 600,
+              cursor: 'not-allowed',
+              textAlign: 'center'
+            }}
+          >
+            📋 Мої заявки та результати
+          </button>
         </div>
 
-        <button 
-          onClick={() => setIsModalOpen(true)} 
-          style={{ 
-            width: '100%',
-            backgroundColor: '#2563eb', 
-            color: 'white',
-            border: 'none',
-            borderRadius: 16, 
-            padding: 16, 
-            marginBottom: 12, 
-            fontSize: 16,
-            fontWeight: 600,
-            cursor: 'pointer',
-            textAlign: 'center'
-          }}
-        >
-          📂 Центр можливостей ({monthlyMatchedCount})
-        </button>
-
-        <button 
-          onClick={() => window.location.href = '/profile'} 
-          style={{ 
-            width: '100%',
-            backgroundColor: '#1e293b', 
-            color: 'white',
-            border: '1px solid #334155',
-            borderRadius: 16, 
-            padding: 16, 
-            marginBottom: 24, 
-            fontSize: 16,
-            fontWeight: 600,
-            cursor: 'pointer',
-            textAlign: 'center'
-          }}
-        >
-          ✏️ Мій профіль
-        </button>
+        {/* 5. Мій профіль / Налаштувати POVODYR */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#94a3b8' }}>
+            👤 Мій профіль — Налаштувати POVODYR
+          </div>
+          <button 
+            onClick={() => window.location.href = '/profile'} 
+            style={{ 
+              width: '100%',
+              backgroundColor: '#1e293b', 
+              color: 'white',
+              border: '1px solid #334155',
+              borderRadius: 16, 
+              padding: 16, 
+              fontSize: 16,
+              fontWeight: 600,
+              cursor: 'pointer',
+              textAlign: 'center'
+            }}
+          >
+            ✏️ Редагувати профіль та критерії
+          </button>
+        </div>
 
         <div style={{ textAlign: 'center', marginTop: 32, borderTop: '1px solid #1e293b', paddingTop: 24 }}>
           <h3 style={{ margin: '0 0 8px 0', fontSize: 18, fontWeight: 700, letterSpacing: '1px' }}>POVODYR</h3>
@@ -482,6 +556,118 @@ export default function DashboardPage() {
           notifications={modalOpportunities}
           title="Центр можливостей"
         />
+
+        {/* Модальне вікно Комерційних можливостей */}
+        {isCommercialModalOpen && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: 16
+          }}>
+            <div style={{
+              backgroundColor: '#1e293b', border: '1px solid #334155',
+              borderRadius: 16, padding: 20, width: '100%', maxWidth: 440,
+              maxHeight: '85dvh', overflowY: 'auto', color: '#fff'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h3 style={{ margin: 0, fontSize: 18, color: '#34d399' }}>💰 Комерційні можливості продажу</h3>
+                <button 
+                  onClick={() => setIsCommercialModalOpen(false)}
+                  style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 18, cursor: 'pointer' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: 16 }}>
+                Запити від інтер'єрних студій, готелів, галерей та приватних колекціонерів на придбання та розміщення картин.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {modalOpportunities.filter(o => o.matchScore && o.matchScore > 30).length === 0 ? (
+                  <p style={{ textAlign: 'center', color: '#94a3b8', padding: '20px 0' }}>Наразі немає активних комерційних запитів.</p>
+                ) : (
+                  modalOpportunities.filter(o => o.matchScore && o.matchScore > 30).slice(0, 5).map((opp) => (
+                    <div key={opp.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '11px', color: '#38bdf8' }}>
+                        <span>Match: {opp.matchScore}%</span>
+                        <span>{opp.deadline ? `Дедлайн: ${opp.deadline.substring(0, 10)}` : 'Постійно'}</span>
+                      </div>
+                      <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 600, color: '#fff' }}>{opp.title}</h4>
+                      <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#94a3b8', lineHeight: 1.4 }}>{opp.description}</p>
+                      
+                      <button
+                        onClick={() => handleGenerateProposal(opp)}
+                        disabled={generatingProposalId === opp.id}
+                        style={{
+                          width: '100%',
+                          backgroundColor: '#10b981',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 8,
+                          padding: '8px 12px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          textAlign: 'center'
+                        }}
+                      >
+                        {generatingProposalId === opp.id ? '⏳ Генерація пропозиції...' : '✍️ Підготувати пропозицію'}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Модальне вікно предпросмотру згенерованої пропозиції */}
+        {proposalModalData && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: 16
+          }}>
+            <div style={{
+              backgroundColor: '#1e293b', border: '1px solid #334155',
+              borderRadius: 16, padding: 20, width: '100%', maxWidth: 400,
+              maxHeight: '80dvh', overflowY: 'auto', color: '#fff'
+            }}>
+              <h3 style={{ margin: '0 0 12px 0', fontSize: 16, color: '#38bdf8' }}>{proposalModalData.title}</h3>
+              <textarea
+                readOnly
+                value={proposalModalData.text}
+                style={{
+                  width: '100%', height: 200, backgroundColor: '#0f172a',
+                  color: '#e2e8f0', border: '1px solid #334155', borderRadius: 8,
+                  padding: 10, fontSize: '13px', resize: 'none', boxSizing: 'border-box',
+                  marginBottom: 12
+                }}
+              />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(proposalModalData.text)
+                    alert('Текст скопійовано до буферу обміну!')
+                  }}
+                  style={{ flex: 1, backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  📋 Скопіювати
+                </button>
+                <button
+                  onClick={() => setProposalModalData(null)}
+                  style={{ flex: 1, backgroundColor: '#334155', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Закрити
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   )
