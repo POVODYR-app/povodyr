@@ -9,26 +9,26 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 const STYLES_OPTIONS = [
-  'Contemporary art', 'Contemporary painting', 'Авторський стиль Solarism / Солярісм', 
-  'Symbolism', 'Figurative / semi-abstract landscape', 'Abstract elements'
+  'Сучасне мистецтво', 'Сучасний живопис', 'Авторський стиль Solarism / Солярісм', 
+  'Символізм', 'Фігуративний / напівзображальний пейзаж', 'Абстрактні елементи'
 ]
 
 const TECHNIQUES_OPTIONS = [
-  'Acrylic', 'Oil', 'Mixed media', 'Gold leaf / gold potal', 'Textured painting', 'Layered painting'
+  'Акрил', 'Олія', 'Змішана техніка', 'Сусальне золото / поталь', 'Фактурний живопис', 'Багатошаровий живопис'
 ]
 
 const MATERIALS_OPTIONS = [
-  'acrylic paint', 'oil paint', 'gold potal', 'texture paste', 'canvas'
+  'акрилова фарба', 'олійна фарба', 'золота поталь', 'текстурна паста', 'полотно'
 ]
 
 const THEMES_OPTIONS = [
-  'Light', 'Nature', 'Landscape', 'Dawn', 'Sunlight', 'Water', 'Trees', 
-  'Birch groves', 'Ukrainian cultural heritage', 'Ukrainian history', 'Memory', 'Hope', 'Human connection with nature'
+  'Світло', 'Природа', 'Пейзаж', 'Світанок', 'Сонячне світло', 'Вода', 'Дерева', 
+  'Березовий гай', 'Українська культурна спадщина', 'Українська історія', 'Пам’ять', 'Надія', 'Зв’язок людини з природою'
 ]
 
 const WORK_TYPES_OPTIONS = [
-  'original paintings', 'unique artworks', 'commissioned artworks', 
-  'works for interior design', 'works for hospitality spaces', 'works for corporate spaces'
+  'оригінальні картини', 'унікальні твори', 'твори на замовлення', 
+  'твори для дизайну інтер’єру', 'твори для просторів гостинності', 'твори для корпоративних просторів'
 ]
 
 const SPACES_OPTIONS = [
@@ -50,8 +50,9 @@ export default function ProfilePage() {
 
   // Стан для робіт портфоліо
   const [artworks, setArtworks] = useState<any[]>([])
+  const [editingArtId, setEditingArtId] = useState<string | null>(null)
   
-  // Поля нової картини
+  // Поля форми картини
   const [newTitle, setNewTitle] = useState('')
   const [newImageUrl, setNewImageUrl] = useState('')
   const [newFormatSize, setNewFormatSize] = useState('')
@@ -120,10 +121,10 @@ export default function ProfilePage() {
     setCountries(prev => prev.includes(country) ? prev.filter(c => c !== country) : [...prev, country])
   }
 
-  const handleAddArtwork = async () => {
+  const handleSaveArtwork = async () => {
     if (!newTitle.trim() || !userId) return
 
-    const newArtData = {
+    const artData = {
       user_id: userId,
       title: newTitle.trim(),
       image_url: newImageUrl.trim(),
@@ -140,26 +141,69 @@ export default function ProfilePage() {
       suitable_spaces: newSpaces
     }
 
-    const { data, error } = await supabase
-      .from('artist_artworks')
-      .insert(newArtData)
-      .select()
+    if (editingArtId) {
+      // Редагування існуючої картини
+      const { error } = await supabase
+        .from('artist_artworks')
+        .update(artData)
+        .eq('id', editingArtId)
 
-    if (!error && data) {
-      setArtworks([...artworks, data[0]])
-      setNewTitle('')
-      setNewImageUrl('')
-      setNewFormatSize('')
-      setNewMaxSize('')
-      setNewStyles([])
-      setNewTechniques([])
-      setNewMaterials([])
-      setNewThemes([])
-      setNewWorkTypes([])
-      setNewSpaces([])
+      if (!error) {
+        setArtworks(artworks.map(a => a.id === editingArtId ? { ...a, ...artData } : a))
+        resetArtForm()
+      } else {
+        alert('Помилка оновлення твору: ' + error.message)
+      }
     } else {
-      alert('Помилка додавання твору: ' + error?.message)
+      // Додавання нової картини
+      const { data, error } = await supabase
+        .from('artist_artworks')
+        .insert(artData)
+        .select()
+
+      if (!error && data) {
+        setArtworks([...artworks, data[0]])
+        resetArtForm()
+      } else {
+        alert('Помилка додавання твору: ' + error?.message)
+      }
     }
+  }
+
+  const handleEditArtwork = (art: any) => {
+    setEditingArtId(art.id)
+    setNewTitle(art.title || '')
+    setNewImageUrl(art.image_url || '')
+    setNewFormatSize(art.format_size || '')
+    setNewMinSize(art.min_size || '30 × 40 см')
+    setNewMaxSize(art.max_size || '')
+    setNewSizeCategory(art.size_category || 'medium')
+    setNewLargeFormat(art.large_format_possible || false)
+    setNewStyles(art.styles || [])
+    setNewTechniques(art.techniques_list || [])
+    setNewMaterials(art.materials || [])
+    setNewThemes(art.themes || [])
+    setNewWorkTypes(art.work_types || [])
+    setNewSpaces(art.suitable_spaces || [])
+    
+    // Прокрутка до форми редагування
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+  }
+
+  const resetArtForm = () => {
+    setEditingArtId(null)
+    setNewTitle('')
+    setNewImageUrl('')
+    setNewFormatSize('')
+    setNewMaxSize('')
+    setNewSizeCategory('medium')
+    setNewLargeFormat(false)
+    setNewStyles([])
+    setNewTechniques([])
+    setNewMaterials([])
+    setNewThemes([])
+    setNewWorkTypes([])
+    setNewSpaces([])
   }
 
   const handleDeleteArtwork = async (artId: string) => {
@@ -170,6 +214,7 @@ export default function ProfilePage() {
 
     if (!error) {
       setArtworks(artworks.filter(a => a.id !== artId))
+      if (editingArtId === artId) resetArtForm()
     } else {
       alert('Помилка видалення: ' + error.message)
     }
@@ -283,14 +328,19 @@ export default function ProfilePage() {
             {/* Список робіт */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {artworks.map((art) => (
-                <div key={art.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', backgroundColor: '#0f172a', padding: 12, borderRadius: 8, border: '1px solid #334155' }}>
+                <div key={art.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: 12, borderRadius: 8, border: '1px solid #334155' }}>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                     {art.image_url ? (
                       <a href={art.image_url} target="_blank" rel="noopener noreferrer">
-                        <img src={art.image_url} alt={art.title} style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 6, border: '1px solid #3b82f6' }} />
+                        <img 
+                          src={art.image_url} 
+                          alt={art.title} 
+                          style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 6, border: '1px solid #3b82f6' }}
+                          onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+                        />
                       </a>
                     ) : (
-                      <div style={{ width: 50, height: 50, backgroundColor: '#334155', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#94a3b8' }}>нема фото</div>
+                      <div style={{ width: 50, height: 50, backgroundColor: '#334155', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#94a3b8', textAlign: 'center' }}>нема фото</div>
                     )}
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 600 }}>
@@ -306,19 +356,39 @@ export default function ProfilePage() {
                       )}
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleDeleteArtwork(art.id)}
-                    style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: 'none', padding: '6px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
-                  >
-                    Видалити
-                  </button>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      onClick={() => handleEditArtwork(art)}
+                      style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', border: 'none', padding: '6px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                    >
+                      Редагувати
+                    </button>
+                    <button
+                      onClick={() => handleDeleteArtwork(art.id)}
+                      style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: 'none', padding: '6px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                    >
+                      Видалити
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
 
-            {/* Форма додавання картини */}
+            {/* Форма додавання / редагування картини */}
             <div style={{ borderTop: '1px solid #334155', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#38bdf8' }}>+ Додати новий твір у портфоліо</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#38bdf8' }}>
+                  {editingArtId ? '✏️ Редагувати обраний твір' : '+ Додати новий твір у портфоліо'}
+                </span>
+                {editingArtId && (
+                  <button 
+                    onClick={resetArtForm}
+                    style={{ backgroundColor: 'transparent', border: 'none', color: '#94a3b8', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    Скасувати редагування
+                  </button>
+                )}
+              </div>
               
               <div style={{ display: 'flex', gap: 10 }}>
                 <input
@@ -336,6 +406,19 @@ export default function ProfilePage() {
                   style={{ flex: 3, padding: '10px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', fontSize: 13 }}
                 />
               </div>
+
+              {/* Прев'ю фото у формі */}
+              {newImageUrl.trim() && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, backgroundColor: '#0f172a', padding: 8, borderRadius: 8, border: '1px solid #334155' }}>
+                  <img 
+                    src={newImageUrl} 
+                    alt="Прев'ю" 
+                    style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} 
+                    onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+                  />
+                  <span style={{ fontSize: 12, color: '#94a3b8' }}>Прев'ю зображення за посиланням вище</span>
+                </div>
+              )}
 
               {/* Розміри та формат */}
               <div style={{ display: 'flex', gap: 10 }}>
@@ -451,10 +534,10 @@ export default function ProfilePage() {
               </div>
 
               <button
-                onClick={handleAddArtwork}
-                style={{ backgroundColor: '#2563eb', color: '#ffffff', border: 'none', padding: '12px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: 'pointer', marginTop: 8 }}
+                onClick={handleSaveArtwork}
+                style={{ backgroundColor: editingArtId ? '#059669' : '#2563eb', color: '#ffffff', border: 'none', padding: '12px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: 'pointer', marginTop: 8 }}
               >
-                + Зберегти роботу з повним комерційним контекстом
+                {editingArtId ? '💾 Оновити твір у портфоліо' : '+ Зберегти роботу з повним комерційним контекстом'}
               </button>
             </div>
           </div>
