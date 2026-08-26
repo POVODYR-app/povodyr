@@ -69,9 +69,10 @@ export default function CommercialOpportunitiesPage() {
 
       // Комерційні можливості
       const { data: opps } = await supabase
-        .from('commercial_opportunities')
-        .select('*')
-        .order('date_added', { ascending: false })
+  .from('commercial_opportunities')
+  .select('*')
+  .eq('opportunity_type', 'commercial')
+  .order('date_added', { ascending: false })
       if (opps) setOpportunities(opps)
 
       // Роботи художника
