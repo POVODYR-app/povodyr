@@ -52,7 +52,10 @@ export default function DashboardPage() {
   const [recentRelevantOpps, setRecentRelevantOpps] = useState<any[]>([])
   const [hasNoRecentRelevant, setHasNoRecentRelevant] = useState(false)
 
-  // Стейти для генерації пропозицій
+  // Стейт для розгортання блоку "Топ-3 найкращі" (за замовчуванням розгорнуто або згорнуто за бажанням)
+  const [isTop3Open, setIsTop3Open] = useState(true)
+
+  // Стейти для генерації пропозицій / пакетів документів
   const [generatingProposalId, setGeneratingProposalId] = useState<string | null>(null)
   const [proposalModalData, setProposalModalData] = useState<{ title: string; text: string } | null>(null)
 
@@ -179,6 +182,7 @@ export default function DashboardPage() {
             formattedOpps.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
             setModalOpportunities(formattedOpps)
 
+            // Фільтруємо чітко за останні 7 днів (як зазначено в ТЗ: список знайдених можливостей за 7 днів)
             const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).getTime()
             const recentRelevant = formattedOpps.filter(o => {
               const isRecent = new Date(o.created_at).getTime() >= sevenDaysAgo
@@ -208,7 +212,7 @@ export default function DashboardPage() {
     }
   }, [])
 
-  // Функція генерації пропозиції
+  // Функція генерації пропозиції / пакету документів
   const handleGenerateProposal = async (opp: any) => {
     setGeneratingProposalId(opp.id)
     try {
@@ -225,15 +229,15 @@ export default function DashboardPage() {
       const data = await res.json()
       if (data.success) {
         setProposalModalData({
-          title: `Пропозиція для: ${opp.title}`,
+          title: `Пакет документів / пропозиція для: ${opp.title}`,
           text: data.proposalText
         })
       } else {
-        alert('Не вдалося згенерувати пропозицію. Спробуйте ще раз.')
+        alert('Не вдалося згенерувати пакет документів. Спробуйте ще раз.')
       }
     } catch (err) {
       console.error(err)
-      alert('Помилка мережі при генерації пропозиції.')
+      alert('Помилка мережі при генерації.')
     } finally {
       setGeneratingProposalId(null)
     }
@@ -321,7 +325,7 @@ export default function DashboardPage() {
               textAlign: 'center'
             }}
           >
-            📂 Центр можливостей ({monthlyMatchedCount})
+            📂 Центр можливостей (за останні 7 днів)
           </button>
         </div>
 
@@ -349,140 +353,164 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* 3. ТОП-3 Рекомендації на сьогодні */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#f8fafc' }}>
-            ✨ Сьогодні POVODYR знайшов для вас (Топ-3 найкращі)
-          </div>
+        {/* 3. ТОП-3 Рекомендації на сьогодні (Зроблено кнопкою, що розгортається) */}
+        <div style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden' }}>
+          <button
+            onClick={() => setIsTop3Open(!isTop3Open)}
+            style={{
+              width: '100%',
+              backgroundColor: '#1e293b',
+              border: 'none',
+              padding: '16px',
+              color: '#f8fafc',
+              fontSize: '15px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              textAlign: 'left'
+            }}
+          >
+            <span>✨ Сьогодні POVODYR знайшов для вас (Топ-3 найкращі)</span>
+            <span style={{ fontSize: '14px', color: '#38bdf8' }}>{isTop3Open ? '▲ Згорнути' : '▼ Розгорнути'}</span>
+          </button>
 
-          {loading ? (
-            <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 16, textAlign: 'center', color: '#94a3b8' }}>
-              Завантаження можливостей...
-            </div>
-          ) : hasNoRecentRelevant ? (
-            <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 20, textAlign: 'center' }}>
-              <p style={{ fontSize: 14, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 16 }}>
-                «Нових можливостей для вашого поточного профілю не знайдено. Хочете розширити критерії пошуку?»
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <button 
-                  onClick={() => window.location.href = '/profile'} 
-                  style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-                >
-                  Розширити географію
-                </button>
-                <button 
-                  onClick={() => window.location.href = '/profile'} 
-                  style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-                >
-                  Розширити типи можливостей
-                </button>
-                <button 
-                  onClick={() => window.location.href = '/profile'} 
-                  style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-                >
-                  Розширити тематику
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {recentRelevantOpps.slice(0, 3).map((opp) => {
-                const deadlineInfo = getDeadlineDetails(opp.deadline)
-                const isExpanded = expandedCardId === opp.id
-
-                return (
-                  <div 
-                    key={opp.id} 
-                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 14, padding: 14 }}
+          {isTop3Open && (
+            <div style={{ padding: '0 16px 16px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {loading ? (
+                <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 16, textAlign: 'center', color: '#94a3b8' }}>
+                  Завантаження можливостей...
+                </div>
+              ) : hasNoRecentRelevant ? (
+                <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 16, textAlign: 'center' }}>
+                  <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 12 }}>
+                    «Нових можливостей для вашого поточного профілю не знайдено за останні 7 днів.»
+                  </p>
+                  <button 
+                    onClick={() => window.location.href = '/profile'} 
+                    style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                   >
-                    {/* Рядок статусу дедлайну */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: 6, fontSize: '12px', color: '#cbd5e1' }}>
-                      <span>{deadlineInfo.indicator}</span>
-                      <span>{deadlineInfo.label}</span>
-                    </div>
+                    Змінити критерії в профілі
+                  </button>
+                </div>
+              ) : (
+                recentRelevantOpps.slice(0, 3).map((opp) => {
+                  const deadlineInfo = getDeadlineDetails(opp.deadline)
+                  const isExpanded = expandedCardId === opp.id
 
-                    {/* Рядок відсотка відповідності з поясненням */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#38bdf8' }}>
-                        Match: {opp.matchScore}% (рівень персональної відповідності вашому профілю)
-                      </span>
-                    </div>
-
-                    <h4 style={{ margin: '0 0 6px 0', fontSize: '15px', fontWeight: 600, color: '#fff' }}>{opp.title}</h4>
-                    <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#94a3b8', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {opp.description}
-                    </p>
-
-                    {/* Кнопка розгортання «Чому POVODYR рекомендує це мені?» */}
-                    <button
-                      onClick={() => setExpandedCardId(isExpanded ? null : opp.id)}
-                      style={{
-                        width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
-                        borderRadius: 8,
-                        padding: '8px 12px',
-                        color: '#38bdf8',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        marginBottom: '10px',
-                        textAlign: 'left',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}
+                  return (
+                    <div 
+                      key={opp.id} 
+                      style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}
                     >
-                      <span>Чому POVODYR рекомендує це мені?</span>
-                      <span>{isExpanded ? '▲' : '▼'}</span>
-                    </button>
-
-                    {/* Розгорнуті деталі рекомендації */}
-                    {isExpanded && (
-                      <div style={{ backgroundColor: '#0f172a', borderRadius: 8, padding: '10px', marginBottom: '10px', fontSize: '12px', color: '#e2e8f0', border: '1px solid #1e293b' }}>
-                        <p style={{ margin: '0 0 6px 0', fontWeight: 'bold', color: '#38bdf8' }}>Критерії збігу:</p>
-                        <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <li>✓ техніка відповідає вимогам</li>
-                          <li>✓ тематика відповідає вашій творчій практиці</li>
-                          <li>✓ ви відповідаєте географічним вимогам</li>
-                          <li>✓ рівень конкурсу відповідає вашому досвіду</li>
-                          <li>✓ opportunity відповідає вашій професійній цілі</li>
-                        </ul>
-                        {opp.matchReasons && opp.matchReasons.length > 0 && (
-                          <div style={{ marginTop: '6px', color: '#94a3b8', fontSize: '11px' }}>
-                            Деталі: {opp.matchReasons.join('. ')}
-                          </div>
-                        )}
+                      {/* Рядок статусу дедлайну */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: 6, fontSize: '12px', color: '#cbd5e1' }}>
+                        <span>{deadlineInfo.indicator}</span>
+                        <span>{deadlineInfo.label}</span>
                       </div>
-                    )}
 
-                    {/* Посилання на першоджерело */}
-                    {opp.link_url && (
-                      <a
-                        href={opp.link_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      {/* Рядок відсотка відповідності з поясненням */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#38bdf8' }}>
+                          Match: {opp.matchScore}% (рівень персональної відповідності профілю)
+                        </span>
+                      </div>
+
+                      <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', fontWeight: 600, color: '#fff' }}>{opp.title}</h4>
+                      <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#94a3b8', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {opp.description}
+                      </p>
+
+                      {/* Кнопка розгортання «Чому POVODYR рекомендує це мені?» */}
+                      <button
+                        onClick={() => setExpandedCardId(isExpanded ? null : opp.id)}
                         style={{
-                          display: 'inline-block',
-                          backgroundColor: '#2563eb',
-                          color: '#fff',
-                          textDecoration: 'none',
-                          borderRadius: 8,
-                          padding: '8px 14px',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          textAlign: 'center',
                           width: '100%',
-                          boxSizing: 'border-box'
+                          backgroundColor: '#1e293b',
+                          border: '1px solid #334155',
+                          borderRadius: 8,
+                          padding: '8px 10px',
+                          color: '#38bdf8',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          marginBottom: '8px',
+                          textAlign: 'left',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
                         }}
                       >
-                        🔗 Перейти до першоджерела
-                      </a>
-                    )}
-                  </div>
-                )
-              })}
+                        <span>Чому POVODYR рекомендує це мені?</span>
+                        <span>{isExpanded ? '▲' : '▼'}</span>
+                      </button>
+
+                      {/* Розгорнуті деталі рекомендації */}
+                      {isExpanded && (
+                        <div style={{ backgroundColor: '#1e293b', borderRadius: 8, padding: '8px', marginBottom: '8px', fontSize: '11px', color: '#e2e8f0', border: '1px solid #334155' }}>
+                          <p style={{ margin: '0 0 4px 0', fontWeight: 'bold', color: '#38bdf8' }}>Критерії збігу:</p>
+                          <ul style={{ margin: 0, paddingLeft: '14px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <li>✓ техніка відповідає вимогам</li>
+                            <li>✓ тематика відповідає творчій практиці</li>
+                            <li>✓ географічні вимоги виконані</li>
+                          </ul>
+                          {opp.matchReasons && opp.matchReasons.length > 0 && (
+                            <div style={{ marginTop: '4px', color: '#94a3b8', fontSize: '10px' }}>
+                              Деталі: {opp.matchReasons.join('. ')}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Кнопка генерації пакета документів */}
+                      <button
+                        onClick={() => handleGenerateProposal(opp)}
+                        disabled={generatingProposalId === opp.id}
+                        style={{
+                          width: '100%',
+                          backgroundColor: '#10b981',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 8,
+                          padding: '8px 10px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          marginBottom: '8px',
+                          textAlign: 'center'
+                        }}
+                      >
+                        {generatingProposalId === opp.id ? '⏳ Генерація пакету документів...' : '📄 Згенерувати пакет документів'}
+                      </button>
+
+                      {/* Посилання на першоджерело */}
+                      {opp.link_url && (
+                        <a
+                          href={opp.link_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-block',
+                            backgroundColor: '#2563eb',
+                            color: '#fff',
+                            textDecoration: 'none',
+                            borderRadius: 8,
+                            padding: '8px 10px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            textAlign: 'center',
+                            width: '100%',
+                            boxSizing: 'border-box'
+                          }}
+                        >
+                          🔗 Перейти до першоджерела
+                        </a>
+                      )}
+                    </div>
+                  )
+                })
+              )}
             </div>
           )}
         </div>
@@ -554,7 +582,7 @@ export default function DashboardPage() {
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           notifications={modalOpportunities}
-          title="Центр можливостей"
+          title="Центр можливостей (за 7 днів)"
         />
 
         {/* Модальне вікно Комерційних можливостей */}
@@ -623,7 +651,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Модальне вікно предпросмотру згенерованої пропозиції */}
+        {/* Модальне вікно предпросмотру згенерованого пакету документів */}
         {proposalModalData && (
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
