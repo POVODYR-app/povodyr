@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
+export const maxDuration = 60; // Максимальний час виконання функції на Vercel
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
