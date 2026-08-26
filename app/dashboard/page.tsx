@@ -758,99 +758,100 @@ export default function DashboardPage() {
         )}
 
         {proposalModalData && (
-          <div style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 1000, padding: 16
-          }}>
-            <div style={{
-              backgroundColor: '#1e293b', border: '1px solid #334155',
-              borderRadius: 16, padding: 20, width: '100%', maxWidth: 440,
-              maxHeight: '85dvh', overflowY: 'auto', color: '#fff'
-            }}>
-              <h3 style={{ margin: '0 0 8px 0', fontSize: 16, color: '#38bdf8' }}>{proposalModalData.title}</h3>
-              
-              {proposalModalData.organization && (
-                <div style={{ backgroundColor: '#0f172a', padding: 8, borderRadius: 8, marginBottom: 10, fontSize: '12px', border: '1px solid #334155' }}>
-                  <div style={{ color: '#34d399', fontWeight: 600 }}>Замовник: {proposalModalData.organization}</div>
-                  <div style={{ color: '#cbd5e1' }}>Контактна особа: {proposalModalData.contactPerson}</div>
-                </div>
-              )}
+  <div style={{
+    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 1000, padding: 16
+  }}>
+    <div style={{
+      backgroundColor: '#1e293b', border: '1px solid #334155',
+      borderRadius: 16, padding: 20, width: '100%', maxWidth: 440,
+      maxHeight: '85dvh', overflowY: 'auto', color: '#fff'
+    }}>
+      <h3 style={{ margin: '0 0 8px 0', fontSize: 16, color: '#38bdf8' }}>{proposalModalData.title}</h3>
+      
+      {proposalModalData.organization && (
+        <div style={{ backgroundColor: '#0f172a', padding: 8, borderRadius: 8, marginBottom: 10, fontSize: '12px', border: '1px solid #334155' }}>
+          <div style={{ color: '#34d399', fontWeight: 600 }}>Замовник: {proposalModalData.organization}</div>
+          <div style={{ color: '#cbd5e1' }}>Контактна особа: {proposalModalData.contactPerson}</div>
+        </div>
+      )}
 
-              <textarea
-                readOnly
-                value={proposalModalData.text}
-                style={{
-                  width: '100%', height: 160, backgroundColor: '#0f172a',
-                  color: '#e2e8f0', border: '1px solid #334155', borderRadius: 8,
-                  padding: 10, fontSize: '13px', resize: 'none', boxSizing: 'border-box',
-                  marginBottom: 12
-                }}
-              />
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(proposalModalData.text)
-                    alert('Текст скопійовано до буферу обміну!')
-                  }}
-                  style={{ 
-                    backgroundColor: '#334155', color: '#fff', border: '1px solid #475569', 
-                    borderRadius: 8, padding: '10px 8px', fontSize: '12px', fontWeight: 600, 
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' 
-                  }}
-                >
-                  <span>📋</span> Копіювати текст
-                </button>
+      {/* Текстове поле тепер доступне для редагування */}
+      <textarea
+        value={proposalModalData.text}
+        onChange={(e) => setProposalModalData({ ...proposalModalData, text: e.target.value })}
+        style={{
+          width: '100%', height: 160, backgroundColor: '#0f172a',
+          color: '#e2e8f0', border: '1px solid #334155', borderRadius: 8,
+          padding: 10, fontSize: '13px', resize: 'none', boxSizing: 'border-box',
+          marginBottom: 12, outline: 'none'
+        }}
+      />
+      
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(proposalModalData.text)
+            alert('Текст скопійовано до буферу обміну!')
+          }}
+          style={{ 
+            backgroundColor: '#334155', color: '#fff', border: '1px solid #475569', 
+            borderRadius: 8, padding: '10px 8px', fontSize: '12px', fontWeight: 600, 
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' 
+          }}
+        >
+          <span>📋</span> Копіювати текст
+        </button>
 
-                <button
-                  onClick={() => {
-                    const blob = new Blob([proposalModalData.text], { type: 'text/plain;charset=utf-8' })
-                    const url = URL.createObjectURL(blob)
-                    const a = document.createElement('a')
-                    a.href = url
-                    a.download = 'proposal.txt'
-                    a.click()
-                    URL.revokeObjectURL(url)
-                  }}
-                  style={{ 
-                    backgroundColor: '#334155', color: '#fff', border: '1px solid #475569', 
-                    borderRadius: 8, padding: '10px 8px', fontSize: '12px', fontWeight: 600, 
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' 
-                  }}
-                >
-                  <span>💾</span> Завантажити (.txt)
-                </button>
-              </div>
+        <button
+          onClick={() => {
+            const blob = new Blob([proposalModalData.text], { type: 'text/plain;charset=utf-8' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = 'proposal.txt'
+            a.click()
+            URL.revokeObjectURL(url)
+          }}
+          style={{ 
+            backgroundColor: '#334155', color: '#fff', border: '1px solid #475569', 
+            borderRadius: 8, padding: '10px 8px', fontSize: '12px', fontWeight: 600, 
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' 
+          }}
+        >
+          <span>💾</span> Завантажити (.txt)
+        </button>
+      </div>
 
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                <a
-                  href={`mailto:art.fine.nation@gmail.com?subject=${encodeURIComponent(proposalModalData.title)}&body=${encodeURIComponent(proposalModalData.text)}`}
-                  style={{ 
-                    flex: 1, backgroundColor: '#059669', color: '#fff', textDecoration: 'none',
-                    borderRadius: 8, padding: '10px', fontSize: '12px', fontWeight: 600, 
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                    boxSizing: 'border-box'
-                  }}
-                >
-                  <span>✉️</span> Написати замовнику (Email)
-                </a>
-              </div>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+        <a
+          href={`mailto:art.fine.nation@gmail.com?subject=${encodeURIComponent(proposalModalData.title)}&body=${encodeURIComponent(proposalModalData.text)}`}
+          style={{ 
+            flex: 1, backgroundColor: '#059669', color: '#fff', textDecoration: 'none',
+            borderRadius: 8, padding: '10px', fontSize: '12px', fontWeight: 600, 
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+            boxSizing: 'border-box'
+          }}
+        >
+          <span>✉️</span> Написати замовнику (Email)
+        </a>
+      </div>
 
-              <button
-                onClick={() => setProposalModalData(null)}
-                style={{
-                  width: '100%', backgroundColor: '#1e293b', color: '#94a3b8',
-                  border: '1px solid #334155', borderRadius: 8, padding: '8px',
-                  fontSize: '12px', fontWeight: 600, cursor: 'pointer'
-                }}
-              >
-                Закрити вікно
-              </button>
-            </div>
-          </div>
-        )}
+      <button
+        onClick={() => setProposalModalData(null)}
+        style={{
+          width: '100%', backgroundColor: '#1e293b', color: '#94a3b8',
+          border: '1px solid #334155', borderRadius: 8, padding: '8px',
+          fontSize: '12px', fontWeight: 600, cursor: 'pointer'
+        }}
+      >
+        Закрити вікно
+      </button>
+    </div>
+  </div>
+)}
 
       </div>
     </div>
