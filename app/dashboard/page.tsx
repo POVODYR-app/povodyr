@@ -52,7 +52,7 @@ export default function DashboardPage() {
   const [recentRelevantOpps, setRecentRelevantOpps] = useState<any[]>([])
   const [hasNoRecentRelevant, setHasNoRecentRelevant] = useState(false)
 
-  // Стейт для розгортання блоку "Топ-3 найкращі" (за замовчуванням розгорнуто або згорнуто за бажанням)
+  // Стейт для розгортання блоку "Топ-3 найкращі"
   const [isTop3Open, setIsTop3Open] = useState(true)
 
   // Стейти для генерації пропозицій / пакетів документів
@@ -182,7 +182,6 @@ export default function DashboardPage() {
             formattedOpps.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
             setModalOpportunities(formattedOpps)
 
-            // Фільтруємо чітко за останні 7 днів (як зазначено в ТЗ: список знайдених можливостей за 7 днів)
             const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).getTime()
             const recentRelevant = formattedOpps.filter(o => {
               const isRecent = new Date(o.created_at).getTime() >= sevenDaysAgo
@@ -212,34 +211,63 @@ export default function DashboardPage() {
     }
   }, [])
 
-  // Функція генерації пропозиції / пакету документів
+  // Оновлена надійна функція генерації пропозиції / пакету документів із захистом від таймаутів та retry-механізмом
   const handleGenerateProposal = async (opp: any) => {
     setGeneratingProposalId(opp.id)
-    try {
-      const res = await fetch('/api/generate-proposal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          opportunityId: opp.id,
-          opportunityTitle: opp.title,
-          opportunityDescription: opp.description,
-          matchReasons: opp.matchReasons,
+    const maxRetries = 3
+    const delay = 2000
+
+    for (let i = 0; i < maxRetries; i++) {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 50000) // 50 секунд таймаут
+
+      try {
+        const res = await fetch('/api/generate-proposal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            opportunityId: opp.id,
+            opportunityTitle: opp.title,
+            opportunityDescription: opp.description,
+            matchReasons: opp.matchReasons,
+          }),
+          signal: controller.signal
         })
-      })
-      const data = await res.json()
-      if (data.success) {
+
+        clearTimeout(timeoutId)
+        const data = await res.json()
+
+        if (!res.ok || !data.success) {
+          if (res.status >= 500 && i < maxRetries - 1) {
+            throw new Error(`Помилка сервера: ${res.status}`)
+          }
+          throw new Error(data.error || 'Не вдалося згенерувати пакет документів.')
+        }
+
         setProposalModalData({
           title: `Пакет документів / пропозиція для: ${opp.title}`,
           text: data.proposalText
         })
-      } else {
-        alert('Не вдалося згенерувати пакет документів. Спробуйте ще раз.')
+        break // Успіх — виходимо з циклу
+
+      } catch (err: any) {
+        clearTimeout(timeoutId)
+        console.warn(`Спроба ${i + 1} генерації не вдалася:`, err.message)
+
+        if (i === maxRetries - 1) {
+          let errorMessage = 'Помилка мережі при генерації. Перевірте підключення та спробуйте ще раз.'
+          if (err.name === 'AbortError') {
+            errorMessage = 'Час очікування вичерпано. Сервер обробляє запит занадто довго.'
+          }
+          alert(errorMessage)
+        } else {
+          await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)))
+        }
+      } finally {
+        if (i === maxRetries - 1) {
+          setGeneratingProposalId(null)
+        }
       }
-    } catch (err) {
-      console.error(err)
-      alert('Помилка мережі при генерації.')
-    } finally {
-      setGeneratingProposalId(null)
     }
   }
 
@@ -353,7 +381,7 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* 3. ТОП-3 Рекомендації на сьогодні (Зроблено кнопкою, що розгортається) */}
+        {/* 3. ТОП-3 Рекомендації на сьогодні */}
         <div style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden' }}>
           <button
             onClick={() => setIsTop3Open(!isTop3Open)}
@@ -515,7 +543,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* 4. Мої заявки (Перспективний блок / заглушка на майбутнє) */}
+        {/* 4. Мої заявки */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#94a3b8' }}>
             📋 Мої заявки — Відстежувати результат (Coming soon)
@@ -539,7 +567,7 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* 5. Мій профіль / Налаштувати POVODYR */}
+        {/* 5. Мій профіль */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#94a3b8' }}>
             👤 Мій профіль — Налаштувати POVODYR
