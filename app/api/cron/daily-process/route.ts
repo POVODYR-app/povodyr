@@ -61,6 +61,37 @@ export async function GET(request: NextRequest) {
 
     const testEmail = request.nextUrl.searchParams.get('test_email');
 
+    // 0. Автономне опитування та розширення джерел можливостей
+    try {
+      const { data: sources } = await supabase
+        .from('opportunity_sources')
+        .select('*')
+        .eq('is_active', true);
+
+      if (sources && sources.length > 0) {
+        for (const source of sources) {
+          try {
+            const res = await fetch(source.url, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+              }
+            });
+            
+            if (res.ok) {
+              await supabase
+                .from('opportunity_sources')
+                .update({ last_checked_at: new Date().toISOString() })
+                .eq('id', source.id);
+            }
+          } catch (err) {
+            console.error(`Error checking source ${source.name}:`, err);
+          }
+        }
+      }
+    } catch (sourceErr) {
+      console.error('Error processing opportunity sources:', sourceErr);
+    }
+
     let query = supabase.from('profiles').select('*').eq('notifications_enabled', true);
     if (testEmail) {
       query = query.eq('email', testEmail);
@@ -100,7 +131,6 @@ export async function GET(request: NextRequest) {
       const orgFeeMax = Number(user.org_fee_max || user.max_fee_amount) || 0;
 
       const matchedOpps = (opportunities || []).filter(opp => {
-        // Виключаємо джерела з битими або закритими посиланнями (наприклад, сторінки пошуку TransArtists з авторизацією)
         const currentLink = String(opp.source_url || opp.link || '').toLowerCase();
         if (currentLink.includes('transartists.org/en/air')) {
           return false;
@@ -135,7 +165,6 @@ export async function GET(request: NextRequest) {
 
       const title = 'POVODYR: нові можливості для вас';
 
-      // Форматування для Telegram (з HTML-посиланнями)
       const oppListTelegram = matchedOpps.slice(0, 5).map(o => {
         const url = o.source_url || o.link || o.link_url || 'https://povodyr.vercel.app/dashboard';
         return `• <a href="${url}">${o.title || 'Мистецька можливість'}</a> (${o.country || 'Онлайн'})`;
@@ -143,7 +172,6 @@ export async function GET(request: NextRequest) {
 
       const telegramMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppListTelegram}\n\n<a href="https://povodyr.vercel.app/dashboard">Перегляньте деталі в особистому кабінеті</a>.`;
 
-      // Форматування для кабінету та бази нотифікацій (зберігаємо посилання для зручності перегляду в модалках/кабінеті)
       const oppListCabinet = matchedOpps.slice(0, 5).map(o => {
         const url = o.source_url || o.link || o.link_url || 'https://povodyr.vercel.app/dashboard';
         return `• ${o.title || 'Мистецька можливість'} (${o.country || 'Онлайн'})\n  🔗 ${url}`;
@@ -151,7 +179,6 @@ export async function GET(request: NextRequest) {
 
       const appMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppListCabinet}\n\nПерегляньте деталі в особистому кабінеті.`;
 
-      // HTML для Email
       const htmlItems = matchedOpps.slice(0, 5).map(o => {
         const url = o.source_url || o.link || o.link_url || 'https://povodyr.vercel.app/dashboard';
         return `<li><a href="${url}" target="_blank"><strong>${o.title}</strong></a> (${o.country || 'Онлайн'})</li>`;
