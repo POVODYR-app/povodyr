@@ -271,7 +271,6 @@ export default function DashboardPage() {
     }
   }
 
-  // Обробник для формування презентації робіт із червоним повідомленням "зачекайте, я формую"
   const handleGenerateMatchingWorks = async (reqItem: any) => {
     setGeneratingMatchingWorksId(reqItem.id)
     try {
@@ -473,7 +472,7 @@ export default function DashboardPage() {
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                         <span style={{ fontSize: '12px', fontWeight: 600, color: '#38bdf8' }}>
-                          Match: {opp.matchScore}%
+                          Відповідає на {opp.matchScore}%
                         </span>
                       </div>
                       <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', fontWeight: 600, color: '#fff' }}>{opp.title}</h4>
@@ -566,7 +565,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Добір робіт під актуальні запити з червоним повідомленням під час формування */}
         <div style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden' }}>
           <button
             onClick={() => setIsMatchingWorksOpen(!isMatchingWorksOpen)}
@@ -743,7 +741,7 @@ export default function DashboardPage() {
                   commercialOpportunities.map((comm: any) => (
                     <div key={comm.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '11px', color: '#38bdf8' }}>
-                        <span>Match: {comm.matchScore}%</span>
+                        <span>Відповідає на {comm.matchScore}%</span>
                         <span>Бюджет: {comm.budget} {comm.currency}</span>
                       </div>
                       <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 600, color: '#fff' }}>{comm.title}</h4>
