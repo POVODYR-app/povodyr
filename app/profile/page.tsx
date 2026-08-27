@@ -17,6 +17,11 @@ const TECHNIQUES_OPTIONS = [
   'Акрил', 'Олія', 'Змішана техніка', 'Сусальне золото / поталь', 'Фактурний живопис', 'Багатошаровий живопис'
 ]
 
+// Глобальні техніки для профілю (як на першому скріншоті)
+const PROFILE_TECHNIQUES_OPTIONS = [
+  'Акрил', 'Олійний живопис', 'Графіка', 'Імпасто', 'Колаж', 'Акварель'
+]
+
 const MATERIALS_OPTIONS = [
   'акрилова фарба', 'олійна фарба', 'золота поталь', 'текстурна паста', 'полотно'
 ]
@@ -47,6 +52,17 @@ export default function ProfilePage() {
   const [artistLevel, setArtistLevel] = useState('вільний художник')
   const [countries, setCountries] = useState<string[]>([])
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
+
+  // Фінансові ліміти та техніки профілю
+  const [feeExhibitionUah, setFeeExhibitionUah] = useState('750')
+  const [feeExhibitionEur, setFeeExhibitionEur] = useState('30')
+  const [feeExhibitionUsd, setFeeExhibitionUsd] = useState('50')
+  
+  const [feeContestUah, setFeeContestUah] = useState('0')
+  const [feeContestEur, setFeeContestEur] = useState('25')
+  const [feeContestUsd, setFeeContestUsd] = useState('15')
+
+  const [profileTechniques, setProfileTechniques] = useState<string[]>(['Акрил', 'Олійний живопис', 'Графіка', 'Імпасто'])
 
   // Стан для робіт портфоліо
   const [artworks, setArtworks] = useState<any[]>([])
@@ -89,6 +105,19 @@ export default function ProfilePage() {
         setArtistLevel(profile.artist_level || 'вільний художник')
         setNotificationsEnabled(profile.notifications_enabled ?? true)
         
+        // Завантаження фінансових лімітів якщо вони є в базі
+        if (profile.fee_exhibition_uah !== undefined) setFeeExhibitionUah(String(profile.fee_exhibition_uah ?? '750'))
+        if (profile.fee_exhibition_eur !== undefined) setFeeExhibitionEur(String(profile.fee_exhibition_eur ?? '30'))
+        if (profile.fee_exhibition_usd !== undefined) setFeeExhibitionUsd(String(profile.fee_exhibition_usd ?? '50'))
+        
+        if (profile.fee_contest_uah !== undefined) setFeeContestUah(String(profile.fee_contest_uah ?? '0'))
+        if (profile.fee_contest_eur !== undefined) setFeeContestEur(String(profile.fee_contest_eur ?? '25'))
+        if (profile.fee_contest_usd !== undefined) setFeeContestUsd(String(profile.fee_contest_usd ?? '15'))
+
+        if (Array.isArray(profile.profile_techniques)) {
+          setProfileTechniques(profile.profile_techniques)
+        }
+
         let parsedCountries: string[] = []
         if (Array.isArray(profile.search_countries)) {
           parsedCountries = profile.search_countries
@@ -142,7 +171,6 @@ export default function ProfilePage() {
     }
 
     if (editingArtId) {
-      // Редагування існуючої картини
       const { error } = await supabase
         .from('artist_artworks')
         .update(artData)
@@ -155,7 +183,6 @@ export default function ProfilePage() {
         alert('Помилка оновлення твору: ' + error.message)
       }
     } else {
-      // Додавання нової картини
       const { data, error } = await supabase
         .from('artist_artworks')
         .insert(artData)
@@ -186,7 +213,6 @@ export default function ProfilePage() {
     setNewWorkTypes(art.work_types || [])
     setNewSpaces(art.suitable_spaces || [])
     
-    // Прокрутка до форми редагування
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
   }
 
@@ -231,6 +257,13 @@ export default function ProfilePage() {
       artist_level: artistLevel,
       search_countries: countries,
       notifications_enabled: notificationsEnabled,
+      fee_exhibition_uah: Number(feeExhibitionUah) || 0,
+      fee_exhibition_eur: Number(feeExhibitionEur) || 0,
+      fee_exhibition_usd: Number(feeExhibitionUsd) || 0,
+      fee_contest_uah: Number(feeContestUah) || 0,
+      fee_contest_eur: Number(feeContestEur) || 0,
+      fee_contest_usd: Number(feeContestUsd) || 0,
+      profile_techniques: profileTechniques,
       updated_at: new Date().toISOString(),
     }
 
@@ -316,6 +349,92 @@ export default function ProfilePage() {
                 ))}
               </div>
             </div>
+
+            {/* Організаційний внесок (виставки) */}
+            <div style={{ borderTop: '1px solid #334155', paddingTop: 12, marginTop: 4 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#38bdf8' }}>Організаційний внесок (виставки)</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                <div>
+                  <span style={{ fontSize: 11, color: '#94a3b8', display: 'block', marginBottom: 2 }}>Україна (UAH)</span>
+                  <input
+                    type="number"
+                    value={feeExhibitionUah}
+                    onChange={(e) => setFeeExhibitionUah(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', fontSize: 13 }}
+                  />
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, color: '#94a3b8', display: 'block', marginBottom: 2 }}>ЄС (EUR)</span>
+                  <input
+                    type="number"
+                    value={feeExhibitionEur}
+                    onChange={(e) => setFeeExhibitionEur(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', fontSize: 13 }}
+                  />
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, color: '#94a3b8', display: 'block', marginBottom: 2 }}>США (USD)</span>
+                  <input
+                    type="number"
+                    value={feeExhibitionUsd}
+                    onChange={(e) => setFeeExhibitionUsd(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', fontSize: 13 }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Реєстраційний внесок (конкурси) */}
+            <div style={{ paddingTop: 4 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#38bdf8' }}>Реєстраційний внесок (конкурси)</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                <div>
+                  <span style={{ fontSize: 11, color: '#94a3b8', display: 'block', marginBottom: 2 }}>Україна (UAH)</span>
+                  <input
+                    type="number"
+                    value={feeContestUah}
+                    onChange={(e) => setFeeContestUah(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', fontSize: 13 }}
+                  />
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, color: '#94a3b8', display: 'block', marginBottom: 2 }}>ЄС (EUR)</span>
+                  <input
+                    type="number"
+                    value={feeContestEur}
+                    onChange={(e) => setFeeContestEur(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', fontSize: 13 }}
+                  />
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, color: '#94a3b8', display: 'block', marginBottom: 2 }}>США (USD)</span>
+                  <input
+                    type="number"
+                    value={feeContestUsd}
+                    onChange={(e) => setFeeContestUsd(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', fontSize: 13 }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Техніки (для глобального матчингу) */}
+            <div style={{ borderTop: '1px solid #334155', paddingTop: 12, marginTop: 4 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#38bdf8' }}>Техніки *</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                {PROFILE_TECHNIQUES_OPTIONS.map((tech) => (
+                  <label key={tech} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
+                    <input
+                      type="checkbox"
+                      checked={profileTechniques.includes(tech)}
+                      onChange={() => handleToggle(profileTechniques, setProfileTechniques, tech)}
+                    />
+                    <span>{tech}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
           </div>
 
           {/* РОЗШИРЕНЕ ПОРТФОЛІО */}
