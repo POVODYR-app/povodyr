@@ -77,7 +77,7 @@ export default function DashboardPage() {
         techniques: ["Олія на полотні", "Мультишаровий акриловий живопис", "Мастихінова техніка", "Золота поталь"],
         materials: ["Полотно", "Олійні фарби", "Акрил", "Золота поталь"],
         themes: ["Українська культурна спадщина", "Пейзажі", "Плинність життя"],
-        series: ["Квіткова", "Трояндовий рай", "Код Мазепи"],
+        series: ["Голос березового гаю", "Про любов", "Африканська маска"],
         professional_level: "Professional / Established",
         target_countries: ["Україна", "Велика Британія", "Країни ЄС"],
         preferred_opportunity_types: ["exhibition", "open_call", "competition", "residency", "grant"]
@@ -328,13 +328,13 @@ export default function DashboardPage() {
   const getSpecificArtworksForQuery = (queryTitle: string) => {
     const lower = queryTitle.toLowerCase()
     if (lower.includes('інтерєр') || lower.includes('ресторан') || lower.includes('готель') || lower.includes('офіс') || lower.includes('львові')) {
-      return 'Картини: «Синхронізація», «Перша скрипка» (Серія «Голос березового гаю», техніка солярісм, сусальне золото).'
+      return 'Картини: «Берези, що плачуть сонячним світлом», «Між ніччю та світанком» (Серія «Голос березового гаю», техніка солярісм, сусальне золото).'
     } else if (lower.includes('квіт') || lower.includes('ботанік') || lower.includes('весна')) {
       return 'Картини: «Ранкове марево», «Сновидіння» (Серія «Голос березового гаю», олія на полотні, мастихінова техніка).'
     } else if (lower.includes('істор') || lower.includes('національн') || lower.includes('традиц') || lower.includes('гетьман')) {
-      return 'Картини: «Код Мазепи», «Березова Катедрала» (Серія «Код Мазепи», солярісм, акрилові текстури).'
+      return 'Картини: «Березова Катедрала» (Серія «Голос березового гаю», солярісм, акрилові текстури).'
     } else {
-      return 'Картини: «Лагуна спокою», «Погляд у Вись» (Серія «Сакральні сади», мультишаровий акриловий живопис, золота поталь).'
+      return 'Картини: «Дихання сонячного світла», «Погляд у Вись» (Серія «Голос березового гаю», мультишаровий акриловий живопис, золота поталь).'
     }
   }
 
@@ -381,7 +381,7 @@ export default function DashboardPage() {
         {/* 1. Головний блок професійних можливостей */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ marginBottom: 4, fontSize: '14px', fontWeight: 600, color: '#38bdf8' }}>
-            🧭 ЗНАЙШОВ ДЛЯ ВАС ШЛЯХ ДЛЯ РОЗВИТКУ
+            🧭 ЗНАЙШОВ ДЛЯ ВАС
           </div>
           <div style={{ marginBottom: 8, fontSize: '12px', color: '#94a3b8' }}>
             Конкурси · виставки · гранти · резиденції
@@ -401,7 +401,7 @@ export default function DashboardPage() {
               textAlign: 'center'
             }}
           >
-            📂 ВІДІБРАВ ДЛЯ ВАС НАЙКРАЩІ ВАРІАНТИ
+            📂 ВІДІБРАВ ДЛЯ ВАС АКТУАЛЬНЕ
           </button>
           <div style={{ marginTop: 6, fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>
             Усі знайдені та відібрані пропозиції за останні 7 днів
@@ -457,7 +457,7 @@ export default function DashboardPage() {
               textAlign: 'left'
             }}
           >
-            <span>✨ СЬОГОДНІ Я ЗНАЙШОВ ДЛЯ ВАС</span>
+            <span>✨ СЬОГОДНІ ЗНАЙШОВ ДЛЯ ВАС АКТУАЛЬНІ ШЛЯХИ</span>
             <span style={{ fontSize: '14px', color: '#38bdf8' }}>{isTop3Open ? '▲ Згорнути' : '▼ Розгорнути'}</span>
           </button>
           {isTop3Open && (
@@ -608,7 +608,7 @@ export default function DashboardPage() {
               textAlign: 'left'
             }}
           >
-            <span>🎨 ПІДІБРАВ ВАШІ РОБОТИ</span>
+            <span>🎨 ПІДІБРАВ ВАШІ РОБОТИ ПІД ЗАПИТ НА КАРТИНИ</span>
             <span style={{ fontSize: '14px', color: '#38bdf8' }}>{isMatchingWorksOpen ? '▲ Згорнути' : '▼ Розгорнути'}</span>
           </button>
           {isMatchingWorksOpen && (
@@ -743,7 +743,7 @@ export default function DashboardPage() {
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           notifications={modalOpportunities}
-          title="ВІДІБРАВ ДЛЯ ВАС. ШУКАЮТЬ КАРТИНИ"
+          title="ВІДІБРАВ ДЛЯ ВАС"
         />
 
         {isCommercialModalOpen && (
@@ -759,7 +759,7 @@ export default function DashboardPage() {
               maxHeight: '85dvh', overflowY: 'auto', color: '#fff'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h3 style={{ margin: 0, fontSize: 18, color: '#34d399' }}>🤝 ЗНАЙШОВ, ХТО ШУКАЄ АРТ ПАРТНЕРА</h3>
+                <h3 style={{ margin: 0, fontSize: 18, color: '#34d399' }}>🤝 ЗНАЙШОВ, ХТО ШУКАЄ ПАРТНЕРА</h3>
                 <button
                   onClick={() => setIsCommercialModalOpen(false)}
                   style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 18, cursor: 'pointer' }}
