@@ -160,7 +160,7 @@ export default function DashboardPage() {
             currency: comm.currency || 'UAH',
             organization: comm.organization || 'Партнерський проєкт',
             contact_person: comm.contact_person || 'Менеджер проєкту',
-            contact_method: comm.contact_method || 'art.fine.nation@gmail.com',
+            contact_method: comm.contact_method || 'artfinenation@gmail.com',
             created_at: comm.date_added || new Date().toISOString(),
             deadline: comm.deadline || undefined,
             matchScore: match.score > 0 ? match.score : 85,
@@ -759,7 +759,7 @@ export default function DashboardPage() {
               maxHeight: '85dvh', overflowY: 'auto', color: '#fff'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h3 style={{ margin: 0, fontSize: 18, color: '#34d399' }}>🤝 ЗНАЙШОВ, ХТО ШУКАЄ ПАРТНЕРА</h3>
+                <h3 style={{ margin: 0, fontSize: 18, color: '#34d399' }}>🤝 ЗНАЙШОВ, ХТО ШУКАЄ АРТ ПАРТНЕРА</h3>
                 <button
                   onClick={() => setIsCommercialModalOpen(false)}
                   style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 18, cursor: 'pointer' }}
