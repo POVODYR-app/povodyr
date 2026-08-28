@@ -160,7 +160,7 @@ export default function DashboardPage() {
             currency: comm.currency || 'UAH',
             organization: comm.organization || 'Партнерський проєкт',
             contact_person: comm.contact_person || 'Менеджер проєкту',
-            contact_method: comm.contact_method || 'artfinenation@gmail.com',
+            contact_method: comm.contact_method || 'art.fine.nation@gmail.com',
             created_at: comm.date_added || new Date().toISOString(),
             deadline: comm.deadline || undefined,
             matchScore: match.score > 0 ? match.score : 85,
@@ -314,6 +314,27 @@ export default function DashboardPage() {
       alert(`Не вдалося згенерувати презентацію: ${err.message || 'Невідома помилка'}`)
     } finally {
       setGeneratingMatchingWorksId(null)
+    }
+  }
+
+  // ===== Функція збереження feedback =====
+  const handleSendFeedback = async (type: string) => {
+    if (!userObj?.id || !proposalModalData) return
+
+    try {
+      const { error } = await supabase.from('feedback').insert({
+        user_id: userObj.id,
+        comment: type,
+        feedback_text: type,
+        created_at: new Date().toISOString(),
+      })
+
+      if (error) throw error
+
+      alert('Дякую! Ваш відгук збережено. POVODYR стане точнішим.')
+    } catch (err) {
+      console.error('Помилка збереження feedback:', err)
+      alert('Не вдалося зберегти відгук')
     }
   }
 
@@ -597,7 +618,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* 6. ПІДІБРАВ ВАШІ РОБОТИ */}
+        {/* 6. ПІДІБРАВ ВАШІ РОБОТИ ПІД ЗАПИТИ */}
         <div style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden' }}>
           <button
             onClick={() => setIsMatchingWorksOpen(!isMatchingWorksOpen)}
@@ -754,6 +775,7 @@ export default function DashboardPage() {
           title="ВІДІБРАВ ДЛЯ ВАС"
         />
 
+        {/* Комерційна модалка */}
         {isCommercialModalOpen && (
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -825,6 +847,7 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* ===== Модалка згенерованого тексту + FEEDBACK ===== */}
         {proposalModalData && (
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -837,13 +860,17 @@ export default function DashboardPage() {
               borderRadius: 16, padding: 20, width: '100%', maxWidth: 440,
               maxHeight: '85dvh', overflowY: 'auto', color: '#fff'
             }}>
-              <h3 style={{ margin: '0 0 8px 0', fontSize: 16, color: '#38bdf8' }}>{proposalModalData.title}</h3>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: 16, color: '#38bdf8' }}>
+                {proposalModalData.title}
+              </h3>
+
               {proposalModalData.organization && (
                 <div style={{ backgroundColor: '#0f172a', padding: 8, borderRadius: 8, marginBottom: 10, fontSize: '12px', border: '1px solid #334155' }}>
                   <div style={{ color: '#34d399', fontWeight: 600 }}>Замовник: {proposalModalData.organization}</div>
                   <div style={{ color: '#cbd5e1' }}>Контактна особа: {proposalModalData.contactPerson}</div>
                 </div>
               )}
+
               <textarea
                 value={proposalModalData.text}
                 onChange={(e) => setProposalModalData({ ...proposalModalData, text: e.target.value })}
@@ -854,7 +881,9 @@ export default function DashboardPage() {
                   marginBottom: 12, outline: 'none'
                 }}
               />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+
+              {/* Кнопки копіювання та завантаження */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(proposalModalData.text)
@@ -887,6 +916,66 @@ export default function DashboardPage() {
                   <span>💾</span> Завантажити (.txt)
                 </button>
               </div>
+
+              {/* ===== БЛОК FEEDBACK ===== */}
+              <div style={{ 
+                backgroundColor: '#0f172a', 
+                border: '1px solid #334155', 
+                borderRadius: 12, 
+                padding: 12, 
+                marginBottom: 12 
+              }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: 10, color: '#e2e8f0' }}>
+                  Як вам цей варіант?
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button
+                    onClick={() => handleSendFeedback('Добре, можна використовувати')}
+                    style={{
+                      backgroundColor: '#059669', color: 'white', border: 'none',
+                      borderRadius: 8, padding: '10px', fontSize: '13px', fontWeight: 600,
+                      cursor: 'pointer', textAlign: 'left'
+                    }}
+                  >
+                    ✅ Добре, можна використовувати
+                  </button>
+
+                  <button
+                    onClick={() => handleSendFeedback('Потрібно змінити тон / зробити більш особистим')}
+                    style={{
+                      backgroundColor: '#1e293b', color: '#e2e8f0', border: '1px solid #475569',
+                      borderRadius: 8, padding: '10px', fontSize: '13px', fontWeight: 600,
+                      cursor: 'pointer', textAlign: 'left'
+                    }}
+                  >
+                    ✏️ Потрібно змінити тон
+                  </button>
+
+                  <button
+                    onClick={() => handleSendFeedback('Занадто офіційно / канцелярсько')}
+                    style={{
+                      backgroundColor: '#1e293b', color: '#e2e8f0', border: '1px solid #475569',
+                      borderRadius: 8, padding: '10px', fontSize: '13px', fontWeight: 600,
+                      cursor: 'pointer', textAlign: 'left'
+                    }}
+                  >
+                    📄 Занадто офіційно
+                  </button>
+
+                  <button
+                    onClick={() => handleSendFeedback('Не підходить взагалі')}
+                    style={{
+                      backgroundColor: '#1e293b', color: '#f87171', border: '1px solid #475569',
+                      borderRadius: 8, padding: '10px', fontSize: '13px', fontWeight: 600,
+                      cursor: 'pointer', textAlign: 'left'
+                    }}
+                  >
+                    ❌ Не підходить
+                  </button>
+                </div>
+              </div>
+
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
                 <a
                   href={`mailto:art.fine.nation@gmail.com?subject=${encodeURIComponent(proposalModalData.title)}&body=${encodeURIComponent(proposalModalData.text)}`}
@@ -897,9 +986,10 @@ export default function DashboardPage() {
                     boxSizing: 'border-box'
                   }}
                 >
-                  <span>✉️</span> Написати замовнику (Email)
+                  <span>✉️</span> Написати замовнику
                 </a>
               </div>
+
               <button
                 onClick={() => setProposalModalData(null)}
                 style={{
