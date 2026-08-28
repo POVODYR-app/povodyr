@@ -73,10 +73,10 @@ export default function DashboardPage() {
         name: 'Ванда Орлова',
         country: 'Україна',
         city: 'Київ',
-        artistic_styles: ["Солярісм", "Сучасний живопис"],
+        artistic_styles: ["Солярісм", "Сучасний станковий живопис"],
         techniques: ["Олія на полотні", "Мультишаровий акриловий живопис", "Мастихінова техніка", "Золота поталь"],
         materials: ["Полотно", "Олійні фарби", "Акрил", "Золота поталь"],
-        themes: ["Українська культурна спадщина", "Пейзажі", "Плинність життя"],
+        themes: ["Українська культурна спадщина", "Флористика та ботанічні мотиви", "Плинність життя"],
         series: ["Голос березового гаю", "Про любов", "Африканська маска"],
         professional_level: "Professional / Established",
         target_countries: ["Україна", "Велика Британія", "Країни ЄС"],
@@ -257,7 +257,11 @@ export default function DashboardPage() {
           opportunityId: opp.id,
           opportunityTitle: opp.title,
           opportunityDescription: `${opp.description} ${opp.what_is_needed ? 'Що потрібно: ' + opp.what_is_needed : ''}`,
-          matchReasons: opp.matchReasons,
+          matchReasons: opp.matchReasons || [],
+          userId: userObj?.id,
+          contactPerson: opp.contact_person,
+          organization: opp.organization,
+          isCommercial: !!opp.budget || !!opp.organization,
         }),
       })
       const data = await res.json()
@@ -288,7 +292,11 @@ export default function DashboardPage() {
           opportunityId: reqItem.id,
           opportunityTitle: `Добір робіт під запит: ${reqItem.title}`,
           opportunityDescription: `${reqItem.description} ${reqItem.what_is_needed ? 'Вимоги: ' + reqItem.what_is_needed : ''} Рекомендовані твори: ${getSpecificArtworksForQuery(reqItem.title)}`,
-          matchReasons: reqItem.matchReasons,
+          matchReasons: reqItem.matchReasons || [],
+          userId: userObj?.id,
+          contactPerson: reqItem.contact_person,
+          organization: reqItem.organization,
+          isCommercial: true,
         }),
       })
       const data = await res.json()
@@ -328,13 +336,13 @@ export default function DashboardPage() {
   const getSpecificArtworksForQuery = (queryTitle: string) => {
     const lower = queryTitle.toLowerCase()
     if (lower.includes('інтерєр') || lower.includes('ресторан') || lower.includes('готель') || lower.includes('офіс') || lower.includes('львові')) {
-      return 'Картини: «Берези, що плачуть сонячним світлом», «Між ніччю та світанком» (Серія «Голос березового гаю», техніка солярісм, сусальне золото).'
+      return 'Картини: «Між ніччю та світанком», «Дихання сонячного світла» (Серія «Голос березового гаю», техніка солярісм, сусальне золото).'
     } else if (lower.includes('квіт') || lower.includes('ботанік') || lower.includes('весна')) {
       return 'Картини: «Ранкове марево», «Сновидіння» (Серія «Голос березового гаю», олія на полотні, мастихінова техніка).'
     } else if (lower.includes('істор') || lower.includes('національн') || lower.includes('традиц') || lower.includes('гетьман')) {
-      return 'Картини: «Березова Катедрала» (Серія «Голос березового гаю», солярісм, акрилові текстури).'
+      return 'Картини: «Берези, що плачуть сонячним світлом», «Березова Катедрала» (Серія «Голос березового гаю», солярісм, акрилові текстури).'
     } else {
-      return 'Картини: «Дихання сонячного світла», «Погляд у Вись» (Серія «Голос березового гаю», мультишаровий акриловий живопис, золота поталь).'
+      return 'Картини: «Лагуна спокою», «Погляд у Вись» (Серія «Голос березового гаю», мультишаровий акриловий живопис, золота поталь).'
     }
   }
 
@@ -378,7 +386,7 @@ export default function DashboardPage() {
 
         <FollowUpAlerts savedItems={savedItemsForAlerts} />
 
-        {/* 1. Головний блок професійних можливостей */}
+        {/* 1. ЗНАЙШОВ ДЛЯ ВАС */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ marginBottom: 4, fontSize: '14px', fontWeight: 600, color: '#38bdf8' }}>
             🧭 ЗНАЙШОВ ДЛЯ ВАС
@@ -401,17 +409,17 @@ export default function DashboardPage() {
               textAlign: 'center'
             }}
           >
-            📂 ВІДІБРАВ ДЛЯ ВАС АКТУАЛЬНЕ
+            📂 ВІДІБРАВ ДЛЯ ВАС
           </button>
           <div style={{ marginTop: 6, fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>
             Усі знайдені та відібрані пропозиції за останні 7 днів
           </div>
         </div>
 
-        {/* 3 + 4. Продаж / потенційний попит + Комерційні та B2B */}
+        {/* 3 + 4. ЗНАЙШОВ, ХТО ШУКАЄ */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ marginBottom: 4, fontSize: '14px', fontWeight: 600, color: '#34d399' }}>
-            🖼️ ЗНАЙШОВ, ХТО ШУКАЄ КАРТИНИ
+            🖼️ ЗНАЙШОВ, ХТО ШУКАЄ
           </div>
           <div style={{ marginBottom: 8, fontSize: '12px', color: '#94a3b8' }}>
             Покупці · дизайнери · галереї · готелі · ресторани · колекціонери
@@ -438,7 +446,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 5. Щоденна персональна добірка */}
+        {/* 5. СЬОГОДНІ Я ЗНАЙШОВ ДЛЯ ВАС */}
         <div style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden' }}>
           <button
             onClick={() => setIsTop3Open(!isTop3Open)}
@@ -457,7 +465,7 @@ export default function DashboardPage() {
               textAlign: 'left'
             }}
           >
-            <span>✨ СЬОГОДНІ ЗНАЙШОВ ДЛЯ ВАС АКТУАЛЬНІ ШЛЯХИ</span>
+            <span>✨ СЬОГОДНІ Я ЗНАЙШОВ ДЛЯ ВАС</span>
             <span style={{ fontSize: '14px', color: '#38bdf8' }}>{isTop3Open ? '▲ Згорнути' : '▼ Розгорнути'}</span>
           </button>
           {isTop3Open && (
@@ -589,7 +597,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* 6. Підбір конкретних робіт */}
+        {/* 6. ПІДІБРАВ ВАШІ РОБОТИ */}
         <div style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden' }}>
           <button
             onClick={() => setIsMatchingWorksOpen(!isMatchingWorksOpen)}
@@ -608,7 +616,7 @@ export default function DashboardPage() {
               textAlign: 'left'
             }}
           >
-            <span>🎨 ПІДІБРАВ ВАШІ РОБОТИ ПІД ЗАПИТ НА КАРТИНИ</span>
+            <span>🎨 ПІДІБРАВ ВАШІ РОБОТИ</span>
             <span style={{ fontSize: '14px', color: '#38bdf8' }}>{isMatchingWorksOpen ? '▲ Згорнути' : '▼ Розгорнути'}</span>
           </button>
           {isMatchingWorksOpen && (
@@ -667,7 +675,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* 7 + 8. Відстеження заявок */}
+        {/* 7 + 8. ВІДСТЕЖУЮ ВАШІ ЗАЯВКИ */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ marginBottom: 4, fontSize: '14px', fontWeight: 600, color: '#38bdf8' }}>
             📋 ВІДСТЕЖУЮ ВАШІ ЗАЯВКИ
@@ -694,7 +702,7 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* 9 + 10. Профіль художника */}
+        {/* 9 + 10. ЗАПАМ'ЯТАВ ПРО ВАС */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ marginBottom: 4, fontSize: '14px', fontWeight: 600, color: '#94a3b8' }}>
             👤 ЗАПАМ'ЯТАВ ПРО ВАС
@@ -717,7 +725,7 @@ export default function DashboardPage() {
               textAlign: 'center'
             }}
           >
-            ✏️ ДОДАЙТЕ ПРО СЕБЕ В ПРОФІЛЬ
+            ✏️ ДОДАЙТЕ ПРО СЕБЕ
           </button>
           <div style={{ marginTop: 6, fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>
             Чим більше POVODYR знає про вас, тим точніше він шукає.
