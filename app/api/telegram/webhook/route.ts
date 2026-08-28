@@ -12,6 +12,7 @@ async function sendTelegramMessage(chatId: number | string, text: string) {
     console.error('TELEGRAM_BOT_TOKEN is missing!')
     return
   }
+
   try {
     const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
@@ -38,9 +39,10 @@ export async function POST(req: Request) {
     const update = await req.json()
     console.log('--- WEBHOOK RECEIVED ---', JSON.stringify(update))
 
-    const chatId = update?.message?.chat?.id || update?.callback_query?.message?.chat?.id
-    const telegramUser = update?.message?.from
-    const text = update?.message?.text?.trim() || ''
+    const message = update?.message
+    const chatId = message?.chat?.id
+    const telegramUser = message?.from
+    const text = message?.text?.trim() || ''
 
     if (!chatId || !telegramUser) {
       return NextResponse.json({ ok: true })
@@ -48,15 +50,21 @@ export async function POST(req: Request) {
 
     const telegramIdStr = String(telegramUser.id)
 
+    // Обробка команди /start
     if (text.startsWith('/start')) {
+      // Правильний split
       const parts = text.split(/\s+/)
-      const rawParam = parts[1] // Це UUID профілю з посилання
+      const rawParam = parts[1] // UUID користувача з посилання
 
-      console.log('Start command received. Telegram ID:', telegramIdStr, 'Param:', rawParam, 'Chat ID:', chatId)
+      console.log('Start command received.', {
+        telegramId: telegramIdStr,
+        param: rawParam,
+        chatId: chatId,
+      })
 
       let targetProfileId: string | null = null
 
-      // 1. Якщо передано UUID у параметрі /start (основний сценарій з кнопки на сайті)
+      // 1. Основний сценарій — передано UUID у /start
       if (rawParam) {
         const { data: profileByParam } = await supabase
           .from('profiles')
@@ -69,12 +77,12 @@ export async function POST(req: Request) {
         }
       }
 
-      // 2. Якщо параметра немає, шукаємо за вже прив'язаним telegram_id або telegram_chat_id
+      // 2. Якщо параметра немає — шукаємо за вже збереженим chat_id
       if (!targetProfileId) {
         const { data: profileByTg } = await supabase
           .from('profiles')
           .select('id')
-          .or(`telegram_id.eq.${telegramIdStr},telegram_chat_id.eq.${String(chatId)}`)
+          .eq('telegram_chat_id', String(chatId))
           .maybeSingle()
 
         if (profileByTg) {
@@ -82,36 +90,40 @@ export async function POST(req: Request) {
         }
       }
 
-      // Якщо знайшли профіль — записуємо чат ID та ID користувача в базу
+      // Якщо знайшли профіль — зберігаємо chat_id
       if (targetProfileId) {
         const { error: updateError } = await supabase
           .from('profiles')
-          .update({ 
+          .update({
             telegram_chat_id: String(chatId),
-            telegram_id: telegramIdStr 
           })
           .eq('id', targetProfileId)
 
         if (!updateError) {
           await sendTelegramMessage(
             chatId,
-            '✅ Ваш акаунт POVODYR успішно підключено! Тепер ви отримуватимете персональні сповіщення сюди.'
+            '✅ Ваш акаунт POVODYR успішно підключено!\n\nТепер ви отримуватимете персональні сповіщення про нові можливості прямо сюди.'
           )
           return NextResponse.json({ ok: true })
         } else {
           console.error('Database update error:', updateError)
+          await sendTelegramMessage(
+            chatId,
+            '⚠️ Виникла помилка при збереженні. Спробуйте ще раз або зверніться в підтримку.'
+          )
         }
+      } else {
+        // Профіль не знайдено
+        await sendTelegramMessage(
+          chatId,
+          `Вітаємо у POVODYR!\n\nВаш Telegram ID: <code>${telegramIdStr}</code>\n\nБудь ласка, зайдіть у свій кабінет на сайті і натисніть кнопку «Підключити Telegram-бота».`
+        )
       }
-
-      // Якщо профіль не знайдено в базі взагалі
-      await sendTelegramMessage(
-        chatId,
-        `Вітаємо у POVODYR! Ваш Telegram ID: <code>${telegramIdStr}</code>. Будь ласка, переконайтеся, що ви авторизовані в додатку і та натиснули кнопку підключення з вашого кабінету.`
-      )
     } else {
+      // Будь-яке інше повідомлення
       await sendTelegramMessage(
         chatId,
-        'Отримав ваше повідомлення. Сповіщення від POVODYR налаштовано успішно.'
+        'Отримав ваше повідомлення. Сповіщення від POVODYR налаштовано.'
       )
     }
 
