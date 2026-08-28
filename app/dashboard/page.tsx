@@ -1,4 +1,5 @@
 'use client'
+
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import TelegramConnect from '../../components/TelegramConnect'
@@ -58,8 +59,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let isMounted = true
+
     const loadDashboardData = async () => {
       setLoading(true)
+
       const { data: { user } } = await supabase.auth.getUser()
       if (!user || !isMounted) {
         setLoading(false)
@@ -70,11 +73,11 @@ export default function DashboardPage() {
         name: 'Ванда Орлова',
         country: 'Україна',
         city: 'Київ',
-        artistic_styles: ["Солярісм", "Сучасний станковий живопис"],
+        artistic_styles: ["Солярісм", "Сучасний живопис"],
         techniques: ["Олія на полотні", "Мультишаровий акриловий живопис", "Мастихінова техніка", "Золота поталь"],
         materials: ["Полотно", "Олійні фарби", "Акрил", "Золота поталь"],
-        themes: ["Українська культурна спадщина", "Флористика та ботанічні мотиви", "Плинність життя"],
-        series: ["Квіткова спадщина", "Трояндовий рай", "Код Мазепи"],
+        themes: ["Українська культурна спадщина", "Пейзажі", "Плинність життя"],
+        series: ["Квіткова", "Трояндовий рай", "Код Мазепи"],
         professional_level: "Professional / Established",
         target_countries: ["Україна", "Велика Британія", "Країни ЄС"],
         preferred_opportunity_types: ["exhibition", "open_call", "competition", "residency", "grant"]
@@ -87,7 +90,9 @@ export default function DashboardPage() {
         .maybeSingle()
 
       if (!isMounted) return
+
       if (profile?.full_name) setUserName(profile.full_name)
+
       setUserObj({
         id: user.id,
         telegram_chat_id: profile?.telegram_chat_id || null,
@@ -121,7 +126,7 @@ export default function DashboardPage() {
         .eq('user_id', user.id)
 
       if (savedOpps && isMounted) {
-        const submittedOnly = savedOpps.filter((item: any) => 
+        const submittedOnly = savedOpps.filter((item: any) =>
           item.status === 'submitted' || item.status === 'applied' || item.is_submitted === true || item.applied === true
         )
         setSavedItemsForAlerts(submittedOnly)
@@ -208,6 +213,7 @@ export default function DashboardPage() {
                 recommendedAction: match.recommendedAction,
               }
             })
+
             formattedOpps.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
             setModalOpportunities(formattedOpps)
 
@@ -235,6 +241,7 @@ export default function DashboardPage() {
     }
 
     loadDashboardData()
+
     return () => {
       isMounted = false
     }
@@ -304,7 +311,6 @@ export default function DashboardPage() {
 
   const getDeadlineDetails = (deadlineStr?: string) => {
     if (!deadlineStr) return { indicator: '🟢', label: 'Довгострокова можливість' }
-    
     const deadlineDate = new Date(deadlineStr)
     const today = new Date()
     const diffDays = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
@@ -322,9 +328,9 @@ export default function DashboardPage() {
   const getSpecificArtworksForQuery = (queryTitle: string) => {
     const lower = queryTitle.toLowerCase()
     if (lower.includes('інтерєр') || lower.includes('ресторан') || lower.includes('готель') || lower.includes('офіс') || lower.includes('львові')) {
-      return 'Картини: «Синхронізація», «Перша скрипка» (Серія «Квіткова спадщина», техніка солярісм, сусальне золото).'
+      return 'Картини: «Синхронізація», «Перша скрипка» (Серія «Голос березового гаю», техніка солярісм, сусальне золото).'
     } else if (lower.includes('квіт') || lower.includes('ботанік') || lower.includes('весна')) {
-      return 'Картини: «Ранкове марево», «Сновидіння» (Серія «Квіткова спадщина», олія на полотні, мастихінова техніка).'
+      return 'Картини: «Ранкове марево», «Сновидіння» (Серія «Голос березового гаю», олія на полотні, мастихінова техніка).'
     } else if (lower.includes('істор') || lower.includes('національн') || lower.includes('традиц') || lower.includes('гетьман')) {
       return 'Картини: «Код Мазепи», «Березова Катедрала» (Серія «Код Мазепи», солярісм, акрилові текстури).'
     } else {
@@ -343,19 +349,18 @@ export default function DashboardPage() {
       }}
     >
       <div style={{ maxWidth: 420, margin: '0 auto' }}>
-        
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
             Вітаю{userName ? `, ${userName}` : ''}!
           </h1>
-          <button 
+          <button
             onClick={() => setIsModalOpen(true)}
-            style={{ 
-              background: '#1e293b', 
-              border: '1px solid #334155', 
-              borderRadius: 12, 
-              padding: '10px 16px', 
-              cursor: 'pointer', 
+            style={{
+              background: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: 12,
+              padding: '10px 16px',
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
@@ -370,54 +375,70 @@ export default function DashboardPage() {
         </div>
 
         {userObj && <TelegramConnect user={userObj} />}
+
         <FollowUpAlerts savedItems={savedItemsForAlerts} />
 
+        {/* 1. Головний блок професійних можливостей */}
         <div style={{ marginBottom: 20 }}>
-          <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#38bdf8' }}>
-            🧭 Можливості — Розвиток кар'єри
+          <div style={{ marginBottom: 4, fontSize: '14px', fontWeight: 600, color: '#38bdf8' }}>
+            🧭 ЗНАЙШОВ ДЛЯ ВАС ШЛЯХ ДЛЯ РОЗВИТКУ
           </div>
-          <button 
-            onClick={() => setIsModalOpen(true)} 
-            style={{ 
+          <div style={{ marginBottom: 8, fontSize: '12px', color: '#94a3b8' }}>
+            Конкурси · виставки · гранти · резиденції
+          </div>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            style={{
               width: '100%',
-              backgroundColor: '#2563eb', 
+              backgroundColor: '#2563eb',
               color: 'white',
               border: 'none',
-              borderRadius: 16, 
-              padding: 16, 
+              borderRadius: 16,
+              padding: 16,
               fontSize: 16,
               fontWeight: 600,
               cursor: 'pointer',
               textAlign: 'center'
             }}
           >
-            📂 Центр можливостей (за останні 7 днів)
+            📂 ВІДІБРАВ ДЛЯ ВАС НАЙКРАЩІ ВАРІАНТИ
           </button>
+          <div style={{ marginTop: 6, fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>
+            Усі знайдені та відібрані пропозиції за останні 7 днів
+          </div>
         </div>
 
+        {/* 3 + 4. Продаж / потенційний попит + Комерційні та B2B */}
         <div style={{ marginBottom: 20 }}>
-          <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#34d399' }}>
-            💰 Можливості для продажу — Знайти шлях до покупця
+          <div style={{ marginBottom: 4, fontSize: '14px', fontWeight: 600, color: '#34d399' }}>
+            🖼️ ЗНАЙШОВ, ХТО ШУКАЄ КАРТИНИ
           </div>
-          <button 
-            onClick={() => setIsCommercialModalOpen(true)} 
-            style={{ 
+          <div style={{ marginBottom: 8, fontSize: '12px', color: '#94a3b8' }}>
+            Покупці · дизайнери · галереї · готелі · ресторани · колекціонери
+          </div>
+          <button
+            onClick={() => setIsCommercialModalOpen(true)}
+            style={{
               width: '100%',
-              backgroundColor: '#059669', 
+              backgroundColor: '#059669',
               color: 'white',
               border: 'none',
-              borderRadius: 16, 
-              padding: 16, 
+              borderRadius: 16,
+              padding: 16,
               fontSize: 16,
               fontWeight: 600,
               cursor: 'pointer',
               textAlign: 'center'
             }}
           >
-            🏷️ Комерційні можливості (Sales & B2B)
+            🤝 ЗНАЙШОВ, ХТО ШУКАЄ АРТ ПАРТНЕРА
           </button>
+          <div style={{ marginTop: 6, fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>
+            Бренди · дизайнери · простори · культурні та комерційні проєкти
+          </div>
         </div>
 
+        {/* 5. Щоденна персональна добірка */}
         <div style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden' }}>
           <button
             onClick={() => setIsTop3Open(!isTop3Open)}
@@ -436,11 +457,14 @@ export default function DashboardPage() {
               textAlign: 'left'
             }}
           >
-            <span>✨ Сьогодні POVODYR знайшов для вас (Топ-3 найкращі)</span>
+            <span>✨ СЬОГОДНІ Я ЗНАЙШОВ ДЛЯ ВАС</span>
             <span style={{ fontSize: '14px', color: '#38bdf8' }}>{isTop3Open ? '▲ Згорнути' : '▼ Розгорнути'}</span>
           </button>
           {isTop3Open && (
             <div style={{ padding: '0 16px 16px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: 4 }}>
+                3 найкращі знахідки дня
+              </div>
               {loading ? (
                 <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 16, textAlign: 'center', color: '#94a3b8' }}>
                   Завантаження можливостей...
@@ -450,8 +474,8 @@ export default function DashboardPage() {
                   <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 12 }}>
                     «Нових можливостей для вашого поточного профілю не знайдено за останні 7 днів.»
                   </p>
-                  <button 
-                    onClick={() => window.location.href = '/profile'} 
+                  <button
+                    onClick={() => window.location.href = '/profile'}
                     style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                   >
                     Змінити критерії в профілі
@@ -462,8 +486,8 @@ export default function DashboardPage() {
                   const deadlineInfo = getDeadlineDetails(opp.deadline)
                   const isExpanded = expandedCardId === opp.id
                   return (
-                    <div 
-                      key={opp.id} 
+                    <div
+                      key={opp.id}
                       style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: 6, fontSize: '12px', color: '#cbd5e1' }}>
@@ -565,6 +589,7 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* 6. Підбір конкретних робіт */}
         <div style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden' }}>
           <button
             onClick={() => setIsMatchingWorksOpen(!isMatchingWorksOpen)}
@@ -583,13 +608,13 @@ export default function DashboardPage() {
               textAlign: 'left'
             }}
           >
-            <span>🎨 Добір робіт під актуальні запити</span>
+            <span>🎨 ПІДІБРАВ ВАШІ РОБОТИ</span>
             <span style={{ fontSize: '14px', color: '#38bdf8' }}>{isMatchingWorksOpen ? '▲ Згорнути' : '▼ Розгорнути'}</span>
           </button>
           {isMatchingWorksOpen && (
             <div style={{ padding: '0 16px 16px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0, lineHeight: 1.4 }}>
-                Конкретні картини та серії з вашого каталогу, які найкраще підходять під параметри знайдених запитів.
+                Під актуальні запити покупців, дизайнерів, галерей та інших замовників
               </p>
               {loading ? (
                 <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12, textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
@@ -642,50 +667,61 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* 7 + 8. Відстеження заявок */}
         <div style={{ marginBottom: 20 }}>
-          <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#38bdf8' }}>
-            📋 Мої заявки — Відстежувати результат
+          <div style={{ marginBottom: 4, fontSize: '14px', fontWeight: 600, color: '#38bdf8' }}>
+            📋 ВІДСТЕЖУЮ ВАШІ ЗАЯВКИ
           </div>
-          <button 
-            onClick={() => setIsModalOpen(true)} 
-            style={{ 
+          <div style={{ marginBottom: 8, fontSize: '12px', color: '#94a3b8' }}>
+            Статус · дедлайн · результат
+          </div>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            style={{
               width: '100%',
-              backgroundColor: '#1e293b', 
+              backgroundColor: '#1e293b',
               color: 'white',
               border: '1px solid #334155',
-              borderRadius: 16, 
-              padding: 16, 
+              borderRadius: 16,
+              padding: 16,
               fontSize: 16,
               fontWeight: 600,
               cursor: 'pointer',
               textAlign: 'center'
             }}
           >
-            📋 Мої заявки та результати ({savedItemsForAlerts.length})
+            📋 ВАШІ ЗАЯВКИ ТА РЕЗУЛЬТАТИ ({savedItemsForAlerts.length})
           </button>
         </div>
 
+        {/* 9 + 10. Профіль художника */}
         <div style={{ marginBottom: 24 }}>
-          <div style={{ marginBottom: 8, fontSize: '14px', fontWeight: 600, color: '#94a3b8' }}>
-            👤 Мій профіль — Налаштувати POVODYR
+          <div style={{ marginBottom: 4, fontSize: '14px', fontWeight: 600, color: '#94a3b8' }}>
+            👤 ЗАПАМ'ЯТАВ ПРО ВАС
           </div>
-          <button 
-            onClick={() => window.location.href = '/profile'} 
-            style={{ 
+          <div style={{ marginBottom: 8, fontSize: '12px', color: '#94a3b8' }}>
+            Ваш профіль · стиль · техніка · теми · цілі
+          </div>
+          <button
+            onClick={() => window.location.href = '/profile'}
+            style={{
               width: '100%',
-              backgroundColor: '#1e293b', 
+              backgroundColor: '#1e293b',
               color: 'white',
               border: '1px solid #334155',
-              borderRadius: 16, 
-              padding: 16, 
+              borderRadius: 16,
+              padding: 16,
               fontSize: 16,
               fontWeight: 600,
               cursor: 'pointer',
               textAlign: 'center'
             }}
           >
-            ✏️ Редагувати профіль та критерії
+            ✏️ ДОДАЙТЕ ПРО СЕБЕ В ПРОФІЛЬ
           </button>
+          <div style={{ marginTop: 6, fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>
+            Чим більше POVODYR знає про вас, тим точніше він шукає.
+          </div>
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 32, borderTop: '1px solid #1e293b', paddingTop: 24 }}>
@@ -694,9 +730,9 @@ export default function DashboardPage() {
             Ви створюєте картини. POVODYR допомагає їм знайти шлях.
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
-            <img 
-              src="/icon-192.jpg" 
-              alt="POVODYR logo" 
+            <img
+              src="/icon-192.jpg"
+              alt="POVODYR logo"
               style={{ width: 60, height: 'auto', borderRadius: 12, border: '1px solid #334155' }}
               onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
             />
@@ -707,7 +743,7 @@ export default function DashboardPage() {
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           notifications={modalOpportunities}
-          title="Центр можливостей (за 7 днів)"
+          title="ВІДІБРАВ ДЛЯ ВАС. ШУКАЮТЬ КАРТИНИ"
         />
 
         {isCommercialModalOpen && (
@@ -723,8 +759,8 @@ export default function DashboardPage() {
               maxHeight: '85dvh', overflowY: 'auto', color: '#fff'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h3 style={{ margin: 0, fontSize: 18, color: '#34d399' }}>💰 Комерційні можливості продажу</h3>
-                <button 
+                <h3 style={{ margin: 0, fontSize: 18, color: '#34d399' }}>🤝 ЗНАЙШОВ, ХТО ШУКАЄ АРТ ПАРТНЕРА</h3>
+                <button
                   onClick={() => setIsCommercialModalOpen(false)}
                   style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 18, cursor: 'pointer' }}
                 >
@@ -746,18 +782,15 @@ export default function DashboardPage() {
                       </div>
                       <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 600, color: '#fff' }}>{comm.title}</h4>
                       <p style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#94a3b8', lineHeight: 1.4 }}>{comm.description}</p>
-                      
                       {comm.what_is_needed && (
                         <p style={{ margin: '0 0 6px 0', fontSize: '11px', color: '#34d399', lineHeight: 1.3 }}>
                           <strong>Вимоги:</strong> {comm.what_is_needed}
                         </p>
                       )}
-                      
                       <div style={{ backgroundColor: '#1e293b', borderRadius: 8, padding: '8px', marginBottom: '10px', fontSize: '11px', border: '1px solid #334155' }}>
                         <div style={{ color: '#f8fafc', fontWeight: 600, marginBottom: 2 }}>🏢 Замовник: {comm.organization}</div>
                         <div style={{ color: '#cbd5e1' }}>👤 Контактна особа: {comm.contact_person}</div>
                       </div>
-                      
                       <button
                         onClick={() => handleGenerateProposal(comm)}
                         disabled={generatingProposalId === comm.id}
@@ -797,14 +830,12 @@ export default function DashboardPage() {
               maxHeight: '85dvh', overflowY: 'auto', color: '#fff'
             }}>
               <h3 style={{ margin: '0 0 8px 0', fontSize: 16, color: '#38bdf8' }}>{proposalModalData.title}</h3>
-              
               {proposalModalData.organization && (
                 <div style={{ backgroundColor: '#0f172a', padding: 8, borderRadius: 8, marginBottom: 10, fontSize: '12px', border: '1px solid #334155' }}>
                   <div style={{ color: '#34d399', fontWeight: 600 }}>Замовник: {proposalModalData.organization}</div>
                   <div style={{ color: '#cbd5e1' }}>Контактна особа: {proposalModalData.contactPerson}</div>
                 </div>
               )}
-
               <textarea
                 value={proposalModalData.text}
                 onChange={(e) => setProposalModalData({ ...proposalModalData, text: e.target.value })}
@@ -815,17 +846,16 @@ export default function DashboardPage() {
                   marginBottom: 12, outline: 'none'
                 }}
               />
-              
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(proposalModalData.text)
                     alert('Текст скопійовано до буферу обміну!')
                   }}
-                  style={{ 
-                    backgroundColor: '#334155', color: '#fff', border: '1px solid #475569', 
-                    borderRadius: 8, padding: '10px 8px', fontSize: '12px', fontWeight: 600, 
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' 
+                  style={{
+                    backgroundColor: '#334155', color: '#fff', border: '1px solid #475569',
+                    borderRadius: 8, padding: '10px 8px', fontSize: '12px', fontWeight: 600,
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                   }}
                 >
                   <span>📋</span> Копіювати текст
@@ -840,22 +870,21 @@ export default function DashboardPage() {
                     a.click()
                     URL.revokeObjectURL(url)
                   }}
-                  style={{ 
-                    backgroundColor: '#334155', color: '#fff', border: '1px solid #475569', 
-                    borderRadius: 8, padding: '10px 8px', fontSize: '12px', fontWeight: 600, 
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' 
+                  style={{
+                    backgroundColor: '#334155', color: '#fff', border: '1px solid #475569',
+                    borderRadius: 8, padding: '10px 8px', fontSize: '12px', fontWeight: 600,
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                   }}
                 >
                   <span>💾</span> Завантажити (.txt)
                 </button>
               </div>
-
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
                 <a
                   href={`mailto:art.fine.nation@gmail.com?subject=${encodeURIComponent(proposalModalData.title)}&body=${encodeURIComponent(proposalModalData.text)}`}
-                  style={{ 
+                  style={{
                     flex: 1, backgroundColor: '#059669', color: '#fff', textDecoration: 'none',
-                    borderRadius: 8, padding: '10px', fontSize: '12px', fontWeight: 600, 
+                    borderRadius: 8, padding: '10px', fontSize: '12px', fontWeight: 600,
                     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                     boxSizing: 'border-box'
                   }}
@@ -863,7 +892,6 @@ export default function DashboardPage() {
                   <span>✉️</span> Написати замовнику (Email)
                 </a>
               </div>
-
               <button
                 onClick={() => setProposalModalData(null)}
                 style={{
@@ -877,7 +905,6 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
-
       </div>
     </div>
   )
