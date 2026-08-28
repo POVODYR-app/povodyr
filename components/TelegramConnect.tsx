@@ -12,8 +12,15 @@ interface TelegramConnectProps {
 export default function TelegramConnect({ user }: TelegramConnectProps) {
   const [copied, setCopied] = useState(false)
 
-  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'povodyr_bot'
-  const isConnected = Boolean(user?.telegram_chat_id)
+  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'povodyr_app_bot'
+  
+  // Жорстка перевірка
+  const isConnected = Boolean(
+    user?.telegram_chat_id && 
+    user.telegram_chat_id !== 'null' && 
+    String(user.telegram_chat_id).trim() !== ''
+  )
+  
   const telegramLink = `https://t.me/${botUsername}?start=${user.id}`
   const manualCommand = `/start ${user.id}`
 
@@ -80,7 +87,6 @@ export default function TelegramConnect({ user }: TelegramConnectProps) {
             <span>✈️</span> Підключити Telegram-бота
           </a>
 
-          {/* Запасний варіант для Safari та мобільних браузерів */}
           <div style={{
             backgroundColor: '#0f172a',
             border: '1px solid #334155',
@@ -90,7 +96,7 @@ export default function TelegramConnect({ user }: TelegramConnectProps) {
             color: '#cbd5e1'
           }}>
             <p style={{ margin: '0 0 6px 0', color: '#94a3b8' }}>
-              Якщо бот не підключився автоматично через Safari:
+              Якщо бот не підключився автоматично:
             </p>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <code style={{
