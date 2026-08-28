@@ -18,6 +18,38 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   );
 }
 
+// Пріоритетні джерела для постійного моніторингу та включення в добірки
+const PRIORITY_SOURCES = [
+  {
+    url: 'https://sites.google.com/view/artfinenation/open-call',
+    title: 'Art Fine Nation — Open Call (Україна)',
+    type: 'open_call',
+    country: 'Україна',
+    description: 'Пріоритетний постійний open call для українських художників, виставок та проєктів.'
+  },
+  {
+    url: 'https://houseofeurope.org.ua/',
+    title: 'House of Europe — Гранти та можливості для культурного сектору',
+    type: 'grant',
+    country: 'Україна',
+    description: 'Грантові програми, резиденції та професійні можливості для митців в Україні та ЄС.'
+  },
+  {
+    url: 'https://insha-osvita.org/',
+    title: 'Інша Освіта — Резиденції, гранти та освітні програми',
+    type: 'residency',
+    country: 'Україна',
+    description: 'Програми культурної співпраці, творчі резиденції та гранти.'
+  },
+  {
+    url: 'https://legaragemoderne.org/',
+    title: 'Le Garage Moderne — International Residencies & Open Calls',
+    type: 'residency',
+    country: 'Франція / International',
+    description: 'Міжнародні художні резиденції та відкриті конкурси для мистецьких проєктів.'
+  }
+];
+
 function parseArrayField(raw: any): string[] {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw.map(i => String(i).toLowerCase().trim());
@@ -61,6 +93,37 @@ export async function GET(request: NextRequest) {
 
     const testEmail = request.nextUrl.searchParams.get('test_email');
 
+    // КРОК 1: Гарантуємо наявність пріоритетних джерел у базі даних (моніторинг сайтів)
+    for (const source of PRIORITY_SOURCES) {
+      const { data: existingOpp } = await supabase
+        .from('opportunities')
+        .select('id')
+        .eq('source_url', source.url)
+        .maybeSingle();
+
+      if (!existingOpp) {
+        await supabase.from('opportunities').insert([
+          {
+            title: source.title,
+            description: source.description,
+            raw_description: source.description,
+            source_url: source.url,
+            type: source.type,
+            country: source.country,
+            eligible_countries: ['Україна', 'International'],
+            is_active: true,
+            created_at: new Date().toISOString()
+          }
+        ]);
+      } else {
+        // Оновлюємо статус на активний, якщо джерело вже існувало
+        await supabase
+          .from('opportunities')
+          .update({ is_active: true })
+          .eq('source_url', source.url);
+      }
+    }
+
     let query = supabase.from('profiles').select('*').eq('notifications_enabled', true);
     if (testEmail) {
       query = query.eq('email', testEmail);
@@ -84,7 +147,7 @@ export async function GET(request: NextRequest) {
       .eq('is_active', true)
       .or(`deadline.gte.${nowISO},deadline.is.null`)
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(60);
 
     if (oppError) {
       return NextResponse.json({ success: false, error: oppError.message }, { status: 500 });
@@ -99,6 +162,13 @@ export async function GET(request: NextRequest) {
       const orgFeeMax = Number(user.org_fee_max || user.max_fee_amount) || 0;
 
       const matchedOpps = (opportunities || []).filter((opp: any) => {
+        // Пріоритетні джерела (особливо Art Fine Nation та інші) проходять фільтр регіону автоматично для користувачів з Україною
+        const isPrioritySource = PRIORITY_SOURCES.some(ps => opp.source_url === ps.url);
+        if (isPrioritySource) {
+          const userRegionMatch = userCountries.length === 0 || userCountries.some(c => c.includes('україна') || c.includes('international') || c.includes('світ'));
+          if (userRegionMatch) return true;
+        }
+
         if (userCountries.length > 0 && opp.country) {
           const oppCountry = String(opp.country).toLowerCase();
           const countryMatch = userCountries.some(c => oppCountry.includes(c) || c.includes(oppCountry));
