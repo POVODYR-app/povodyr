@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import webpush from 'web-push';
+import { personalizeOpportunities } from '../../../lib/personalizeOpportunities';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -50,20 +51,6 @@ const PRIORITY_SOURCES = [
   }
 ];
 
-function parseArrayField(raw: any): string[] {
-  if (!raw) return [];
-  if (Array.isArray(raw)) return raw.map(i => String(i).toLowerCase().trim());
-  if (typeof raw === 'string') {
-    try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed.map(i => String(i).toLowerCase().trim());
-    } catch {
-      return raw.split(',').map(i => i.toLowerCase().trim());
-    }
-  }
-  return [];
-}
-
 async function sendTelegramMessage(chatId: string | number, text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token || !chatId) return false;
@@ -71,11 +58,11 @@ async function sendTelegramMessage(chatId: string | number, text: string) {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        chat_id: chatId, 
-        text, 
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
         parse_mode: 'HTML',
-        disable_web_page_preview: true 
+        disable_web_page_preview: true
       })
     });
     return res.ok;
@@ -116,7 +103,6 @@ export async function GET(request: NextRequest) {
           }
         ]);
       } else {
-        // Оновлюємо статус на активний, якщо джерело вже існувало
         await supabase
           .from('opportunities')
           .update({ is_active: true })
@@ -139,7 +125,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, message: 'Немає користувачів для розсилки', sent: 0 });
     }
 
-    // Отримуємо активні можливості безпосередньо з бази з урахуванням дедлайнів
     const nowISO = new Date().toISOString();
     const { data: opportunities, error: oppError } = await supabase
       .from('opportunities')
@@ -147,7 +132,7 @@ export async function GET(request: NextRequest) {
       .eq('is_active', true)
       .or(`deadline.gte.${nowISO},deadline.is.null`)
       .order('created_at', { ascending: false })
-      .limit(60);
+      .limit(250);
 
     if (oppError) {
       return NextResponse.json({ success: false, error: oppError.message }, { status: 500 });
@@ -157,39 +142,12 @@ export async function GET(request: NextRequest) {
     const logs: any[] = [];
 
     for (const user of users) {
-      const userCountries = parseArrayField(user.search_countries);
-      const userTechniques = parseArrayField(user.techniques);
-      const orgFeeMax = Number(user.org_fee_max || user.max_fee_amount) || 0;
-
-      const matchedOpps = (opportunities || []).filter((opp: any) => {
-        // Пріоритетні джерела (особливо Art Fine Nation та інші) проходять фільтр регіону автоматично для користувачів з Україною
-        const isPrioritySource = PRIORITY_SOURCES.some(ps => opp.source_url === ps.url);
-        if (isPrioritySource) {
-          const userRegionMatch = userCountries.length === 0 || userCountries.some(c => c.includes('україна') || c.includes('international') || c.includes('світ'));
-          if (userRegionMatch) return true;
-        }
-
-        if (userCountries.length > 0 && opp.country) {
-          const oppCountry = String(opp.country).toLowerCase();
-          const countryMatch = userCountries.some(c => oppCountry.includes(c) || c.includes(oppCountry));
-          if (!countryMatch && !oppCountry.includes('онлайн') && !oppCountry.includes('світ') && !oppCountry.includes('international')) {
-            return false;
-          }
-        }
-
-        if (userTechniques.length > 0 && opp.techniques) {
-          const oppTechs = parseArrayField(opp.techniques);
-          if (oppTechs.length > 0) {
-            const techMatch = userTechniques.some(ut => oppTechs.some(ot => ot.includes(ut) || ut.includes(ot)));
-            if (!techMatch) return false;
-          }
-        }
-
-        const fee = Number(opp.cost_amount || opp.fee_amount || opp.org_fee) || 0;
-        if (fee > orgFeeMax && orgFeeMax > 0 && !opp.is_free) return false;
-
-        return true;
+      const personalized = personalizeOpportunities(user, opportunities || [], {
+        minScore: 48,
+        limit: 20,
       });
+
+      const matchedOpps = personalized.map((item) => item.opportunity);
 
       if (matchedOpps.length === 0) {
         logs.push({ user: user.full_name || user.id, matched: 0, status: 'skipped_no_matches' });
@@ -237,8 +195,8 @@ export async function GET(request: NextRequest) {
 
       if (user.push_subscription && process.env.VAPID_PRIVATE_KEY) {
         try {
-          const sub = typeof user.push_subscription === 'string' 
-            ? JSON.parse(user.push_subscription) 
+          const sub = typeof user.push_subscription === 'string'
+            ? JSON.parse(user.push_subscription)
             : user.push_subscription;
           await webpush.sendNotification(sub, JSON.stringify({
             title,
@@ -269,12 +227,16 @@ export async function GET(request: NextRequest) {
 
       if (!insertError) {
         sentCount++;
-        logs.push({ 
-          user: user.full_name || user.id, 
-          matched: matchedOpps.length, 
-          email: emailSent, 
-          push: pushSent, 
-          telegram: telegramSent 
+        logs.push({
+          user: user.full_name || user.id,
+          matched: matchedOpps.length,
+          top_scores: personalized.slice(0, 5).map((item) => ({
+            title: item.opportunity?.title,
+            score: item.score
+          })),
+          email: emailSent,
+          push: pushSent,
+          telegram: telegramSent
         });
       } else {
         logs.push({ user: user.full_name || user.id, status: 'error', error: insertError.message });
