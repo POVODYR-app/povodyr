@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/ingest-commercial",
+      "schedule": "30 3 * * *"
+    },
+    {
       "path": "/api/ingest",
       "schedule": "0 4 * * *"
     },
