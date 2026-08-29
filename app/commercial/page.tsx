@@ -36,6 +36,137 @@ const STATUSES_MAP: Record<string, { label: string, color: string }> = {
   rejected: { label: 'Відмова', color: '#ef4444' }
 }
 
+function toArray(raw: any): string[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw.map((i) => String(i).trim()).filter(Boolean)
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed.map((i) => String(i).trim()).filter(Boolean)
+    } catch {
+      return raw.split(',').map((s) => s.trim()).filter(Boolean)
+    }
+  }
+  return []
+}
+
+function opportunityText(opp: any) {
+  return [
+    opp?.title,
+    opp?.description,
+    opp?.what_is_needed,
+    opp?.organization,
+    opp?.subtype,
+    SUBTYPES_MAP[opp?.subtype] || '',
+    opp?.city,
+    opp?.country,
+  ].join(' ').toLowerCase()
+}
+
+function getUserTechniques(profile: any, artworks: any[]) {
+  const fromProfile = [
+    ...toArray(profile?.profile_techniques),
+    ...toArray(profile?.techniques),
+  ]
+  const fromWorks = artworks.flatMap((a) => toArray(a.techniques_list || a.technique || a.techniques))
+  return Array.from(new Set([...fromProfile, ...fromWorks].map((t) => t.trim()).filter(Boolean)))
+}
+
+function calculateFit(opp: any, profile: any, artworks: any[]) {
+  const text = opportunityText(opp)
+  let score = 18
+  const reasons: string[] = []
+
+  const techniques = getUserTechniques(profile, artworks)
+  const matchedTechs = techniques.filter((t) => text.includes(t.toLowerCase()))
+  if (matchedTechs.length) {
+    score += Math.min(24, matchedTechs.length * 8)
+    reasons.push(`техніка з вашого профілю перегукується із запитом (${matchedTechs.slice(0, 3).join(', ')})`)
+  }
+
+  const countries = toArray(profile?.search_countries)
+  const oppCountry = String(opp?.country || '').toLowerCase()
+  if (oppCountry && countries.some((c) => oppCountry.includes(c.toLowerCase()) || c.toLowerCase().includes(oppCountry))) {
+    score += 16
+    reasons.push('країна запиту входить у вашу географію пошуку')
+  } else if (!oppCountry || oppCountry.includes('україн') || oppCountry.includes('ukraine')) {
+    score += 8
+    reasons.push('запит відкритий для України')
+  }
+
+  const spaces = artworks.flatMap((a) => toArray(a.suitable_spaces)).map((s) => s.toLowerCase())
+  const subtypeHints: Record<string, string[]> = {
+    hotel: ['готел', 'hotel'],
+    restaurant: ['ресторан', 'кафе', 'гостин'],
+    corporate_space: ['офіс', 'корпорат'],
+    interior_designer: ['інтер', 'дизайн'],
+    gallery: ['галер'],
+    collector: ['колекц'],
+  }
+  const hints = subtypeHints[opp?.subtype] || []
+  if (hints.some((h) => spaces.some((s) => s.includes(h)) || text.includes(h))) {
+    score += 14
+    reasons.push('формат простору збігається з вашими роботами або типом запиту')
+  }
+
+  if (opp?.budget) {
+    score += 8
+    reasons.push('у запиті вказано бюджет')
+  }
+
+  if (!artworks.length) {
+    reasons.push('додайте роботи в профіль — оцінка стане точнішою')
+  } else {
+    reasons.push(`у портфоліо є ${artworks.length} ${artworks.length === 1 ? 'робота' : 'робіт'} для добору`)
+    score += 6
+  }
+
+  return {
+    score: Math.max(12, Math.min(96, score)),
+    reasons: reasons.slice(0, 4),
+  }
+}
+
+function buildProposalText(opp: any, profile: any, artworks: any[], selectedIds: string[]) {
+  const artistName = profile?.full_name || 'Художник'
+  const city = profile?.city || profile?.country || ''
+  const level = profile?.artist_level || ''
+  const techniques = getUserTechniques(profile, artworks).slice(0, 5)
+  const chosen = artworks.filter((a) => selectedIds.includes(a.id))
+
+  const worksBlock = chosen.length
+    ? chosen.map((a) => {
+        const tech = toArray(a.techniques_list || a.technique).join(', ') || a.technique || ''
+        const size = a.format_size || a.size || ''
+        const extra = [tech, size].filter(Boolean).join(', ')
+        return extra ? `• «${a.title}» (${extra})` : `• «${a.title}»`
+      }).join('\n')
+    : '• Можу надіслати добірку з актуального портфоліо після вашого уточнення щодо формату та простору'
+
+  const practiceLine = techniques.length
+    ? `Працюю в техніках: ${techniques.join(', ')}.`
+    : 'Працюю в авторській живописній практиці.'
+
+  const placeLine = city ? `Базуюсь: ${city}.` : ''
+  const levelLine = level ? `Професійний рівень: ${level}.` : ''
+
+  return `Добрий день${opp?.organization ? `, команда ${opp.organization}` : ''}!
+
+Мене зацікавила можливість співпраці щодо «${opp?.title || 'вашого проєкту'}».
+${[practiceLine, placeLine, levelLine].filter(Boolean).join(' ')}
+
+Для вашого запиту відібрав(-ла) роботи з портфоліо:
+
+${worksBlock}
+
+${opp?.what_is_needed ? `Орієнтуюсь на ваші вимоги: ${opp.what_is_needed}\n` : ''}
+Буду радий(-а) обговорити деталі, надіслати додаткові фото у високій роздільності або підготувати індивідуальну добірку.
+
+З повагою,
+${artistName}
+Контакти через POVODYR`
+}
+
 export default function CommercialOpportunitiesPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -44,8 +175,6 @@ export default function CommercialOpportunitiesPage() {
   const [userArtworks, setUserArtworks] = useState<any[]>([])
   const [userProfile, setUserProfile] = useState<any>(null)
   const [userTracking, setUserTracking] = useState<Record<string, string>>({})
-
-  // Стан для модального вікна генерації пропозиції
   const [activeModalOpp, setActiveModalOpp] = useState<any>(null)
   const [selectedArtworks, setSelectedArtworks] = useState<string[]>([])
   const [generatedProposal, setGeneratedProposal] = useState<string>('')
@@ -59,7 +188,6 @@ export default function CommercialOpportunitiesPage() {
         return
       }
 
-      // Профіль користувача
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
@@ -67,30 +195,26 @@ export default function CommercialOpportunitiesPage() {
         .single()
       if (profile) setUserProfile(profile)
 
-      // Комерційні можливості
       const { data: opps } = await supabase
-  .from('commercial_opportunities')
-  .select('*')
-  .eq('opportunity_type', 'commercial')
-  .order('date_added', { ascending: false })
+        .from('commercial_opportunities')
+        .select('*')
+        .eq('opportunity_type', 'commercial')
+        .order('date_added', { ascending: false })
       if (opps) setOpportunities(opps)
 
-      // Роботи художника
       const { data: artworks } = await supabase
         .from('artist_artworks')
         .select('*')
         .eq('user_id', user.id)
       if (artworks) setUserArtworks(artworks)
 
-      // Трекінг статусів користувача
       const { data: tracking } = await supabase
         .from('commercial_user_tracking')
         .select('*')
         .eq('user_id', user.id)
-      
       if (tracking) {
         const trackingMap: Record<string, string> = {}
-        tracking.forEach(t => {
+        tracking.forEach((t: any) => {
           trackingMap[t.opportunity_id] = t.status
         })
         setUserTracking(trackingMap)
@@ -98,16 +222,13 @@ export default function CommercialOpportunitiesPage() {
 
       setLoading(false)
     }
-
     loadData()
   }, [router])
 
   const handleStatusChange = async (oppId: string, newStatus: string) => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-
     setUserTracking(prev => ({ ...prev, [oppId]: newStatus }))
-
     await supabase
       .from('commercial_user_tracking')
       .upsert({
@@ -118,8 +239,8 @@ export default function CommercialOpportunitiesPage() {
       }, { onConflict: 'user_id,opportunity_id' })
   }
 
-  const filteredOpportunities = selectedSubtype === 'all' 
-    ? opportunities 
+  const filteredOpportunities = selectedSubtype === 'all'
+    ? opportunities
     : opportunities.filter(o => o.subtype === selectedSubtype)
 
   const handleOpenProposalModal = (opp: any) => {
@@ -132,36 +253,13 @@ export default function CommercialOpportunitiesPage() {
   const handleGenerateProposalText = () => {
     setIsGenerating(true)
     setTimeout(() => {
-      const artistName = userProfile?.full_name || 'Художник'
-      const oppTitle = activeModalOpp?.title || 'вашого проєкту'
-      const orgName = activeModalOpp?.organization || 'команди'
-      
-      const chosenArtworksDetails = userArtworks
-        .filter(a => selectedArtworks.includes(a.id))
-        .map(a => `• «${a.title}» (${a.technique || 'живопис'}, ${a.format_size || 'зручний формат'})`)
-        .join('\n')
-
-      const text = `Добрий день, команда ${orgName}!
-
-Мене зацікавила можливість співпраці щодо ${oppTitle}. Я професійний художник із Києва, працюю у власній унікальній техніці солярісму, поєднуючи багатошарові акрилові заливки, олійний живопис та поталь.
-
-Для вашого запиту я ретельно відібрав(-ла) кілька робіт із мого портфоліо, які ідеально пасують за стилістикою та естетикою:
-${chosenArtworksDetails || '• Роботи із актуальних серій пейзажного та сучасного живопису'}
-
-Буду радий(-а) обговорити деталі, надати додаткові фото робіт у високій роздільній здатності або підготувати індивідуальну добірку.
-
-З повагою,
-${artistName}
-Телефон / Контакти через POVODYR`
-
+      const text = buildProposalText(activeModalOpp, userProfile, userArtworks, selectedArtworks)
       setGeneratedProposal(text)
       setIsGenerating(false)
-
-      // Автоматично оновлюємо статус на "Пропозиція готова"
       if (activeModalOpp?.id) {
         handleStatusChange(activeModalOpp.id, 'proposal_prepared')
       }
-    }, 600)
+    }, 400)
   }
 
   if (loading) {
@@ -175,8 +273,6 @@ ${artistName}
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', padding: '24px 16px', color: '#ffffff', fontFamily: 'sans-serif' }}>
       <div style={{ maxWidth: 720, margin: '0 auto' }}>
-        
-        {/* Хедер сторінки */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: '#ffffff' }}>
@@ -186,7 +282,7 @@ ${artistName}
               Знайти шлях до покупця та реалізувати ваше мистецтво
             </p>
           </div>
-          <button 
+          <button
             onClick={() => router.push('/dashboard')}
             style={{ backgroundColor: '#334155', color: '#ffffff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
           >
@@ -194,7 +290,6 @@ ${artistName}
           </button>
         </div>
 
-        {/* Фільтри за підтипами */}
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 12, marginBottom: 20 }}>
           <button
             onClick={() => setSelectedSubtype('all')}
@@ -233,7 +328,6 @@ ${artistName}
           ))}
         </div>
 
-        {/* Список можливостей */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {filteredOpportunities.length === 0 ? (
             <div style={{ backgroundColor: '#1e293b', padding: 24, borderRadius: 12, textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>
@@ -243,9 +337,9 @@ ${artistName}
             filteredOpportunities.map((opp) => {
               const currentStatus = userTracking[opp.id] || 'found'
               const statusInfo = STATUSES_MAP[currentStatus] || STATUSES_MAP['found']
-
+              const fit = calculateFit(opp, userProfile, userArtworks)
               return (
-                <div 
+                <div
                   key={opp.id}
                   style={{
                     backgroundColor: '#1e293b',
@@ -269,15 +363,13 @@ ${artistName}
                         📍 {opp.city ? `${opp.city}, ` : ''}{opp.country || 'Україна'} • Організація: <strong style={{ color: '#e2e8f0' }}>{opp.organization}</strong>
                       </p>
                     </div>
-
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '4px 8px', borderRadius: 6 }}>
-                        Fit: 91%
+                        Fit: {fit.score}%
                       </span>
                     </div>
                   </div>
 
-                  {/* Вибір статусу пайплайну */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, backgroundColor: '#0f172a', padding: 10, borderRadius: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Статус у пайплайні:</span>
                     <select
@@ -313,15 +405,13 @@ ${artistName}
                     </div>
                   )}
 
-                  {/* Чому це підходить */}
                   <div style={{ backgroundColor: '#0f172a', padding: 12, borderRadius: 8, fontSize: 12, color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <span style={{ fontWeight: 700, color: '#ffffff', marginBottom: 2 }}>Чому POVODYR рекомендує це вам:</span>
-                    <span>✓ ваша техніка відповідає запиту проєкту;</span>
-                    <span>✓ ціновий сегмент збігається з бюджетом замовника;</span>
-                    <span>✓ формати робіт відповідають параметрам інтер'єру.</span>
+                    {fit.reasons.map((reason) => (
+                      <span key={reason}>✓ {reason}</span>
+                    ))}
                   </div>
 
-                  {/* Дії / CTA */}
                   <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
                     <button
                       onClick={() => handleOpenProposalModal(opp)}
@@ -340,14 +430,12 @@ ${artistName}
                       </a>
                     )}
                   </div>
-
                 </div>
               )
             })
           )}
         </div>
 
-        {/* МОДАЛЬНЕ ВІКНО ПІДГОТОВКИ ПРОПОЗИЦІЇ */}
         {activeModalOpp && (
           <div style={{
             position: 'fixed',
@@ -395,7 +483,7 @@ ${artistName}
                 </label>
                 {userArtworks.length === 0 ? (
                   <div style={{ fontSize: 12, color: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: 10, borderRadius: 8 }}>
-                    У вашому профілі ще немає доданих робіт. Письмо буде згенеровано загальним описом.
+                    У вашому профілі ще немає доданих робіт. Письмо буде згенеровано з даних профілю без конкретних назв творів.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 140, overflowY: 'auto' }}>
@@ -412,7 +500,7 @@ ${artistName}
                             }
                           }}
                         />
-                        <span>{art.title} ({art.technique || 'живопис'})</span>
+                        <span>{art.title} ({art.technique || toArray(art.techniques_list)[0] || 'живопис'})</span>
                       </label>
                     ))}
                   </div>
@@ -478,11 +566,9 @@ ${artistName}
                   </button>
                 </div>
               )}
-
             </div>
           </div>
         )}
-
       </div>
     </div>
   )
