@@ -107,32 +107,59 @@ async function fetchPageText(url: string) {
   }
 }
 
-async function searchWeb(query: string): Promise<{ title: string; url: string; content: string }[]> {
-  const tavilyKey = process.env.TAVILY_API_KEY
-  if (!tavilyKey) return []
-
+async function searchSerper(query: string): Promise<{ title: string; url: string; content: string }[]> {
+  const key = process.env.SERPER_API_KEY
+  if (!key) return []
   try {
-    const res = await fetch('https://api.tavily.com/search', {
+    const res = await fetch('https://google.serper.dev/search', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: tavilyKey,
-        query,
-        search_depth: 'basic',
-        include_answer: false,
-        max_results: 5,
-      }),
+      headers: {
+        'X-API-KEY': key,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ q: query, num: 5, gl: 'ua', hl: 'uk' }),
     })
     if (!res.ok) return []
     const data = await res.json()
-    return (data.results || []).map((item: any) => ({
+    return (data.organic || []).map((item: any) => ({
       title: String(item.title || ''),
-      url: String(item.url || ''),
-      content: String(item.content || item.snippet || ''),
+      url: String(item.link || ''),
+      content: String(item.snippet || ''),
     }))
   } catch {
     return []
   }
+}
+
+async function searchBrave(query: string): Promise<{ title: string; url: string; content: string }[]> {
+  const key = process.env.BRAVE_API_KEY
+  if (!key) return []
+  try {
+    const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'X-Subscription-Token': key,
+      },
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    return (data.web?.results || []).map((item: any) => ({
+      title: String(item.title || ''),
+      url: String(item.url || ''),
+      content: String(item.description || ''),
+    }))
+  } catch {
+    return []
+  }
+}
+
+async function searchWeb(query: string): Promise<{ title: string; url: string; content: string }[]> {
+  const serper = await searchSerper(query)
+  if (serper.length) return serper
+  const brave = await searchBrave(query)
+  if (brave.length) return brave
+  return []
 }
 
 async function extractCommercialItems(sourceName: string, sourceUrl: string, text: string): Promise<CommercialItem[]> {
@@ -255,10 +282,13 @@ export async function GET(request: NextRequest) {
       collected.push(...items)
     }
 
-    if (process.env.TAVILY_API_KEY) {
+    const hasSearch = !!(process.env.SERPER_API_KEY || process.env.BRAVE_API_KEY)
+    if (hasSearch) {
+      logs.push(process.env.SERPER_API_KEY ? 'Пошук через Serper' : 'Пошук через Brave')
       for (const query of SEARCH_QUERIES) {
         logs.push(`Пошук: ${query}`)
         const results = await searchWeb(query)
+        logs.push(`результатів: ${results.length}`)
         for (const result of results.slice(0, 3)) {
           if (!result.url) continue
           const blob = `${result.title}\n${result.content}`.slice(0, 4000)
@@ -267,7 +297,7 @@ export async function GET(request: NextRequest) {
         }
       }
     } else {
-      logs.push('TAVILY_API_KEY немає — працюємо лише по списку джерел')
+      logs.push('SERPER_API_KEY / BRAVE_API_KEY немає — працюємо лише по списку джерел')
     }
 
     const unique = new Map<string, CommercialItem>()
