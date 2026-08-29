@@ -36,6 +36,36 @@ interface Opportunity {
   required_level?: string | null
 }
 
+function emptyArtistProfile(): ArtistProfile {
+  return {
+    name: '',
+    country: 'Україна',
+    city: '',
+    artistic_styles: [],
+    techniques: [],
+    materials: [],
+    themes: [],
+    series: [],
+    professional_level: '',
+    target_countries: [],
+    preferred_opportunity_types: ['exhibition', 'open_call', 'competition', 'residency', 'grant'],
+  }
+}
+
+function toArray(raw: any): string[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw.map((i) => String(i).trim()).filter(Boolean)
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed.map((i) => String(i).trim()).filter(Boolean)
+    } catch {
+      return raw.split(',').map((s) => s.trim()).filter(Boolean)
+    }
+  }
+  return []
+}
+
 export default function DashboardPage() {
   const [userName, setUserName] = useState('')
   const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
@@ -56,32 +86,20 @@ export default function DashboardPage() {
   const [generatingMatchingWorksId, setGeneratingMatchingWorksId] = useState<string | null>(null)
   const [proposalModalData, setProposalModalData] = useState<{ title: string; text: string; contactPerson?: string; organization?: string } | null>(null)
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
+  const [userArtworks, setUserArtworks] = useState<any[]>([])
 
   useEffect(() => {
     let isMounted = true
 
     const loadDashboardData = async () => {
       setLoading(true)
-
       const { data: { user } } = await supabase.auth.getUser()
       if (!user || !isMounted) {
         setLoading(false)
         return
       }
 
-      let artistProfileData: ArtistProfile = {
-        name: 'Ванда Орлова',
-        country: 'Україна',
-        city: 'Київ',
-        artistic_styles: ["Солярісм", "Сучасний станковий живопис"],
-        techniques: ["Олія на полотні", "Мультишаровий акриловий живопис", "Мастихінова техніка", "Золота поталь"],
-        materials: ["Полотно", "Олійні фарби", "Акрил", "Золота поталь"],
-        themes: ["Українська культурна спадщина", "Флористика та ботанічні мотиви", "Плинність життя"],
-        series: ["Голос березового гаю", "Про любов", "Африканська маска"],
-        professional_level: "Professional / Established",
-        target_countries: ["Україна", "Велика Британія", "Країни ЄС"],
-        preferred_opportunity_types: ["exhibition", "open_call", "competition", "residency", "grant"]
-      }
+      let artistProfileData: ArtistProfile = emptyArtistProfile()
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -92,11 +110,21 @@ export default function DashboardPage() {
       if (!isMounted) return
 
       if (profile?.full_name) setUserName(profile.full_name)
-
       setUserObj({
         id: user.id,
         telegram_chat_id: profile?.telegram_chat_id || null,
       })
+
+      if (profile) {
+        artistProfileData = {
+          ...emptyArtistProfile(),
+          name: profile.full_name || '',
+          country: 'Україна',
+          techniques: toArray(profile.profile_techniques || profile.techniques),
+          professional_level: profile.artist_level || '',
+          target_countries: toArray(profile.search_countries),
+        }
+      }
 
       const { data: artProfile } = await supabase
         .from('artist_profiles')
@@ -109,14 +137,40 @@ export default function DashboardPage() {
           name: artProfile.name || artistProfileData.name,
           country: artProfile.country || artistProfileData.country,
           city: artProfile.city || artistProfileData.city,
-          artistic_styles: artProfile.artistic_styles || artistProfileData.artistic_styles,
-          techniques: artProfile.techniques || artistProfileData.techniques,
-          materials: artProfile.materials || artistProfileData.materials,
-          themes: artProfile.themes || artistProfileData.themes,
-          series: artProfile.series || artistProfileData.series,
+          artistic_styles: toArray(artProfile.artistic_styles).length ? toArray(artProfile.artistic_styles) : artistProfileData.artistic_styles,
+          techniques: toArray(artProfile.techniques).length ? toArray(artProfile.techniques) : artistProfileData.techniques,
+          materials: toArray(artProfile.materials).length ? toArray(artProfile.materials) : artistProfileData.materials,
+          themes: toArray(artProfile.themes).length ? toArray(artProfile.themes) : artistProfileData.themes,
+          series: toArray(artProfile.series).length ? toArray(artProfile.series) : artistProfileData.series,
           professional_level: artProfile.professional_level || artistProfileData.professional_level,
-          target_countries: artProfile.target_countries || artistProfileData.target_countries,
-          preferred_opportunity_types: artProfile.preferred_opportunity_types || artistProfileData.preferred_opportunity_types,
+          target_countries: toArray(artProfile.target_countries).length ? toArray(artProfile.target_countries) : artistProfileData.target_countries,
+          preferred_opportunity_types: toArray(artProfile.preferred_opportunity_types).length
+            ? toArray(artProfile.preferred_opportunity_types)
+            : artistProfileData.preferred_opportunity_types,
+        }
+      }
+
+      const { data: works } = await supabase
+        .from('artist_artworks')
+        .select('*')
+        .eq('user_id', user.id)
+
+      if (works && isMounted) {
+        setUserArtworks(works)
+
+        const workStyles = works.flatMap((w: any) => toArray(w.styles))
+        const workTechs = works.flatMap((w: any) => toArray(w.techniques_list || w.techniques))
+        const workMaterials = works.flatMap((w: any) => toArray(w.materials))
+        const workThemes = works.flatMap((w: any) => toArray(w.themes))
+        const workTitles = works.map((w: any) => w.title).filter(Boolean)
+
+        artistProfileData = {
+          ...artistProfileData,
+          artistic_styles: artistProfileData.artistic_styles.length ? artistProfileData.artistic_styles : workStyles,
+          techniques: artistProfileData.techniques.length ? artistProfileData.techniques : workTechs,
+          materials: artistProfileData.materials.length ? artistProfileData.materials : workMaterials,
+          themes: artistProfileData.themes.length ? artistProfileData.themes : workThemes,
+          series: artistProfileData.series.length ? artistProfileData.series : workTitles.slice(0, 5),
         }
       }
 
@@ -177,60 +231,60 @@ export default function DashboardPage() {
           setDailyCount(json.daily_count || 0)
           setMonthlyMatchedCount(json.monthly_matched_count || 0)
           setUpcomingDeadlinesCount(json.upcoming_deadlines_count || 0)
+        }
 
-          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-          const { data: opps } = await supabase
-            .from('opportunities')
-            .select('*')
-            .eq('is_active', true)
-            .gte('created_at', thirtyDaysAgo)
-            .order('created_at', { ascending: false })
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+        const { data: opps } = await supabase
+          .from('opportunities')
+          .select('*')
+          .eq('is_active', true)
+          .gte('created_at', thirtyDaysAgo)
+          .order('created_at', { ascending: false })
 
-          if (opps && isMounted) {
-            const formattedOpps = opps.map((opp: Opportunity) => {
-              const mappedOpp: MatchOpportunity = {
-                id: opp.id,
-                title: opp.title,
-                type: opp.type || 'open_call',
-                eligible_countries: opp.eligible_countries || ['Україна', 'Worldwide'],
-                deadline: opp.deadline || new Date().toISOString(),
-                fee: Number(opp.fee_amount || opp.cost_amount || opp.org_fee || 0),
-                currency: 'USD',
-                techniques: Array.isArray(opp.techniques) ? opp.techniques : [],
-                themes: Array.isArray(opp.themes) ? opp.themes : [],
-                required_level: opp.required_level || undefined,
-              }
-              const match = calculateMatch(artistProfileData, mappedOpp)
-              return {
-                id: opp.id,
-                title: opp.title,
-                description: opp.raw_description || opp.description || '',
-                created_at: opp.created_at || new Date().toISOString(),
-                deadline: opp.deadline || undefined,
-                link_url: opp.source_url || opp.link || opp.link_url || opp.url || undefined,
-                matchScore: match.score,
-                matchReasons: match.reasons,
-                recommendedAction: match.recommendedAction,
-              }
-            })
-
-            formattedOpps.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
-            setModalOpportunities(formattedOpps)
-
-            const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).getTime()
-            const recentRelevant = formattedOpps.filter(o => {
-              const isRecent = new Date(o.created_at).getTime() >= sevenDaysAgo
-              const isRelevant = (o.matchScore || 0) >= 30
-              return isRecent && isRelevant
-            })
-
-            if (recentRelevant.length === 0) {
-              setHasNoRecentRelevant(true)
-              setRecentRelevantOpps([])
-            } else {
-              setHasNoRecentRelevant(false)
-              setRecentRelevantOpps(recentRelevant)
+        if (opps && isMounted) {
+          const formattedOpps = opps.map((opp: Opportunity) => {
+            const mappedOpp: MatchOpportunity = {
+              id: opp.id,
+              title: opp.title,
+              type: opp.type || 'open_call',
+              eligible_countries: opp.eligible_countries || ['Україна', 'Worldwide'],
+              deadline: opp.deadline || new Date().toISOString(),
+              fee: Number(opp.fee_amount || opp.cost_amount || opp.org_fee || 0),
+              currency: 'USD',
+              techniques: Array.isArray(opp.techniques) ? opp.techniques : [],
+              themes: Array.isArray(opp.themes) ? opp.themes : [],
+              required_level: opp.required_level || undefined,
             }
+            const match = calculateMatch(artistProfileData, mappedOpp)
+            return {
+              id: opp.id,
+              title: opp.title,
+              description: opp.raw_description || opp.description || '',
+              created_at: opp.created_at || new Date().toISOString(),
+              deadline: opp.deadline || undefined,
+              link_url: opp.source_url || opp.link || opp.link_url || opp.url || undefined,
+              matchScore: match.score,
+              matchReasons: match.reasons,
+              recommendedAction: match.recommendedAction,
+            }
+          })
+
+          formattedOpps.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
+          setModalOpportunities(formattedOpps)
+
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).getTime()
+          const recentRelevant = formattedOpps.filter(o => {
+            const isRecent = new Date(o.created_at).getTime() >= sevenDaysAgo
+            const isRelevant = (o.matchScore || 0) >= 30
+            return isRecent && isRelevant
+          })
+
+          if (recentRelevant.length === 0) {
+            setHasNoRecentRelevant(true)
+            setRecentRelevantOpps([])
+          } else {
+            setHasNoRecentRelevant(false)
+            setRecentRelevantOpps(recentRelevant)
           }
         }
       } catch (err) {
@@ -241,11 +295,50 @@ export default function DashboardPage() {
     }
 
     loadDashboardData()
-
     return () => {
       isMounted = false
     }
   }, [])
+
+  const getSpecificArtworksForQuery = (queryTitle: string) => {
+    if (!userArtworks || userArtworks.length === 0) {
+      return 'Додайте роботи в профіль, щоб POVODYR підібрав конкретні твори під цей запит.'
+    }
+
+    const lower = String(queryTitle || '').toLowerCase()
+    const scored = userArtworks.map((art) => {
+      const blob = [
+        art.title,
+        ...(art.themes || []),
+        ...(art.styles || []),
+        ...(art.suitable_spaces || []),
+        ...(art.work_types || []),
+        ...(art.techniques_list || []),
+      ].join(' ').toLowerCase()
+
+      let score = 0
+      const keys = ['готель', 'ресторан', 'офіс', 'інтер', 'галер', 'квіт', 'природ', 'пейзаж', 'портрет', 'істор', 'абстракт', 'корпорат', 'медич', 'beauty']
+      keys.forEach((k) => {
+        if (lower.includes(k) && blob.includes(k)) score += 1
+      })
+      return { art, score }
+    }).sort((a, b) => b.score - a.score)
+
+    const picked = (scored[0]?.score > 0 ? scored.filter((x) => x.score > 0) : scored)
+      .slice(0, 3)
+      .map((x) => x.art)
+
+    const titles = picked.map((a) => `«${a.title}»`).join(', ')
+    const techs = [...new Set(picked.flatMap((a) => toArray(a.techniques_list || a.techniques)))].slice(0, 3)
+    const styles = [...new Set(picked.flatMap((a) => toArray(a.styles)))].slice(0, 3)
+    const extra = [styles.length ? `стиль: ${styles.join(', ')}` : '', techs.length ? `техніка: ${techs.join(', ')}` : '']
+      .filter(Boolean)
+      .join(', ')
+
+    return extra
+      ? `Роботи з портфоліо: ${titles} (${extra}).`
+      : `Роботи з портфоліо: ${titles}.`
+  }
 
   const handleGenerateProposal = async (opp: any) => {
     setGeneratingProposalId(opp.id)
@@ -317,10 +410,8 @@ export default function DashboardPage() {
     }
   }
 
-  // ===== Функція збереження feedback =====
   const handleSendFeedback = async (type: string) => {
     if (!userObj?.id || !proposalModalData) return
-
     try {
       const { error } = await supabase.from('feedback').insert({
         user_id: userObj.id,
@@ -328,9 +419,7 @@ export default function DashboardPage() {
         feedback_text: type,
         created_at: new Date().toISOString(),
       })
-
       if (error) throw error
-
       alert('Дякую! Ваш відгук збережено. POVODYR стане точнішим.')
     } catch (err) {
       console.error('Помилка збереження feedback:', err)
@@ -351,19 +440,6 @@ export default function DashboardPage() {
       return { indicator: '⚪', label: 'Термін подачі вийшов' }
     } else {
       return { indicator: '🟢', label: `Дедлайн через ${diffDays} дн. (довгострокова)` }
-    }
-  }
-
-  const getSpecificArtworksForQuery = (queryTitle: string) => {
-    const lower = queryTitle.toLowerCase()
-    if (lower.includes('інтерєр') || lower.includes('ресторан') || lower.includes('готель') || lower.includes('офіс') || lower.includes('львові')) {
-      return 'Картини: «Між ніччю та світанком», «Дихання сонячного світла» (Серія «Голос березового гаю», техніка солярісм, сусальне золото).'
-    } else if (lower.includes('квіт') || lower.includes('ботанік') || lower.includes('весна')) {
-      return 'Картини: «Ранкове марево», «Сновидіння» (Серія «Голос березового гаю», олія на полотні, мастихінова техніка).'
-    } else if (lower.includes('істор') || lower.includes('національн') || lower.includes('традиц') || lower.includes('гетьман')) {
-      return 'Картини: «Берези, що плачуть сонячним світлом», «Березова Катедрала» (Серія «Голос березового гаю», солярісм, акрилові текстури).'
-    } else {
-      return 'Картини: «Лагуна спокою», «Погляд у Вись» (Серія «Голос березового гаю», мультишаровий акриловий живопис, золота поталь).'
     }
   }
 
@@ -404,10 +480,8 @@ export default function DashboardPage() {
         </div>
 
         {userObj && <TelegramConnect user={userObj} />}
-
         <FollowUpAlerts savedItems={savedItemsForAlerts} />
 
-        {/* 1. ЗНАЙШОВ ДЛЯ ВАС */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ marginBottom: 4, fontSize: '14px', fontWeight: 600, color: '#38bdf8' }}>
             🧭 ЗНАЙШОВ ДЛЯ ВАС
@@ -437,7 +511,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 3 + 4. ЗНАЙШОВ, ХТО ШУКАЄ */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ marginBottom: 4, fontSize: '14px', fontWeight: 600, color: '#34d399' }}>
             🖼️ ЗНАЙШОВ, ХТО ШУКАЄ
@@ -467,7 +540,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 5. СЬОГОДНІ Я ЗНАЙШОВ ДЛЯ ВАС */}
         <div style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden' }}>
           <button
             onClick={() => setIsTop3Open(!isTop3Open)}
@@ -618,7 +690,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* 6. ПІДІБРАВ ВАШІ РОБОТИ ПІД ЗАПИТИ */}
         <div style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden' }}>
           <button
             onClick={() => setIsMatchingWorksOpen(!isMatchingWorksOpen)}
@@ -696,7 +767,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* 7 + 8. ВІДСТЕЖУЮ ВАШІ ЗАЯВКИ */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ marginBottom: 4, fontSize: '14px', fontWeight: 600, color: '#38bdf8' }}>
             📋 ВІДСТЕЖУЮ ВАШІ ЗАЯВКИ
@@ -723,7 +793,6 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* 9 + 10. ЗАПАМ'ЯТАВ ПРО ВАС */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ marginBottom: 4, fontSize: '14px', fontWeight: 600, color: '#94a3b8' }}>
             👤 ЗАПАМ'ЯТАВ ПРО ВАС
@@ -775,7 +844,6 @@ export default function DashboardPage() {
           title="ВІДІБРАВ ДЛЯ ВАС"
         />
 
-        {/* Комерційна модалка */}
         {isCommercialModalOpen && (
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -847,7 +915,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ===== Модалка згенерованого тексту + FEEDBACK ===== */}
         {proposalModalData && (
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -863,14 +930,12 @@ export default function DashboardPage() {
               <h3 style={{ margin: '0 0 8px 0', fontSize: 16, color: '#38bdf8' }}>
                 {proposalModalData.title}
               </h3>
-
               {proposalModalData.organization && (
                 <div style={{ backgroundColor: '#0f172a', padding: 8, borderRadius: 8, marginBottom: 10, fontSize: '12px', border: '1px solid #334155' }}>
                   <div style={{ color: '#34d399', fontWeight: 600 }}>Замовник: {proposalModalData.organization}</div>
                   <div style={{ color: '#cbd5e1' }}>Контактна особа: {proposalModalData.contactPerson}</div>
                 </div>
               )}
-
               <textarea
                 value={proposalModalData.text}
                 onChange={(e) => setProposalModalData({ ...proposalModalData, text: e.target.value })}
@@ -881,8 +946,6 @@ export default function DashboardPage() {
                   marginBottom: 12, outline: 'none'
                 }}
               />
-
-              {/* Кнопки копіювання та завантаження */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
                 <button
                   onClick={() => {
@@ -916,19 +979,16 @@ export default function DashboardPage() {
                   <span>💾</span> Завантажити (.txt)
                 </button>
               </div>
-
-              {/* ===== БЛОК FEEDBACK ===== */}
-              <div style={{ 
-                backgroundColor: '#0f172a', 
-                border: '1px solid #334155', 
-                borderRadius: 12, 
-                padding: 12, 
-                marginBottom: 12 
+              <div style={{
+                backgroundColor: '#0f172a',
+                border: '1px solid #334155',
+                borderRadius: 12,
+                padding: 12,
+                marginBottom: 12
               }}>
                 <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: 10, color: '#e2e8f0' }}>
                   Як вам цей варіант?
                 </div>
-
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <button
                     onClick={() => handleSendFeedback('Добре, можна використовувати')}
@@ -940,7 +1000,6 @@ export default function DashboardPage() {
                   >
                     ✅ Добре, можна використовувати
                   </button>
-
                   <button
                     onClick={() => handleSendFeedback('Потрібно змінити тон / зробити більш особистим')}
                     style={{
@@ -951,7 +1010,6 @@ export default function DashboardPage() {
                   >
                     ✏️ Потрібно змінити тон
                   </button>
-
                   <button
                     onClick={() => handleSendFeedback('Занадто офіційно / канцелярсько')}
                     style={{
@@ -962,7 +1020,6 @@ export default function DashboardPage() {
                   >
                     📄 Занадто офіційно
                   </button>
-
                   <button
                     onClick={() => handleSendFeedback('Не підходить взагалі')}
                     style={{
@@ -975,7 +1032,6 @@ export default function DashboardPage() {
                   </button>
                 </div>
               </div>
-
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
                 <a
                   href={`mailto:art.fine.nation@gmail.com?subject=${encodeURIComponent(proposalModalData.title)}&body=${encodeURIComponent(proposalModalData.text)}`}
@@ -989,7 +1045,6 @@ export default function DashboardPage() {
                   <span>✉️</span> Написати замовнику
                 </a>
               </div>
-
               <button
                 onClick={() => setProposalModalData(null)}
                 style={{
