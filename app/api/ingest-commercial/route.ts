@@ -310,7 +310,7 @@ export async function GET(request: NextRequest) {
     let updated = 0
     const errors: string[] = []
 
-    for (const item of unique.values()) {
+    for (const item of Array.from(unique.values())) {
       const result = await upsertItem(item)
       if (result.status === 'inserted') inserted++
       else if (result.status === 'updated') updated++
