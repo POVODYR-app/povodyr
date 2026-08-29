@@ -9,36 +9,143 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 const STYLES_OPTIONS = [
-  'Сучасне мистецтво', 'Сучасний живопис', 'Авторський стиль Solarism / Солярісм', 
-  'Символізм', 'Фігуративний / напівзображальний пейзаж', 'Абстрактні елементи'
+  'Сучасне мистецтво',
+  'Сучасний живопис',
+  'Класичний живопис',
+  'Реалізм',
+  'Імпресіонізм',
+  'Експресіонізм',
+  'Символізм',
+  'Абстракція',
+  'Абстрактні елементи',
+  'Фігуративний живопис',
+  'Пейзаж',
+  'Портрет',
+  'Натюрморт',
+  'Мінімалізм',
+  'Концептуальне мистецтво',
+  'Стріт-арт / графіті',
+  'Наїв / фольклор',
+  'Авторський стиль',
 ]
 
 const TECHNIQUES_OPTIONS = [
-  'Акрил', 'Олія', 'Змішана техніка', 'Сусальне золото / поталь', 'Фактурний живопис', 'Багатошаровий живопис'
+  'Акрил',
+  'Олія',
+  'Акварель',
+  'Гуаш',
+  'Темпера',
+  'Графіка',
+  'Малюнок',
+  'Змішана техніка',
+  'Колаж',
+  'Імпасто',
+  'Фактурний живопис',
+  'Багатошаровий живопис',
+  'Друкована графіка',
+  'Цифрове мистецтво',
+  'Фотографія',
+  'Скульптура',
+  'Кераміка',
+  'Текстиль / fiber art',
+  'Інсталяція',
 ]
 
-// Глобальні техніки для профілю (як на першому скріншоті)
 const PROFILE_TECHNIQUES_OPTIONS = [
-  'Акрил', 'Олійний живопис', 'Графіка', 'Імпасто', 'Колаж', 'Акварель'
+  'Акрил',
+  'Олійний живопис',
+  'Акварель',
+  'Графіка',
+  'Імпасто',
+  'Колаж',
+  'Змішана техніка',
+  'Пастель',
+  'Маркери',
+  'Цифрове мистецтво',
+  'Фотографія',
+  'Скульптура',
+  'Кераміка',
 ]
 
 const MATERIALS_OPTIONS = [
-  'акрилова фарба', 'олійна фарба', 'золота поталь', 'текстурна паста', 'полотно'
+  'акрилова фарба',
+  'олійна фарба',
+  'акварель',
+  'гуаш',
+  'темпера',
+  'пастель суха',
+  'пастель олійна',
+  'олівці',
+  'вугілля',
+  'туш',
+  'маркери акрилові',
+  'маркери спиртові',
+  'контуринг / контурна фарба',
+  'золота поталь',
+  'срібна поталь',
+  'мідна поталь',
+  'сусальне золото',
+  'текстурна паста',
+  'моделювальна паста',
+  'полотно',
+  'дерево',
+  'папір',
+  'картон',
+  'оргаліт',
+  'текстиль',
+  'кераміка',
+  'метал',
+  'скло',
+  'епоксидна смола',
 ]
 
 const THEMES_OPTIONS = [
-  'Світло', 'Природа', 'Пейзаж', 'Світанок', 'Сонячне світло', 'Вода', 'Дерева', 
-  'Березовий гай', 'Українська культурна спадщина', 'Українська історія', 'Пам’ять', 'Надія', 'Зв’язок людини з природою'
+  'Природа',
+  'Пейзаж',
+  'Місто',
+  'Портрет',
+  'Людина',
+  'Тіло',
+  'Натюрморт',
+  'Квіти',
+  'Тварини',
+  'Світло',
+  'Вода',
+  'Небо',
+  'Архітектура',
+  'Історія',
+  'Пам’ять',
+  'Ідентичність',
+  'Війна і мир',
+  'Надія',
+  'Духовність',
+  'Міфологія',
+  'Культурна спадщина',
+  'Соціальна тема',
+  'Абстрактна тема',
+  'Зв’язок людини з природою',
 ]
 
 const WORK_TYPES_OPTIONS = [
-  'оригінальні картини', 'унікальні твори', 'твори на замовлення', 
-  'твори для дизайну інтер’єру', 'твори для просторів гостинності', 'твори для корпоративних просторів'
+  'оригінальні картини',
+  'унікальні твори',
+  'серійні роботи',
+  'твори на замовлення',
+  'принти / reproductions',
+  'твори для дизайну інтер’єру',
+  'твори для просторів гостинності',
+  'твори для корпоративних просторів',
 ]
 
 const SPACES_OPTIONS = [
-  'приватний інтер’єр', 'готель', 'ресторан', 'офіс', 
-  'медичний простір', 'beauty-простір', 'громадський простір', 'галерея'
+  'приватний інтер’єр',
+  'готель',
+  'ресторан',
+  'офіс',
+  'медичний простір',
+  'beauty-простір',
+  'громадський простір',
+  'галерея',
 ]
 
 export default function ProfilePage() {
@@ -53,22 +160,19 @@ export default function ProfilePage() {
   const [countries, setCountries] = useState<string[]>([])
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
 
-  // Фінансові ліміти та техніки профілю
   const [feeExhibitionUah, setFeeExhibitionUah] = useState('750')
   const [feeExhibitionEur, setFeeExhibitionEur] = useState('30')
   const [feeExhibitionUsd, setFeeExhibitionUsd] = useState('50')
-  
+
   const [feeContestUah, setFeeContestUah] = useState('0')
   const [feeContestEur, setFeeContestEur] = useState('25')
   const [feeContestUsd, setFeeContestUsd] = useState('15')
 
-  const [profileTechniques, setProfileTechniques] = useState<string[]>(['Акрил', 'Олійний живопис', 'Графіка', 'Імпасто'])
+  const [profileTechniques, setProfileTechniques] = useState<string[]>([])
 
-  // Стан для робіт портфоліо
   const [artworks, setArtworks] = useState<any[]>([])
   const [editingArtId, setEditingArtId] = useState<string | null>(null)
-  
-  // Поля форми картини
+
   const [newTitle, setNewTitle] = useState('')
   const [newImageUrl, setNewImageUrl] = useState('')
   const [newFormatSize, setNewFormatSize] = useState('')
@@ -76,7 +180,7 @@ export default function ProfilePage() {
   const [newMaxSize, setNewMaxSize] = useState('')
   const [newSizeCategory, setNewSizeCategory] = useState('medium')
   const [newLargeFormat, setNewLargeFormat] = useState(false)
-  
+
   const [newStyles, setNewStyles] = useState<string[]>([])
   const [newTechniques, setNewTechniques] = useState<string[]>([])
   const [newMaterials, setNewMaterials] = useState<string[]>([])
@@ -104,12 +208,11 @@ export default function ProfilePage() {
         setBio(profile.bio || '')
         setArtistLevel(profile.artist_level || 'вільний художник')
         setNotificationsEnabled(profile.notifications_enabled ?? true)
-        
-        // Завантаження фінансових лімітів якщо вони є в базі
+
         if (profile.fee_exhibition_uah !== undefined) setFeeExhibitionUah(String(profile.fee_exhibition_uah ?? '750'))
         if (profile.fee_exhibition_eur !== undefined) setFeeExhibitionEur(String(profile.fee_exhibition_eur ?? '30'))
         if (profile.fee_exhibition_usd !== undefined) setFeeExhibitionUsd(String(profile.fee_exhibition_usd ?? '50'))
-        
+
         if (profile.fee_contest_uah !== undefined) setFeeContestUah(String(profile.fee_contest_uah ?? '0'))
         if (profile.fee_contest_eur !== undefined) setFeeContestEur(String(profile.fee_contest_eur ?? '25'))
         if (profile.fee_contest_usd !== undefined) setFeeContestUsd(String(profile.fee_contest_usd ?? '15'))
@@ -131,7 +234,7 @@ export default function ProfilePage() {
         .from('artist_artworks')
         .select('*')
         .eq('user_id', user.id)
-      
+
       if (works) {
         setArtworks(works)
       }
@@ -212,7 +315,7 @@ export default function ProfilePage() {
     setNewThemes(art.themes || [])
     setNewWorkTypes(art.work_types || [])
     setNewSpaces(art.suitable_spaces || [])
-    
+
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
   }
 
@@ -288,10 +391,10 @@ export default function ProfilePage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', padding: '24px 16px', color: '#ffffff', fontFamily: 'sans-serif' }}>
       <div style={{ maxWidth: 700, margin: '0 auto' }}>
-        
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#ffffff' }}>Комерційний профіль POVODYR</h1>
-          <button 
+          <button
             onClick={() => { window.location.href = '/dashboard' }}
             style={{ backgroundColor: '#334155', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
           >
@@ -300,8 +403,7 @@ export default function ProfilePage() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          
-          {/* Загальна інформація */}
+
           <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#ffffff' }}>👤 Загальна інформація</h3>
             <div>
@@ -350,7 +452,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Організаційний внесок (виставки) */}
             <div style={{ borderTop: '1px solid #334155', paddingTop: 12, marginTop: 4 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#38bdf8' }}>Організаційний внесок (виставки)</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
@@ -384,7 +485,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Реєстраційний внесок (конкурси) */}
             <div style={{ paddingTop: 4 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#38bdf8' }}>Реєстраційний внесок (конкурси)</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
@@ -418,7 +518,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Техніки (для глобального матчингу) */}
             <div style={{ borderTop: '1px solid #334155', paddingTop: 12, marginTop: 4 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#38bdf8' }}>Техніки *</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
@@ -437,23 +536,21 @@ export default function ProfilePage() {
 
           </div>
 
-          {/* РОЗШИРЕНЕ ПОРТФОЛІО */}
           <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#ffffff' }}>🎨 Розширене портфоліо робіт</h3>
             <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>
               Кожна робота містить клікабельне посилання на фото, формати та контекст для точного матчингу POVODYR з комерційними запитами.
             </p>
 
-            {/* Список робіт */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {artworks.map((art) => (
                 <div key={art.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: 12, borderRadius: 8, border: '1px solid #334155' }}>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                     {art.image_url ? (
                       <a href={art.image_url} target="_blank" rel="noopener noreferrer">
-                        <img 
-                          src={art.image_url} 
-                          alt={art.title} 
+                        <img
+                          src={art.image_url}
+                          alt={art.title}
                           style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 6, border: '1px solid #3b82f6' }}
                           onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
                         />
@@ -493,14 +590,13 @@ export default function ProfilePage() {
               ))}
             </div>
 
-            {/* Форма додавання / редагування картини */}
             <div style={{ borderTop: '1px solid #334155', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 14, fontWeight: 700, color: '#38bdf8' }}>
                   {editingArtId ? '✏️ Редагувати обраний твір' : '+ Додати новий твір у портфоліо'}
                 </span>
                 {editingArtId && (
-                  <button 
+                  <button
                     onClick={resetArtForm}
                     style={{ backgroundColor: 'transparent', border: 'none', color: '#94a3b8', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}
                   >
@@ -508,11 +604,11 @@ export default function ProfilePage() {
                   </button>
                 )}
               </div>
-              
+
               <div style={{ display: 'flex', gap: 10 }}>
                 <input
                   type="text"
-                  placeholder="Назва картини (напр. Сновидіння)"
+                  placeholder="Назва картини"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   style={{ flex: 2, padding: '10px', borderRadius: 8, border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', fontSize: 13 }}
@@ -526,20 +622,18 @@ export default function ProfilePage() {
                 />
               </div>
 
-              {/* Прев'ю фото у формі */}
               {newImageUrl.trim() && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, backgroundColor: '#0f172a', padding: 8, borderRadius: 8, border: '1px solid #334155' }}>
-                  <img 
-                    src={newImageUrl} 
-                    alt="Прев'ю" 
-                    style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} 
+                  <img
+                    src={newImageUrl}
+                    alt="Прев'ю"
+                    style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }}
                     onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
                   />
                   <span style={{ fontSize: 12, color: '#94a3b8' }}>Прев'ю зображення за посиланням вище</span>
                 </div>
               )}
 
-              {/* Розміри та формат */}
               <div style={{ display: 'flex', gap: 10 }}>
                 <input
                   type="text"
@@ -574,7 +668,6 @@ export default function ProfilePage() {
                 Можливе виконання великих форматів (на замовлення)
               </label>
 
-              {/* Стилі твору */}
               <div>
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 4 }}>Стиль / напрям:</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -587,7 +680,6 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Основні техніки */}
               <div>
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 4 }}>Основні техніки:</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -600,7 +692,6 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Матеріали */}
               <div>
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 4 }}>Матеріали:</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -613,7 +704,6 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Основні теми */}
               <div>
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 4 }}>Основні теми:</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -626,7 +716,6 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Типи робіт */}
               <div>
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 4 }}>Типи робіт:</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -639,7 +728,6 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Комерційні простори */}
               <div>
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#34d399', display: 'block', marginBottom: 4 }}>Для яких комерційних просторів підходить ця робота?</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -661,7 +749,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Сповіщення та збереження */}
           <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <input
