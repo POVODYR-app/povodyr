@@ -329,8 +329,8 @@ export default function DashboardPage() {
       .map((x) => x.art)
 
     const titles = picked.map((a) => `«${a.title}»`).join(', ')
-    const techs = [...new Set(picked.flatMap((a) => toArray(a.techniques_list || a.techniques)))].slice(0, 3)
-    const styles = [...new Set(picked.flatMap((a) => toArray(a.styles)))].slice(0, 3)
+        const techs = Array.from(new Set(picked.flatMap((a) => toArray(a.techniques_list || a.techniques)))).slice(0, 3)
+    const styles = Array.from(new Set(picked.flatMap((a) => toArray(a.styles)))).slice(0, 3)
     const extra = [styles.length ? `стиль: ${styles.join(', ')}` : '', techs.length ? `техніка: ${techs.join(', ')}` : '']
       .filter(Boolean)
       .join(', ')
