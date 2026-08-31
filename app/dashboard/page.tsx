@@ -338,32 +338,7 @@ export default function DashboardPage() {
               const ai = order.has(a.id) ? (order.get(a.id) as number) : 999
               const bi = order.has(b.id) ? (order.get(b.id) as number) : 999
               if (ai !== bi) return ai - bi
-              return (b.matchScore || 0) - (a.matchScore || 0)
-            })
-
-            setModalOpportunities(formattedOpps)
-            setHasNoRecentRelevant(formattedOpps.length === 0)
-            setRecentRelevantOpps(formattedOpps)
-          } else if (isMounted) {
-            setModalOpportunities([])
-            setRecentRelevantOpps([])
-            setHasNoRecentRelevant(true)
-          }
-        }
-      } catch (err) {
-        console.error('Помилка завантаження статистики:', err)
-      }
-
-      if (isMounted) setLoading(false)
-    }
-
-    loadDashboardData()
-    return () => {
-      isMounted = false
-    }
-  }, [])
-
-  const getSpecificArtworksForQuery = (queryTitle: string) => {
+                const getSpecificArtworksForQuery = (queryTitle: string) => {
     if (!userArtworks || userArtworks.length === 0) {
       return 'Додайте роботи в профіль, щоб POVODYR підібрав конкретні твори під цей запит.'
     }
@@ -403,9 +378,7 @@ export default function DashboardPage() {
       : `Роботи з портфоліо: ${titles}.`
   }
 
-  const handleGenerateProposal = async (opp: any) => {
-    setGeneratingProposalId(opp.id)
-    const buildProfileSnapshot = () => {
+  const buildProfileSnapshot = () => {
     const works = Array.isArray(userArtworks) ? userArtworks.slice(0, 8) : []
     return {
       full_name: userName || '',
@@ -420,6 +393,9 @@ export default function DashboardPage() {
       })),
     }
   }
+
+  const handleGenerateProposal = async (opp: any) => {
+    setGeneratingProposalId(opp.id)
     try {
       const res = await fetch('/api/generate-application', {
         method: 'POST',
@@ -430,6 +406,7 @@ export default function DashboardPage() {
           opportunityDescription: `${opp.description} ${opp.what_is_needed ? 'Що потрібно: ' + opp.what_is_needed : ''}`,
           matchReasons: opp.matchReasons || [],
           userId: userObj?.id,
+          profileSnapshot: buildProfileSnapshot(),
           contactPerson: opp.contact_person,
           organization: opp.organization,
           isCommercial: !!opp.budget || !!opp.organization,
@@ -447,6 +424,47 @@ export default function DashboardPage() {
       })
     } catch (err: any) {
       console.error('Помилка генерації:', err)
+      alert(`Не вдалося згенерувати: ${err.message || 'Невідома помилка'}`)
+    } finally {
+      setGeneratingProposalId(null)
+    }
+  }
+
+  const handleGenerateMatchingWorks = async (reqItem: any) => {
+    setGeneratingMatchingWorksId(reqItem.id)
+    try {
+      const res = await fetch('/api/generate-application', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          opportunityId: reqItem.id,
+          opportunityTitle: `Добір робіт під запит: ${reqItem.title}`,
+          opportunityDescription: `${reqItem.description} ${reqItem.what_is_needed ? 'Вимоги: ' + reqItem.what_is_needed : ''} Рекомендовані твори: ${getSpecificArtworksForQuery(reqItem.title)}`,
+          matchReasons: reqItem.matchReasons || [],
+          userId: userObj?.id,
+          profileSnapshot: buildProfileSnapshot(),
+          contactPerson: reqItem.contact_person,
+          organization: reqItem.organization,
+          isCommercial: true,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || `Помилка сервера: ${res.status}`)
+      }
+      setProposalModalData({
+        title: `Презентація робіт для: ${reqItem.title}`,
+        text: data.text,
+        contactPerson: reqItem.contact_person,
+        organization: reqItem.organization
+      })
+    } catch (err: any) {
+      console.error('Помилка генерації презентації:', err)
+      alert(`Не вдалося згенерувати презентацію: ${err.message || 'Невідома помилка'}`)
+    } finally {
+      setGeneratingMatchingWorksId(null)
+    }
+  }
       alert(`Не вдалося згенерувати: ${err.message || 'Невідома помилка'}`)
     } finally {
       setGeneratingProposalId(null)
