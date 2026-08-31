@@ -6,7 +6,6 @@ import TelegramConnect from '../../components/TelegramConnect'
 import NotificationsModal from '../../components/NotificationsModal'
 import FollowUpAlerts from '../../components/FollowUpAlerts'
 import { calculateMatch, ArtistProfile, Opportunity as MatchOpportunity } from '../../lib/matchEngine'
-import { isRealBuyerRequest, normalizeCommercialSourceUrl } from '../../lib/commercialDemandGate'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -198,23 +197,8 @@ export default function DashboardPage() {
         .select('*')
         .order('date_added', { ascending: false })
 
-            if (commOpps && isMounted) {
-        const seenUrls: Record<string, boolean> = {}
-        const withSource = commOpps.filter((comm: any) => {
-          if (!isValidHttpUrl(comm.source_url)) return false
-          if (!isRealBuyerRequest({
-            title: comm.title,
-            description: comm.description,
-            what_is_needed: comm.what_is_needed,
-            organization: comm.organization,
-            source_url: comm.source_url,
-            deadline: comm.deadline,
-          })) return false
-          const key = normalizeCommercialSourceUrl(comm.source_url) || String(comm.source_url).trim()
-          if (seenUrls[key]) return false
-          seenUrls[key] = true
-          return true
-        })
+      if (commOpps && isMounted) {
+        const withSource = commOpps.filter((comm: any) => isValidHttpUrl(comm.source_url))
         const formattedComm = withSource.map((comm: any) => {
           const mappedCommOpp: MatchOpportunity = {
             id: comm.id,
@@ -256,22 +240,13 @@ export default function DashboardPage() {
           setMonthlyMatchedCount(json.monthly_matched_count || 0)
           setUpcomingDeadlinesCount(json.upcoming_deadlines_count || 0)
         }
-                const { data: sessionData } = await supabase.auth.getSession()
+        const { data: sessionData } = await supabase.auth.getSession()
         const accessToken = sessionData?.session?.access_token
         if (accessToken) {
-          const controller = new AbortController()
-          const timer = setTimeout(() => controller.abort(), 8000)
-          try {
-            await fetch('/api/refresh-digest', {
-              method: 'POST',
-              headers: { Authorization: 'Bearer ' + accessToken },
-              signal: controller.signal,
-            })
-          } catch {
-            // дайджест не блокує екран: покажемо попередній знімок
-          } finally {
-            clearTimeout(timer)
-          }
+          await fetch('/api/refresh-digest', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + accessToken },
+          })
         }
 
         const { data: digestProfile } = await supabase
@@ -338,7 +313,32 @@ export default function DashboardPage() {
               const ai = order.has(a.id) ? (order.get(a.id) as number) : 999
               const bi = order.has(b.id) ? (order.get(b.id) as number) : 999
               if (ai !== bi) return ai - bi
-                const getSpecificArtworksForQuery = (queryTitle: string) => {
+              return (b.matchScore || 0) - (a.matchScore || 0)
+            })
+
+            setModalOpportunities(formattedOpps)
+            setHasNoRecentRelevant(formattedOpps.length === 0)
+            setRecentRelevantOpps(formattedOpps)
+          } else if (isMounted) {
+            setModalOpportunities([])
+            setRecentRelevantOpps([])
+            setHasNoRecentRelevant(true)
+          }
+        }
+      } catch (err) {
+        console.error('Помилка завантаження статистики:', err)
+      }
+
+      if (isMounted) setLoading(false)
+    }
+
+    loadDashboardData()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const getSpecificArtworksForQuery = (queryTitle: string) => {
     if (!userArtworks || userArtworks.length === 0) {
       return 'Додайте роботи в профіль, щоб POVODYR підібрав конкретні твори під цей запит.'
     }
@@ -443,48 +443,6 @@ export default function DashboardPage() {
           matchReasons: reqItem.matchReasons || [],
           userId: userObj?.id,
           profileSnapshot: buildProfileSnapshot(),
-          contactPerson: reqItem.contact_person,
-          organization: reqItem.organization,
-          isCommercial: true,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || `Помилка сервера: ${res.status}`)
-      }
-      setProposalModalData({
-        title: `Презентація робіт для: ${reqItem.title}`,
-        text: data.text,
-        contactPerson: reqItem.contact_person,
-        organization: reqItem.organization
-      })
-    } catch (err: any) {
-      console.error('Помилка генерації презентації:', err)
-      alert(`Не вдалося згенерувати презентацію: ${err.message || 'Невідома помилка'}`)
-    } finally {
-      setGeneratingMatchingWorksId(null)
-    }
-  }
-      alert(`Не вдалося згенерувати: ${err.message || 'Невідома помилка'}`)
-    } finally {
-      setGeneratingProposalId(null)
-    }
-  }
-
-  const handleGenerateMatchingWorks = async (reqItem: any) => {
-    setGeneratingMatchingWorksId(reqItem.id)
-              userId: userObj?.id,
-          profileSnapshot: buildProfileSnapshot(),
-    try {
-      const res = await fetch('/api/generate-application', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          opportunityId: reqItem.id,
-          opportunityTitle: `Добір робіт під запит: ${reqItem.title}`,
-          opportunityDescription: `${reqItem.description} ${reqItem.what_is_needed ? 'Вимоги: ' + reqItem.what_is_needed : ''} Рекомендовані твори: ${getSpecificArtworksForQuery(reqItem.title)}`,
-          matchReasons: reqItem.matchReasons || [],
-          userId: userObj?.id,
           contactPerson: reqItem.contact_person,
           organization: reqItem.organization,
           isCommercial: true,
