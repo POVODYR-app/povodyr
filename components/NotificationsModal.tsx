@@ -41,7 +41,8 @@ export default function NotificationsModal({
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  
+  const [profileSnapshot, setProfileSnapshot] = useState<any>(null);
+
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [generatedText, setGeneratedText] = useState<{ [key: string]: string }>({});
   const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
@@ -49,7 +50,7 @@ export default function NotificationsModal({
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
-      
+
       const fetchData = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
@@ -64,6 +65,30 @@ export default function NotificationsModal({
         if (!error && data) {
           setSavedIds(new Set(data.map((item: any) => item.opportunity_id)));
         }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, bio, artist_level, profile_techniques, techniques, search_countries, city, country')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        const { data: works } = await supabase
+          .from('artist_artworks')
+          .select('title, styles, techniques_list, techniques, materials, themes, work_types, format_size, size_category')
+          .eq('user_id', user.id)
+          .limit(8);
+
+        setProfileSnapshot({
+          full_name: profile?.full_name || '',
+          bio: profile?.bio || '',
+          artist_level: profile?.artist_level || '',
+          profile_techniques: profile?.profile_techniques || profile?.techniques || [],
+          techniques: profile?.techniques || profile?.profile_techniques || [],
+          search_countries: profile?.search_countries || [],
+          city: profile?.city || '',
+          country: profile?.country || '',
+          artworks: works || [],
+        });
       };
 
       fetchData();
@@ -107,8 +132,13 @@ export default function NotificationsModal({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          opportunityId: item.id,
           opportunityTitle: item.title,
           opportunityDescription: item.message || item.description || item.raw_description || '',
+          matchReasons: item.matchReasons || [],
+          userId: userId,
+          profileSnapshot: profileSnapshot,
+          isCommercial: false,
         }),
       });
 
@@ -332,7 +362,7 @@ export default function NotificationsModal({
                       <div style={{ fontSize: '12px', fontWeight: '600', color: '#93c5fd', marginBottom: '8px' }}>
                         Готовий пакет документів:
                       </div>
-                      
+
                       <div
                         style={{
                           fontSize: '12px',
