@@ -19,7 +19,6 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   );
 }
 
-// Пріоритетні джерела для постійного моніторингу та включення в добірки
 const PRIORITY_SOURCES = [
   {
     url: 'https://sites.google.com/view/artfinenation/open-call',
@@ -80,7 +79,6 @@ export async function GET(request: NextRequest) {
 
     const testEmail = request.nextUrl.searchParams.get('test_email');
 
-    // КРОК 1: Гарантуємо наявність пріоритетних джерел у базі даних (моніторинг сайтів)
     for (const source of PRIORITY_SOURCES) {
       const { data: existingOpp } = await supabase
         .from('opportunities')
@@ -140,7 +138,6 @@ export async function GET(request: NextRequest) {
 
     let sentCount = 0;
     const logs: any[] = [];
-
     const runAt = new Date().toISOString();
 
     for (const user of users) {
