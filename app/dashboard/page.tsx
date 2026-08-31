@@ -256,13 +256,22 @@ export default function DashboardPage() {
           setMonthlyMatchedCount(json.monthly_matched_count || 0)
           setUpcomingDeadlinesCount(json.upcoming_deadlines_count || 0)
         }
-        const { data: sessionData } = await supabase.auth.getSession()
+                const { data: sessionData } = await supabase.auth.getSession()
         const accessToken = sessionData?.session?.access_token
         if (accessToken) {
-          await fetch('/api/refresh-digest', {
-            method: 'POST',
-            headers: { Authorization: 'Bearer ' + accessToken },
-          })
+          const controller = new AbortController()
+          const timer = setTimeout(() => controller.abort(), 8000)
+          try {
+            await fetch('/api/refresh-digest', {
+              method: 'POST',
+              headers: { Authorization: 'Bearer ' + accessToken },
+              signal: controller.signal,
+            })
+          } catch {
+            // дайджест не блокує екран: покажемо попередній знімок
+          } finally {
+            clearTimeout(timer)
+          }
         }
 
         const { data: digestProfile } = await supabase
