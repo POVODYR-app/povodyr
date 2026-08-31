@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    let query = supabase.from('profiles').select('*').eq('notifications_enabled', true);
+    let query = supabase.from('profiles').select('*');
     if (testEmail) {
       query = query.eq('email', testEmail);
     }
@@ -141,6 +141,8 @@ export async function GET(request: NextRequest) {
     let sentCount = 0;
     const logs: any[] = [];
 
+    const runAt = new Date().toISOString();
+
     for (const user of users) {
       const personalized = personalizeOpportunities(user, opportunities || [], {
         minScore: 48,
@@ -148,9 +150,37 @@ export async function GET(request: NextRequest) {
       });
 
       const matchedOpps = personalized.map((item) => item.opportunity);
+      const digestIds = Array.from(
+        new Set(
+          matchedOpps
+            .map((o: any) => o && o.id)
+            .filter((id: any) => typeof id === 'string' && id.length > 0)
+        )
+      );
 
-      if (matchedOpps.length === 0) {
-        logs.push({ user: user.full_name || user.id, matched: 0, status: 'skipped_no_matches' });
+      const { error: digestError } = await supabase
+        .from('profiles')
+        .update({
+          digest_opportunity_ids: digestIds,
+          digest_run_at: runAt,
+        })
+        .eq('id', user.id);
+
+      if (digestError) {
+        logs.push({
+          user: user.full_name || user.id,
+          matched: digestIds.length,
+          status: 'digest_update_failed',
+          error: digestError.message,
+        });
+      }
+
+      if (matchedOpps.length === 0 || user.notifications_enabled !== true) {
+        logs.push({
+          user: user.full_name || user.id,
+          matched: digestIds.length,
+          status: matchedOpps.length === 0 ? 'skipped_no_matches' : 'digest_saved_notifications_off',
+        });
         continue;
       }
 
@@ -247,6 +277,7 @@ export async function GET(request: NextRequest) {
       success: true,
       sent: sentCount,
       total_users: users.length,
+      digest_run_at: runAt,
       details: logs
     });
 
