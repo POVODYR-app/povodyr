@@ -360,26 +360,35 @@ export default function NotificationsModal({
                       }}
                     >
                       <div style={{ fontSize: '12px', fontWeight: '600', color: '#93c5fd', marginBottom: '8px' }}>
-                        Готовий пакет документів:
+                        Готовий пакет документів (можна редагувати):
                       </div>
 
-                      <div
+                      <textarea
+                        value={currentResult}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setGeneratedText((prev) => ({
+                            ...prev,
+                            [item.id]: value,
+                          }));
+                        }}
                         style={{
+                          width: '100%',
+                          minHeight: '180px',
                           fontSize: '12px',
                           color: '#e2e8f0',
-                          whiteSpace: 'pre-wrap',
-                          maxHeight: '180px',
-                          overflowY: 'auto',
                           lineHeight: '1.4',
                           backgroundColor: '#0f172a',
                           padding: '10px',
                           borderRadius: '6px',
                           border: '1px solid #334155',
                           marginBottom: '10px',
+                          resize: 'vertical',
+                          boxSizing: 'border-box',
+                          outline: 'none',
+                          fontFamily: 'inherit',
                         }}
-                      >
-                        {currentResult}
-                      </div>
+                      />
 
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <button
@@ -416,6 +425,7 @@ export default function NotificationsModal({
                         </button>
                         <button
                           onClick={() => handleSendToEmail(item.title, currentResult)}
+                          disabled={sendingEmailId === item.title}
                           style={{
                             flex: 1,
                             padding: '6px 10px',
