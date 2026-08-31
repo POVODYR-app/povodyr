@@ -455,6 +455,8 @@ export default function DashboardPage() {
 
   const handleGenerateMatchingWorks = async (reqItem: any) => {
     setGeneratingMatchingWorksId(reqItem.id)
+              userId: userObj?.id,
+          profileSnapshot: buildProfileSnapshot(),
     try {
       const res = await fetch('/api/generate-application', {
         method: 'POST',
