@@ -193,13 +193,23 @@ export default function DashboardPage() {
         setSavedItemsForAlerts(submittedOnly)
       }
 
-      const { data: commOpps } = await supabase
+            const { data: commOpps } = await supabase
         .from('commercial_opportunities')
         .select('*')
         .order('date_added', { ascending: false })
 
       if (commOpps && isMounted) {
-        const withSource = commOpps.filter((comm: any) => isValidHttpUrl(comm.source_url))
+        const withSource = commOpps.filter((comm: any) =>
+          isValidHttpUrl(comm.source_url) &&
+          isRealBuyerRequest({
+            title: comm.title,
+            description: comm.description,
+            what_is_needed: comm.what_is_needed,
+            organization: comm.organization,
+            source_url: comm.source_url,
+            deadline: comm.deadline,
+          })
+        )
         const formattedComm = withSource.map((comm: any) => {
           const mappedCommOpp: MatchOpportunity = {
             id: comm.id,
@@ -231,6 +241,7 @@ export default function DashboardPage() {
           }
         })
         setCommercialOpportunities(formattedComm)
+      }
       }
 
       try {
