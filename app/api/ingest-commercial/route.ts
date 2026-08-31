@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import OpenAI from 'openai'
+import {
+  hasDemandSignal,
+  isJunkText,
+  isRealBuyerRequest,
+  shouldSkipSearchResult,
+} from '../../../lib/commercialDemandGate'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -25,6 +31,7 @@ type CommercialItem = {
   source_url: string
   contact_person?: string | null
   contact_method?: string | null
+  deadline?: string | null
 }
 
 const ALLOWED_SUBTYPES = [
@@ -48,7 +55,6 @@ const CURATED_SOURCES = [
   { url: 'https://prozorro.gov.ua/uk/search?query=%D0%BA%D0%B0%D1%80%D1%82%D0%B8%D0%BD%D0%B8', name: 'Prozorro — картини' },
   { url: 'https://prozorro.gov.ua/uk/search?query=%D0%BE%D1%84%D0%BE%D1%80%D0%BC%D0%BB%D0%B5%D0%BD%D0%BD%D1%8F%20%D1%96%D0%BD%D1%82%D0%B5%D1%80%27%D1%94%D1%80%D1%83', name: 'Prozorro — інтер’єр' },
   { url: 'https://www.olx.ua/uk/hobbi-otdyh-i-sport/iskusstvo/', name: 'OLX — мистецтво' },
-  { url: 'https://prom.ua/ua/Kartiny', name: 'Prom.ua — картини' },
   { url: 'https://www.work.ua/jobs-ukraine-dizajner+inter-eru/', name: 'Work.ua — дизайнери інтер’єру' },
   { url: 'https://houseofeurope.org.ua/', name: 'House of Europe' },
   { url: 'https://ucf.in.ua/', name: 'Український культурний фонд' },
@@ -58,55 +64,10 @@ const SEARCH_QUERIES = [
   'шукаємо картини для готелю Україна',
   'закупівля картин для офісу тендер',
   'дизайнер інтер’єру шукає художника картини на замовлення',
-  'галерея open call продаж картин Україна 2026',
+  'галерея шукає художника для співпраці купівля робіт Україна',
   'art for hotel interiors call for artists',
   'commission original paintings restaurant interior',
   'corporate art collection looking for artists Ukraine',
-]
-
-const JUNK_PATTERNS = [
-  /вакансі/i,
-  /\bjob\b/i,
-  /\bhiring\b/i,
-  /\bvacancy\b/i,
-  /шукаємо (дизайнера|менеджера|продавця|консультанта)/i,
-  /резюме/i,
-  /інтернет[-\s]?магазин/i,
-  /каталог картин/i,
-  /купити рамк/i,
-  /багетн/i,
-  /прода(ємо|ж) рамк/i,
-  /готові картини (в наявності|з доставк)/i,
-  /\bnews\b/i,
-  /новини мистецтв/i,
-  /інтерв['’`]ю/i,
-  /\binterview\b/i,
-  /резиденці/i,
-  /\bresidency\b/i,
-  /\bgrant\b/i,
-  /грант(?!ов)/i,
-  /open\s*call(?![^.]{0,80}(продаж|sale|buy|купів|замов))/i,
-]
-
-const DEMAND_PATTERNS = [
-  /шука(ємо|ю|є)\s.*(картин|живопис|художн|полотн|арт)/i,
-  /потрібн(і|а|о)\s.*(картин|живопис|художн|полотн)/i,
-  /закупівл/i,
-  /тендер/i,
-  /на замовлення/i,
-  /комісі/i,
-  /\bcommission\b/i,
-  /looking for (an?\s)?(artist|paintings?|artwork)/i,
-  /call for artists/i,
-  /art for (hotel|restaurant|office|interior)/i,
-  /купимо картин/i,
-  /замовити картин/i,
-  /закуп(ити|івля) картин/i,
-  /колекці(я|онер).*(шука|куп)/i,
-  /арт[-\s]?оренд/i,
-  /art rental/i,
-  /продаж робіт художник/i,
-  /exhibition for sale/i,
 ]
 
 function isAuthorized(request: NextRequest) {
@@ -141,36 +102,16 @@ function isValidHttpUrl(raw: string | undefined | null): raw is string {
   }
 }
 
-function blobHas(patterns: RegExp[], text: string) {
-  return patterns.some((pattern) => pattern.test(text))
-}
-
-function isJunkText(text: string) {
-  return blobHas(JUNK_PATTERNS, text)
-}
-
-function hasDemandSignal(text: string) {
-  return blobHas(DEMAND_PATTERNS, text)
-}
-
-function shouldSkipSearchResult(title: string, snippet: string, url: string) {
-  const combined = `${title}\n${snippet}\n${url}`
-  if (isJunkText(combined) && !hasDemandSignal(combined)) return true
-  if (/work\.ua|robota\.ua|djinni|hh\.ua|linkedin\.com\/jobs/i.test(url) && !hasDemandSignal(combined)) {
-    return true
-  }
-  if (/prom\.ua|rozetka|etsy\.com|amazon\./i.test(url) && !hasDemandSignal(combined)) {
-    return true
-  }
-  return false
-}
-
 function isKeepableCommercialItem(item: CommercialItem) {
   if (!isValidHttpUrl(item.source_url)) return false
-  const combined = `${item.title}\n${item.description}\n${item.what_is_needed}\n${item.organization}\n${item.source_url}`
-  if (isJunkText(combined) && !hasDemandSignal(combined)) return false
-  if (!hasDemandSignal(combined) && item.subtype === 'other') return false
-  return true
+  return isRealBuyerRequest({
+    title: item.title,
+    description: item.description,
+    what_is_needed: item.what_is_needed,
+    organization: item.organization,
+    source_url: item.source_url,
+    deadline: item.deadline,
+  })
 }
 
 async function fetchPageText(url: string) {
@@ -260,8 +201,8 @@ async function extractCommercialItems(sourceName: string, sourceUrl: string, tex
       {
         role: 'system',
         content: `Ти аналітик арт-ринку для сервісу POVODYR.
-З тексту витягни ЛИШЕ реальні комерційні запити покупця/замовника: купівля картин, комісії, арт для готелів/ресторанів/офісів, галерейний продаж робіт художника, оренда мистецтва, колаборації з бізнесом.
-Ігноруй новини, open call без продажу, гранти, резиденції, вакансії, магазини рамок/готових картин, каталоги продавців.
+З тексту витягни ЛИШЕ реальні комерційні запити покупця/замовника: купівля картин, комісії, арт для готелів/ресторанів/офісів, галерейний запит робіт художника, оренда мистецтва, колаборації з бізнесом.
+Ігноруй новини, open call без продажу, гранти, резиденції, вакансії, магазини рамок/готових картин, каталоги продавців, вітрини «купити картину», маркетплейси продавця, плани закупівель і сторінки на кшталт e-lot /plans/ або UA-P- за минулі роки.
 source_url має бути прямим http/https посиланням на оголошення або сторінку замовника. Не вигадуй URL.
 Поверни JSON:
 { "items": [{
@@ -276,7 +217,8 @@ source_url має бути прямим http/https посиланням на о�
   "currency": "UAH|EUR|USD|null",
   "source_url": "пряме посилання якщо є, інакше джерело",
   "contact_person": "якщо є",
-  "contact_method": "email/телефон якщо є"
+  "contact_method": "email/телефон якщо є",
+  "deadline": "ISO-дата дедлайну якщо явно є, інакше null"
 }]}
 Якщо комерційних запитів немає — { "items": [] }.`,
       },
@@ -309,6 +251,7 @@ source_url має бути прямим http/https посиланням на о�
           source_url: String(source_url).slice(0, 500),
           contact_person: item.contact_person || null,
           contact_method: item.contact_method || null,
+          deadline: item.deadline ? String(item.deadline).slice(0, 40) : null,
         }
       })
       .filter((item) => isKeepableCommercialItem(item))
@@ -324,7 +267,7 @@ async function upsertItem(item: CommercialItem) {
     .eq('source_url', item.source_url)
     .maybeSingle()
 
-  const record = {
+  const record: Record<string, unknown> = {
     title: item.title,
     description: item.description,
     what_is_needed: item.what_is_needed,
@@ -339,6 +282,10 @@ async function upsertItem(item: CommercialItem) {
     contact_person: item.contact_person,
     contact_method: item.contact_method,
     date_added: new Date().toISOString(),
+  }
+
+  if (item.deadline) {
+    record.deadline = item.deadline
   }
 
   if (existing?.id) {
@@ -372,6 +319,10 @@ export async function GET(request: NextRequest) {
       }
       if (isJunkText(text) && !hasDemandSignal(text)) {
         logs.push(`сирих: 1 сторінка → після фільтра: 0 (сміття/не запит покупця)`)
+        continue
+      }
+      if (shouldSkipSearchResult(source.name, text.slice(0, 500), source.url)) {
+        logs.push(`сирих: 1 сторінка → після фільтра: 0 (вітрина/план/не попит)`)
         continue
       }
       const items = await extractCommercialItems(source.name, source.url, text)
