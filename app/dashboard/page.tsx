@@ -405,6 +405,21 @@ export default function DashboardPage() {
 
   const handleGenerateProposal = async (opp: any) => {
     setGeneratingProposalId(opp.id)
+    const buildProfileSnapshot = () => {
+    const works = Array.isArray(userArtworks) ? userArtworks.slice(0, 8) : []
+    return {
+      full_name: userName || '',
+      artworks: works.map((art: any) => ({
+        title: art.title || '',
+        styles: art.styles || [],
+        techniques_list: art.techniques_list || art.techniques || [],
+        materials: art.materials || [],
+        themes: art.themes || [],
+        work_types: art.work_types || [],
+        format_size: art.format_size || art.size_category || '',
+      })),
+    }
+  }
     try {
       const res = await fetch('/api/generate-application', {
         method: 'POST',
