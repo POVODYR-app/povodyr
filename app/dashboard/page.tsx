@@ -240,8 +240,21 @@ export default function DashboardPage() {
           setMonthlyMatchedCount(json.monthly_matched_count || 0)
           setUpcomingDeadlinesCount(json.upcoming_deadlines_count || 0)
         }
+        const { data: sessionData } = await supabase.auth.getSession()
+        const accessToken = sessionData?.session?.access_token
+        if (accessToken) {
+          await fetch('/api/refresh-digest', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + accessToken },
+          })
+        }
 
-               const rawDigestIds = profile?.digest_opportunity_ids
+        const { data: digestProfile } = await supabase
+          .from('profiles')
+          .select('digest_opportunity_ids')
+          .eq('id', user.id)
+          .maybeSingle()
+        const rawDigestIds = digestProfile?.digest_opportunity_ids
         let digestIds: string[] = []
         if (Array.isArray(rawDigestIds)) {
           digestIds = rawDigestIds.map((id: any) => String(id)).filter(Boolean)
