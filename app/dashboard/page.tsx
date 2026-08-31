@@ -6,7 +6,7 @@ import TelegramConnect from '../../components/TelegramConnect'
 import NotificationsModal from '../../components/NotificationsModal'
 import FollowUpAlerts from '../../components/FollowUpAlerts'
 import { calculateMatch, ArtistProfile, Opportunity as MatchOpportunity } from '../../lib/matchEngine'
-import { isRealBuyerRequest } from '../../lib/commercialDemandGate'
+import { isRealBuyerRequest, normalizeCommercialSourceUrl } from '../../lib/commercialDemandGate'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -198,7 +198,7 @@ export default function DashboardPage() {
         .select('*')
         .order('date_added', { ascending: false })
 
-      if (commOpps && isMounted) {
+            if (commOpps && isMounted) {
         const seenUrls: Record<string, boolean> = {}
         const withSource = commOpps.filter((comm: any) => {
           if (!isValidHttpUrl(comm.source_url)) return false
@@ -215,7 +215,6 @@ export default function DashboardPage() {
           seenUrls[key] = true
           return true
         })
-        )
         const formattedComm = withSource.map((comm: any) => {
           const mappedCommOpp: MatchOpportunity = {
             id: comm.id,
