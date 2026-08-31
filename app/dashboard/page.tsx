@@ -66,6 +66,12 @@ function toArray(raw: any): string[] {
   return []
 }
 
+function isValidHttpUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false
+  const trimmed = value.trim()
+  return trimmed.startsWith('http://') || trimmed.startsWith('https://')
+}
+
 export default function DashboardPage() {
   const [userName, setUserName] = useState('')
   const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
@@ -192,7 +198,8 @@ export default function DashboardPage() {
         .order('date_added', { ascending: false })
 
       if (commOpps && isMounted) {
-        const formattedComm = commOpps.map((comm: any) => {
+        const withSource = commOpps.filter((comm: any) => isValidHttpUrl(comm.source_url))
+        const formattedComm = withSource.map((comm: any) => {
           const mappedCommOpp: MatchOpportunity = {
             id: comm.id,
             title: comm.title,
@@ -214,7 +221,8 @@ export default function DashboardPage() {
             currency: comm.currency || 'UAH',
             organization: comm.organization || 'Партнерський проєкт',
             contact_person: comm.contact_person || 'Менеджер проєкту',
-            contact_method: comm.contact_method || 'art.fine.nation@gmail.com',
+            contact_method: comm.contact_method || 'artfinenation@gmail.com',
+            source_url: String(comm.source_url).trim(),
             created_at: comm.date_added || new Date().toISOString(),
             deadline: comm.deadline || undefined,
             matchScore: match.score > 0 ? match.score : 85,
@@ -329,7 +337,7 @@ export default function DashboardPage() {
       .map((x) => x.art)
 
     const titles = picked.map((a) => `«${a.title}»`).join(', ')
-        const techs = Array.from(new Set(picked.flatMap((a) => toArray(a.techniques_list || a.techniques)))).slice(0, 3)
+    const techs = Array.from(new Set(picked.flatMap((a) => toArray(a.techniques_list || a.techniques)))).slice(0, 3)
     const styles = Array.from(new Set(picked.flatMap((a) => toArray(a.styles)))).slice(0, 3)
     const extra = [styles.length ? `стиль: ${styles.join(', ')}` : '', techs.length ? `техніка: ${techs.join(', ')}` : '']
       .filter(Boolean)
@@ -889,6 +897,27 @@ export default function DashboardPage() {
                         <div style={{ color: '#f8fafc', fontWeight: 600, marginBottom: 2 }}>🏢 Замовник: {comm.organization}</div>
                         <div style={{ color: '#cbd5e1' }}>👤 Контактна особа: {comm.contact_person}</div>
                       </div>
+                      <a
+                        href={comm.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-block',
+                          backgroundColor: '#2563eb',
+                          color: '#fff',
+                          textDecoration: 'none',
+                          borderRadius: 8,
+                          padding: '8px 12px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          textAlign: 'center',
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          marginBottom: '8px'
+                        }}
+                      >
+                        🔗 Відкрити запит замовника
+                      </a>
                       <button
                         onClick={() => handleGenerateProposal(comm)}
                         disabled={generatingProposalId === comm.id}
@@ -1034,7 +1063,7 @@ export default function DashboardPage() {
               </div>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
                 <a
-                  href={`mailto:art.fine.nation@gmail.com?subject=${encodeURIComponent(proposalModalData.title)}&body=${encodeURIComponent(proposalModalData.text)}`}
+                  href={`mailto:artfinenation@gmail.com?subject=${encodeURIComponent(proposalModalData.title)}&body=${encodeURIComponent(proposalModalData.text)}`}
                   style={{
                     flex: 1, backgroundColor: '#059669', color: '#fff', textDecoration: 'none',
                     borderRadius: 8, padding: '10px', fontSize: '12px', fontWeight: 600,
