@@ -291,8 +291,21 @@ export async function GET(request: NextRequest) {
         logs.push(`результатів: ${results.length}`)
         for (const result of results.slice(0, 3)) {
           if (!result.url) continue
-          const blob = `${result.title}\n${result.content}`.slice(0, 4000)
+          const snippetBlob = `${result.title}\n${result.content}`.trim()
+          const pageText = await fetchPageText(result.url)
+          const blob = (pageText
+            ? `${snippetBlob}\n\n${pageText}`
+            : snippetBlob
+          ).slice(0, 8000)
+
+          logs.push(
+            pageText
+              ? `сторінка: ${result.url} (${pageText.length} символів)`
+              : `сторінка порожня, snippet: ${result.url}`
+          )
+
           const items = await extractCommercialItems(result.title || query, result.url, blob)
+          logs.push(`після фільтра GPT: ${items.length}`)
           collected.push(...items)
         }
       }
