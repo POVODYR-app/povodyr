@@ -199,16 +199,22 @@ export default function DashboardPage() {
         .order('date_added', { ascending: false })
 
       if (commOpps && isMounted) {
-        const withSource = commOpps.filter((comm: any) =>
-          isValidHttpUrl(comm.source_url) &&
-          isRealBuyerRequest({
+        const seenUrls: Record<string, boolean> = {}
+        const withSource = commOpps.filter((comm: any) => {
+          if (!isValidHttpUrl(comm.source_url)) return false
+          if (!isRealBuyerRequest({
             title: comm.title,
             description: comm.description,
             what_is_needed: comm.what_is_needed,
             organization: comm.organization,
             source_url: comm.source_url,
             deadline: comm.deadline,
-          })
+          })) return false
+          const key = normalizeCommercialSourceUrl(comm.source_url) || String(comm.source_url).trim()
+          if (seenUrls[key]) return false
+          seenUrls[key] = true
+          return true
+        })
         )
         const formattedComm = withSource.map((comm: any) => {
           const mappedCommOpp: MatchOpportunity = {
