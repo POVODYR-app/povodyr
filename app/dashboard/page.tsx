@@ -193,7 +193,7 @@ export default function DashboardPage() {
         setSavedItemsForAlerts(submittedOnly)
       }
 
-            const { data: commOpps } = await supabase
+      const { data: commOpps } = await supabase
         .from('commercial_opportunities')
         .select('*')
         .order('date_added', { ascending: false })
@@ -241,7 +241,6 @@ export default function DashboardPage() {
           }
         })
         setCommercialOpportunities(formattedComm)
-      }
       }
 
       try {
