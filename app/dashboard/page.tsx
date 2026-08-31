@@ -6,6 +6,7 @@ import TelegramConnect from '../../components/TelegramConnect'
 import NotificationsModal from '../../components/NotificationsModal'
 import FollowUpAlerts from '../../components/FollowUpAlerts'
 import { calculateMatch, ArtistProfile, Opportunity as MatchOpportunity } from '../../lib/matchEngine'
+import { isRealBuyerRequest } from '../../lib/commercialDemandGate'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
