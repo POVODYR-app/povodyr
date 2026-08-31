@@ -64,6 +64,51 @@ const SEARCH_QUERIES = [
   'corporate art collection looking for artists Ukraine',
 ]
 
+const JUNK_PATTERNS = [
+  /вакансі/i,
+  /\bjob\b/i,
+  /\bhiring\b/i,
+  /\bvacancy\b/i,
+  /шукаємо (дизайнера|менеджера|продавця|консультанта)/i,
+  /резюме/i,
+  /інтернет[-\s]?магазин/i,
+  /каталог картин/i,
+  /купити рамк/i,
+  /багетн/i,
+  /прода(ємо|ж) рамк/i,
+  /готові картини (в наявності|з доставк)/i,
+  /\bnews\b/i,
+  /новини мистецтв/i,
+  /інтерв['’`]ю/i,
+  /\binterview\b/i,
+  /резиденці/i,
+  /\bresidency\b/i,
+  /\bgrant\b/i,
+  /грант(?!ов)/i,
+  /open\s*call(?![^.]{0,80}(продаж|sale|buy|купів|замов))/i,
+]
+
+const DEMAND_PATTERNS = [
+  /шука(ємо|ю|є)\s.*(картин|живопис|художн|полотн|арт)/i,
+  /потрібн(і|а|о)\s.*(картин|живопис|художн|полотн)/i,
+  /закупівл/i,
+  /тендер/i,
+  /на замовлення/i,
+  /комісі/i,
+  /\bcommission\b/i,
+  /looking for (an?\s)?(artist|paintings?|artwork)/i,
+  /call for artists/i,
+  /art for (hotel|restaurant|office|interior)/i,
+  /купимо картин/i,
+  /замовити картин/i,
+  /закуп(ити|івля) картин/i,
+  /колекці(я|онер).*(шука|куп)/i,
+  /арт[-\s]?оренд/i,
+  /art rental/i,
+  /продаж робіт художник/i,
+  /exhibition for sale/i,
+]
+
 function isAuthorized(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   const secret = process.env.CRON_SECRET
@@ -84,6 +129,48 @@ function cleanText(html: string) {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 9000)
+}
+
+function isValidHttpUrl(raw: string | undefined | null): raw is string {
+  if (!raw) return false
+  try {
+    const parsed = new URL(raw.trim())
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+function blobHas(patterns: RegExp[], text: string) {
+  return patterns.some((pattern) => pattern.test(text))
+}
+
+function isJunkText(text: string) {
+  return blobHas(JUNK_PATTERNS, text)
+}
+
+function hasDemandSignal(text: string) {
+  return blobHas(DEMAND_PATTERNS, text)
+}
+
+function shouldSkipSearchResult(title: string, snippet: string, url: string) {
+  const combined = `${title}\n${snippet}\n${url}`
+  if (isJunkText(combined) && !hasDemandSignal(combined)) return true
+  if (/work\.ua|robota\.ua|djinni|hh\.ua|linkedin\.com\/jobs/i.test(url) && !hasDemandSignal(combined)) {
+    return true
+  }
+  if (/prom\.ua|rozetka|etsy\.com|amazon\./i.test(url) && !hasDemandSignal(combined)) {
+    return true
+  }
+  return false
+}
+
+function isKeepableCommercialItem(item: CommercialItem) {
+  if (!isValidHttpUrl(item.source_url)) return false
+  const combined = `${item.title}\n${item.description}\n${item.what_is_needed}\n${item.organization}\n${item.source_url}`
+  if (isJunkText(combined) && !hasDemandSignal(combined)) return false
+  if (!hasDemandSignal(combined) && item.subtype === 'other') return false
+  return true
 }
 
 async function fetchPageText(url: string) {
@@ -173,8 +260,9 @@ async function extractCommercialItems(sourceName: string, sourceUrl: string, tex
       {
         role: 'system',
         content: `Ти аналітик арт-ринку для сервісу POVODYR.
-З тексту витягни ЛИШЕ реальні комерційні запити: купівля картин, комісії, арт для готелів/ресторанів/офісів, галерейний продаж, оренда мистецтва, колаборації з бізнесом.
-Ігноруй новини, open call без продажу, гранти, резиденції, вакансії без закупівлі мистецтва, рекламу магазинів «продаємо рамки».
+З тексту витягни ЛИШЕ реальні комерційні запити покупця/замовника: купівля картин, комісії, арт для готелів/ресторанів/офісів, галерейний продаж робіт художника, оренда мистецтва, колаборації з бізнесом.
+Ігноруй новини, open call без продажу, гранти, резиденції, вакансії, магазини рамок/готових картин, каталоги продавців.
+source_url має бути прямим http/https посиланням на оголошення або сторінку замовника. Не вигадуй URL.
 Поверни JSON:
 { "items": [{
   "title": "коротка назва запиту",
@@ -205,20 +293,25 @@ async function extractCommercialItems(sourceName: string, sourceUrl: string, tex
     const items = parsed.items || parsed.opportunities || []
     return (items as any[])
       .filter((item) => item && item.title && String(item.title).trim().length > 6)
-      .map((item) => ({
-        title: String(item.title).slice(0, 220),
-        description: String(item.description || item.what_is_needed || '').slice(0, 1200),
-        what_is_needed: String(item.what_is_needed || item.description || '').slice(0, 800),
-        organization: String(item.organization || sourceName).slice(0, 180),
-        city: item.city ? String(item.city).slice(0, 80) : '',
-        country: item.country ? String(item.country).slice(0, 80) : 'Україна',
-        subtype: normalizeSubtype(item.subtype),
-        budget: item.budget ?? null,
-        currency: item.currency || 'UAH',
-        source_url: String(item.source_url || sourceUrl).slice(0, 500),
-        contact_person: item.contact_person || null,
-        contact_method: item.contact_method || null,
-      }))
+      .map((item) => {
+        const extractedUrl = String(item.source_url || '').trim()
+        const source_url = isValidHttpUrl(extractedUrl) ? extractedUrl : sourceUrl
+        return {
+          title: String(item.title).slice(0, 220),
+          description: String(item.description || item.what_is_needed || '').slice(0, 1200),
+          what_is_needed: String(item.what_is_needed || item.description || '').slice(0, 800),
+          organization: String(item.organization || sourceName).slice(0, 180),
+          city: item.city ? String(item.city).slice(0, 80) : '',
+          country: item.country ? String(item.country).slice(0, 80) : 'Україна',
+          subtype: normalizeSubtype(item.subtype),
+          budget: item.budget ?? null,
+          currency: item.currency || 'UAH',
+          source_url: String(source_url).slice(0, 500),
+          contact_person: item.contact_person || null,
+          contact_method: item.contact_method || null,
+        }
+      })
+      .filter((item) => isKeepableCommercialItem(item))
   } catch {
     return []
   }
@@ -274,11 +367,15 @@ export async function GET(request: NextRequest) {
       logs.push(`Джерело: ${source.name}`)
       const text = await fetchPageText(source.url)
       if (!text) {
-        logs.push(`порожня відповідь: ${source.url}`)
+        logs.push(`сирих: 0 → після фільтра: 0 (порожня відповідь)`)
+        continue
+      }
+      if (isJunkText(text) && !hasDemandSignal(text)) {
+        logs.push(`сирих: 1 сторінка → після фільтра: 0 (сміття/не запит покупця)`)
         continue
       }
       const items = await extractCommercialItems(source.name, source.url, text)
-      logs.push(`знайдено ${items.length} запитів`)
+      logs.push(`сирих: 1 сторінка → після фільтра: ${items.length}`)
       collected.push(...items)
     }
 
@@ -288,9 +385,20 @@ export async function GET(request: NextRequest) {
       for (const query of SEARCH_QUERIES) {
         logs.push(`Пошук: ${query}`)
         const results = await searchWeb(query)
-        logs.push(`результатів: ${results.length}`)
+        logs.push(`сирих результатів: ${results.length}`)
+        let kept = 0
+        let skippedJunk = 0
         for (const result of results.slice(0, 3)) {
-          if (!result.url) continue
+          if (!isValidHttpUrl(result.url)) {
+            skippedJunk++
+            logs.push(`пропуск без URL: ${result.title}`)
+            continue
+          }
+          if (shouldSkipSearchResult(result.title, result.content, result.url)) {
+            skippedJunk++
+            logs.push(`пропуск сміття: ${result.title}`)
+            continue
+          }
           const snippetBlob = `${result.title}\n${result.content}`.trim()
           const pageText = await fetchPageText(result.url)
           const blob = (pageText
@@ -305,9 +413,11 @@ export async function GET(request: NextRequest) {
           )
 
           const items = await extractCommercialItems(result.title || query, result.url, blob)
+          kept += items.length
           logs.push(`після фільтра GPT: ${items.length}`)
           collected.push(...items)
         }
+        logs.push(`запит «${query}»: raw=${results.length}, skipped_junk=${skippedJunk}, kept=${kept}`)
       }
     } else {
       logs.push('SERPER_API_KEY / BRAVE_API_KEY немає — працюємо лише по списку джерел')
@@ -315,6 +425,7 @@ export async function GET(request: NextRequest) {
 
     const unique = new Map<string, CommercialItem>()
     for (const item of collected) {
+      if (!isKeepableCommercialItem(item)) continue
       const key = item.source_url || item.title
       if (!unique.has(key)) unique.set(key, item)
     }
@@ -329,6 +440,8 @@ export async function GET(request: NextRequest) {
       else if (result.status === 'updated') updated++
       else if (result.status === 'error') errors.push(`${item.title}: ${result.error}`)
     }
+
+    logs.push(`готово: candidates=${unique.size}, inserted=${inserted}, updated=${updated}`)
 
     return NextResponse.json({
       success: true,
