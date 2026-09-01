@@ -36,6 +36,12 @@ interface Opportunity {
   required_level?: string | null
 }
 
+type MatchedArtwork = {
+  title: string
+  score: number
+  reasons: string[]
+}
+
 function emptyArtistProfile(): ArtistProfile {
   return {
     name: '',
@@ -70,6 +76,115 @@ function isValidHttpUrl(value: unknown): value is string {
   if (typeof value !== 'string') return false
   const trimmed = value.trim()
   return trimmed.startsWith('http://') || trimmed.startsWith('https://')
+}
+
+function uniqueStrings(items: string[]): string[] {
+  return Array.from(new Set(items.map((s) => String(s).trim()).filter(Boolean)))
+}
+
+function tokenizeQueryText(raw: string): string[] {
+  return String(raw || '')
+    .toLowerCase()
+    .replace(/[«»""()[\].,;:!?/\\|+*_—–-]/g, ' ')
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 4)
+}
+
+function shortRequestSummary(request: any): string {
+  const text = String(request?.what_is_needed || request?.description || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!text) return ''
+  return text.length > 180 ? `${text.slice(0, 177)}…` : text
+}
+
+function scoreArtworkAgainstRequest(art: any, queryText: string): MatchedArtwork {
+  const title = String(art?.title || '').trim()
+  const themes = toArray(art?.themes)
+  const styles = toArray(art?.styles)
+  const techniques = toArray(art?.techniques_list || art?.techniques)
+  const workTypes = toArray(art?.work_types)
+  const spaces = toArray(art?.suitable_spaces)
+  const materials = toArray(art?.materials)
+  const query = String(queryText || '').toLowerCase()
+  const tokens = tokenizeQueryText(query)
+  const reasons: string[] = []
+  let score = 0
+
+  const registerHit = (label: string, values: string[], weight: number) => {
+    values.forEach((value) => {
+      const v = String(value || '').trim()
+      if (!v) return
+      const low = v.toLowerCase()
+      const parts = low.split(/\s+/).filter((p) => p.length >= 4)
+      const tokenHit = tokens.some((t) => low.includes(t) || t.includes(low))
+      const phraseHit = query.includes(low) || parts.some((p) => query.includes(p))
+      if (tokenHit || phraseHit) {
+        score += weight
+        if (reasons.length < 3) reasons.push(`${label}: ${v}`)
+      }
+    })
+  }
+
+  registerHit('тема', themes, 3)
+  registerHit('простір', spaces, 3)
+  registerHit('техніка', techniques, 2)
+  registerHit('стиль', styles, 2)
+  registerHit('тип', workTypes, 2)
+  registerHit('матеріал', materials, 1)
+
+  if (title) {
+    const lowTitle = title.toLowerCase()
+    if (tokens.some((t) => lowTitle.includes(t))) {
+      score += 2
+      if (reasons.length < 3) reasons.push(`назва: ${title}`)
+    }
+  }
+
+  return {
+    title: title || 'Без назви',
+    score,
+    reasons: uniqueStrings(reasons).slice(0, 3),
+  }
+}
+
+function matchArtworksToRequest(artworks: any[], request: any): MatchedArtwork[] {
+  const queryText = [
+    request?.title || '',
+    request?.description || '',
+    request?.what_is_needed || '',
+  ].join(' ')
+
+  return (Array.isArray(artworks) ? artworks : [])
+    .map((art) => scoreArtworkAgainstRequest(art, queryText))
+    .filter((row) => row.score > 0 && row.title && row.title !== 'Без назви')
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+}
+
+function formatMatchedWorksLine(matched: MatchedArtwork[]): string {
+  if (!matched.length) return ''
+  return matched
+    .map((row) => {
+      const why = row.reasons.length ? ` — ${row.reasons.join('; ')}` : ''
+      return `«${row.title}»${why}`
+    })
+    .join('; ')
+}
+
+function portfolioSummaryLine(artworks: any[]): string {
+  const list = Array.isArray(artworks) ? artworks : []
+  if (!list.length) return ''
+  const styles = uniqueStrings(list.flatMap((a) => toArray(a.styles))).slice(0, 3)
+  const techniques = uniqueStrings(list.flatMap((a) => toArray(a.techniques_list || a.techniques))).slice(0, 3)
+  const themes = uniqueStrings(list.flatMap((a) => toArray(a.themes))).slice(0, 3)
+  const parts = [
+    styles.length ? `стилі: ${styles.join(', ')}` : '',
+    techniques.length ? `техніки: ${techniques.join(', ')}` : '',
+    themes.length ? `теми: ${themes.join(', ')}` : '',
+  ].filter(Boolean)
+  return parts.length ? `З портфоліо: ${parts.join('; ')}.` : ''
 }
 
 export default function DashboardPage() {
@@ -338,46 +453,6 @@ export default function DashboardPage() {
     }
   }, [])
 
-  const getSpecificArtworksForQuery = (queryTitle: string) => {
-    if (!userArtworks || userArtworks.length === 0) {
-      return 'Додайте роботи в профіль, щоб POVODYR підібрав конкретні твори під цей запит.'
-    }
-
-    const lower = String(queryTitle || '').toLowerCase()
-    const scored = userArtworks.map((art) => {
-      const blob = [
-        art.title,
-        ...(art.themes || []),
-        ...(art.styles || []),
-        ...(art.suitable_spaces || []),
-        ...(art.work_types || []),
-        ...(art.techniques_list || []),
-      ].join(' ').toLowerCase()
-
-      let score = 0
-      const keys = ['готель', 'ресторан', 'офіс', 'інтер', 'галер', 'квіт', 'природ', 'пейзаж', 'портрет', 'істор', 'абстракт', 'корпорат', 'медич', 'beauty']
-      keys.forEach((k) => {
-        if (lower.includes(k) && blob.includes(k)) score += 1
-      })
-      return { art, score }
-    }).sort((a, b) => b.score - a.score)
-
-    const picked = (scored[0]?.score > 0 ? scored.filter((x) => x.score > 0) : scored)
-      .slice(0, 3)
-      .map((x) => x.art)
-
-    const titles = picked.map((a) => `«${a.title}»`).join(', ')
-    const techs = Array.from(new Set(picked.flatMap((a) => toArray(a.techniques_list || a.techniques)))).slice(0, 3)
-    const styles = Array.from(new Set(picked.flatMap((a) => toArray(a.styles)))).slice(0, 3)
-    const extra = [styles.length ? `стиль: ${styles.join(', ')}` : '', techs.length ? `техніка: ${techs.join(', ')}` : '']
-      .filter(Boolean)
-      .join(', ')
-
-    return extra
-      ? `Роботи з портфоліо: ${titles} (${extra}).`
-      : `Роботи з портфоліо: ${titles}.`
-  }
-
   const buildProfileSnapshot = () => {
     const works = Array.isArray(userArtworks) ? userArtworks.slice(0, 8) : []
     return {
@@ -430,17 +505,28 @@ export default function DashboardPage() {
     }
   }
 
-  const handleGenerateMatchingWorks = async (reqItem: any) => {
+  const handleGenerateMatchingWorks = async (reqItem: any, matchedWorks: MatchedArtwork[]) => {
     setGeneratingMatchingWorksId(reqItem.id)
     try {
+      const selectedLine = formatMatchedWorksLine(matchedWorks)
+      const descParts = [
+        reqItem.description || '',
+        reqItem.what_is_needed ? `Вимоги: ${reqItem.what_is_needed}` : '',
+        selectedLine
+          ? `Рекомендовані твори (лише ці title з портфоліо, інші не вигадуй): ${selectedLine}`
+          : '',
+      ].filter(Boolean)
+
       const res = await fetch('/api/generate-application', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           opportunityId: reqItem.id,
           opportunityTitle: `Добір робіт під запит: ${reqItem.title}`,
-          opportunityDescription: `${reqItem.description} ${reqItem.what_is_needed ? 'Вимоги: ' + reqItem.what_is_needed : ''} Рекомендовані твори: ${getSpecificArtworksForQuery(reqItem.title)}`,
-          matchReasons: reqItem.matchReasons || [],
+          opportunityDescription: descParts.join(' '),
+          matchReasons: matchedWorks.length
+            ? matchedWorks.map((w) => `«${w.title}»: ${w.reasons.join(', ')}`)
+            : (reqItem.matchReasons || []),
           userId: userObj?.id,
           profileSnapshot: buildProfileSnapshot(),
           contactPerson: reqItem.contact_person,
@@ -772,53 +858,125 @@ export default function DashboardPage() {
               <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0, lineHeight: 1.4 }}>
                 Під актуальні запити покупців, дизайнерів, галерей та інших замовників
               </p>
-              {loading ? (
-                <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12, textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
-                  Аналіз творчої практики...
-                </div>
-              ) : commercialOpportunities.length === 0 && recentRelevantOpps.length === 0 ? (
-                <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12, textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
-                  Немає активних запитів для підбору робіт.
-                </div>
-              ) : (
-                (commercialOpportunities.length > 0 ? commercialOpportunities : recentRelevantOpps).slice(0, 2).map((reqItem) => {
-                  const isGeneratingThis = generatingMatchingWorksId === reqItem.id
+              {(() => {
+                if (loading) {
                   return (
-                    <div key={`match-work-${reqItem.id}`} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}>
-                      <div style={{ fontSize: '11px', color: '#38bdf8', marginBottom: 4, fontWeight: 600 }}>
-                        Запит: {reqItem.title}
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#e2e8f0', marginBottom: 8, backgroundColor: '#1e293b', padding: 8, borderRadius: 8 }}>
-                        <span style={{ color: '#34d399', fontWeight: 600 }}>Рекомендовані твори:</span> {getSpecificArtworksForQuery(reqItem.title)}
-                      </div>
-                      <button
-                        onClick={() => handleGenerateMatchingWorks(reqItem)}
-                        disabled={isGeneratingThis}
-                        style={{
-                          width: '100%',
-                          backgroundColor: isGeneratingThis ? '#047857' : '#059669',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: 8,
-                          padding: '8px 10px',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          cursor: isGeneratingThis ? 'not-allowed' : 'pointer',
-                          textAlign: 'center',
-                          opacity: isGeneratingThis ? 0.8 : 1
-                        }}
-                      >
-                        ✨ Формувати презентацію робіт
-                      </button>
-                      {isGeneratingThis && (
-                        <div style={{ color: '#ef4444', fontSize: '11px', fontWeight: 600, textAlign: 'center', marginTop: '6px' }}>
-                          Зачекайте, я формую
-                        </div>
-                      )}
+                    <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12, textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                      Аналіз творчої практики...
                     </div>
                   )
-                })
-              )}
+                }
+
+                if (!userArtworks || userArtworks.length === 0) {
+                  return (
+                    <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12, textAlign: 'center' }}>
+                      <p style={{ fontSize: '12px', color: '#94a3b8', margin: '0 0 10px 0', lineHeight: 1.4 }}>
+                        Щоб підібрати конкретні твори під запит, додайте роботи в профіль.
+                      </p>
+                      <button
+                        onClick={() => { window.location.href = '/profile' }}
+                        style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Додати роботи в профіль
+                      </button>
+                    </div>
+                  )
+                }
+
+                const matchingWorkCards = commercialOpportunities
+                  .filter((reqItem) => isValidHttpUrl(reqItem.source_url))
+                  .map((reqItem) => ({
+                    reqItem,
+                    matched: matchArtworksToRequest(userArtworks, reqItem),
+                    summary: shortRequestSummary(reqItem),
+                  }))
+                  .filter((row) => row.matched.length > 0)
+                  .slice(0, 3)
+
+                const portfolioLine = portfolioSummaryLine(userArtworks)
+
+                if (!matchingWorkCards.length) {
+                  return (
+                    <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12, textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                      Немає активних запитів для підбору робіт.
+                    </div>
+                  )
+                }
+
+                return (
+                  <>
+                    {portfolioLine ? (
+                      <p style={{ fontSize: '11px', color: '#cbd5e1', margin: 0, lineHeight: 1.4 }}>
+                        {portfolioLine}
+                      </p>
+                    ) : null}
+                    {matchingWorkCards.map(({ reqItem, matched, summary }) => {
+                      const isGeneratingThis = generatingMatchingWorksId === reqItem.id
+                      return (
+                        <div key={`match-work-${reqItem.id}`} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}>
+                          <div style={{ fontSize: '11px', color: '#38bdf8', marginBottom: 4, fontWeight: 600 }}>
+                            Запит: {reqItem.title}
+                          </div>
+                          {summary ? (
+                            <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: 8, lineHeight: 1.4 }}>
+                              Коротко: {summary}
+                            </div>
+                          ) : null}
+                          <div style={{ fontSize: '11px', color: '#e2e8f0', marginBottom: 8, backgroundColor: '#1e293b', padding: 8, borderRadius: 8, lineHeight: 1.45 }}>
+                            <span style={{ color: '#34d399', fontWeight: 600 }}>Рекомендовані твори: </span>
+                            {formatMatchedWorksLine(matched)}
+                          </div>
+                          <a
+                            href={reqItem.source_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-block',
+                              backgroundColor: '#2563eb',
+                              color: '#fff',
+                              textDecoration: 'none',
+                              borderRadius: 8,
+                              padding: '8px 12px',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              textAlign: 'center',
+                              width: '100%',
+                              boxSizing: 'border-box',
+                              marginBottom: '8px'
+                            }}
+                          >
+                            Відкрити запит
+                          </a>
+                          <button
+                            onClick={() => handleGenerateMatchingWorks(reqItem, matched)}
+                            disabled={isGeneratingThis}
+                            style={{
+                              width: '100%',
+                              backgroundColor: isGeneratingThis ? '#047857' : '#059669',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: 8,
+                              padding: '8px 10px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              cursor: isGeneratingThis ? 'not-allowed' : 'pointer',
+                              textAlign: 'center',
+                              opacity: isGeneratingThis ? 0.8 : 1
+                            }}
+                          >
+                            ✨ Формувати презентацію робіт
+                          </button>
+                          {isGeneratingThis && (
+                            <div style={{ color: '#ef4444', fontSize: '11px', fontWeight: 600, textAlign: 'center', marginTop: '6px' }}>
+                              Зачекайте, я формую
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </>
+                )
+              })()}
             </div>
           )}
         </div>
