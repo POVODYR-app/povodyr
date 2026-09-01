@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import TelegramConnect from '../../components/TelegramConnect'
 import NotificationsModal from '../../components/NotificationsModal'
 import FollowUpAlerts from '../../components/FollowUpAlerts'
+import ApplicationsTrackerModal from '../../components/ApplicationsTrackerModal'
 import { calculateMatch, ArtistProfile, Opportunity as MatchOpportunity } from '../../lib/matchEngine'
 import { isRealBuyerRequest } from '../../lib/commercialDemandGate'
 
@@ -206,7 +207,12 @@ function isFreshMatchingRequest(reqItem: any, now = Date.now()): boolean {
     deadline: reqItem?.deadline,
   })
 }
+const PIPELINE_STATUSES = ['FOUND', 'INTERESTED', 'PREPARING', 'SUBMITTED', 'WAITING', 'SELECTED', 'REJECTED']
 
+function isPipelineApplicationStatus(status: unknown): boolean {
+  const key = String(status || '').trim().toUpperCase()
+  return PIPELINE_STATUSES.indexOf(key) !== -1
+}
 export default function DashboardPage() {
   const [userName, setUserName] = useState('')
   const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
@@ -220,6 +226,8 @@ export default function DashboardPage() {
   const [modalOpportunities, setModalOpportunities] = useState<any[]>([])
   const [commercialOpportunities, setCommercialOpportunities] = useState<any[]>([])
   const [savedItemsForAlerts, setSavedItemsForAlerts] = useState<any[]>([])
+  const [isApplicationsModalOpen, setIsApplicationsModalOpen] = useState(false)
+  const [applicationItems, setApplicationItems] = useState<any[]>([])
   const [recentRelevantOpps, setRecentRelevantOpps] = useState<any[]>([])
   const [hasNoRecentRelevant, setHasNoRecentRelevant] = useState(false)
   const [isTop3Open, setIsTop3Open] = useState(true)
@@ -326,7 +334,13 @@ export default function DashboardPage() {
         )
         setSavedItemsForAlerts(submittedOnly)
       }
-
+      if (savedOpps && isMounted) {
+        const submittedOnly = savedOpps.filter((item: any) =>
+          item.status === 'submitted' || item.status === 'applied' || item.is_submitted === true || item.applied === true
+        )
+        setSavedItemsForAlerts(submittedOnly)
+        setApplicationItems(savedOpps.filter((item: any) => isPipelineApplicationStatus(item.status)))
+      }
       const { data: commOpps } = await supabase
         .from('commercial_opportunities')
         .select('*')
@@ -621,19 +635,16 @@ export default function DashboardPage() {
             Вітаю{userName ? `, ${userName}` : ''}!
           </h1>
           <button
-            onClick={() => setIsModalOpen(true)}
-            style={{
-              background: '#1e293b',
-              border: '1px solid #334155',
-              borderRadius: 12,
-              padding: '10px 16px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              color: '#fff',
-              fontSize: '14px',
-              fontWeight: '600'
+                        onClick={async () => {
+              setIsApplicationsModalOpen(true)
+              if (!userObj?.id) return
+              const { data: savedOpps } = await supabase
+                .from('saved_opportunities')
+                .select('*, opportunity:opportunities(*)')
+                .eq('user_id', userObj.id)
+              if (savedOpps) {
+                setApplicationItems(savedOpps.filter((item: any) => isPipelineApplicationStatus(item.status)))
+              }
             }}
           >
             <span>🔔</span>
@@ -1024,7 +1035,7 @@ export default function DashboardPage() {
               textAlign: 'center'
             }}
           >
-            📋 ВАШІ ЗАЯВКИ ТА РЕЗУЛЬТАТИ ({savedItemsForAlerts.length})
+          📋 ВАШІ ЗАЯВКИ ТА РЕЗУЛЬТАТИ ({applicationItems.length})
           </button>
         </div>
 
@@ -1078,7 +1089,33 @@ export default function DashboardPage() {
           notifications={modalOpportunities}
           title="ВІДІБРАВ ДЛЯ ВАС"
         />
+        <NotificationsModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          notifications={modalOpportunities}
+          title="ВІДІБРАВ ДЛЯ ВАС"
+          onTrackedApplication={async () => {
+            if (!userObj?.id) return
+            const { data: savedOpps } = await supabase
+              .from('saved_opportunities')
+              .select('*, opportunity:opportunities(*)')
+              .eq('user_id', userObj.id)
+            if (savedOpps) {
+              setApplicationItems(savedOpps.filter((item: any) => isPipelineApplicationStatus(item.status)))
+            }
+          }}
+        />
 
+        <ApplicationsTrackerModal
+          isOpen={isApplicationsModalOpen}
+          onClose={() => setIsApplicationsModalOpen(false)}
+          items={applicationItems}
+          onStatusChange={(savedId, newStatus) => {
+            setApplicationItems((prev) => prev.map((item: any) => (
+              item.id === savedId ? { ...item, status: newStatus } : item
+            )))
+          }}
+        />
         {isCommercialModalOpen && (
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
