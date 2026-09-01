@@ -364,7 +364,7 @@ export default function DashboardPage() {
             matchReasons: match.reasons,
           }
         })
-        setCommercialOpportunities(formattedComm)
+        setCommercialOpportunities(formattedComm.filter((item) => isFreshMatchingRequest(item)))
       }
 
       try {
