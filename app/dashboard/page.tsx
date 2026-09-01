@@ -225,7 +225,9 @@ export default function DashboardPage() {
   const [upcomingDeadlinesCount, setUpcomingDeadlinesCount] = useState<number>(0)
   const [modalOpportunities, setModalOpportunities] = useState<any[]>([])
   const [commercialOpportunities, setCommercialOpportunities] = useState<any[]>([])
-  const [savedItemsForAlerts, setSavedItemsForAlerts] = useState<any[]>([])
+  const [savedItemsForAlerts, setSavedItemsForAlerts] = useState<any[]>([])  
+  const [isApplicationsModalOpen, setIsApplicationsModalOpen] = useState(false)
+  const [applicationItems, setApplicationItems] = useState<any[]>([])
   const [isApplicationsModalOpen, setIsApplicationsModalOpen] = useState(false)
   const [applicationItems, setApplicationItems] = useState<any[]>([])
   const [recentRelevantOpps, setRecentRelevantOpps] = useState<any[]>([])
@@ -1021,7 +1023,7 @@ export default function DashboardPage() {
             Статус · дедлайн · результат
           </div>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => setIsApplicationsModalOpen(true)}
             style={{
               width: '100%',
               backgroundColor: '#1e293b',
@@ -1089,20 +1091,21 @@ export default function DashboardPage() {
           notifications={modalOpportunities}
           title="ВІДІБРАВ ДЛЯ ВАС"
         />
-        <NotificationsModal
+                <NotificationsModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           notifications={modalOpportunities}
           title="ВІДІБРАВ ДЛЯ ВАС"
-          onTrackedApplication={async () => {
-            if (!userObj?.id) return
-            const { data: savedOpps } = await supabase
-              .from('saved_opportunities')
-              .select('*, opportunity:opportunities(*)')
-              .eq('user_id', userObj.id)
-            if (savedOpps) {
-              setApplicationItems(savedOpps.filter((item: any) => isPipelineApplicationStatus(item.status)))
-            }
+        />
+
+        <ApplicationsTrackerModal
+          isOpen={isApplicationsModalOpen}
+          onClose={() => setIsApplicationsModalOpen(false)}
+          items={applicationItems}
+          onStatusChange={(savedId, newStatus) => {
+            setApplicationItems((prev) => prev.map((item: any) => (
+              item.id === savedId ? { ...item, status: newStatus } : item
+            )))
           }}
         />
 
