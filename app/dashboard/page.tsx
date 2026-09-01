@@ -663,7 +663,7 @@ export default function DashboardPage() {
             Конкурси · виставки · гранти · резиденції
           </div>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => setIsApplicationsModalOpen(true)}
             style={{
               width: '100%',
               backgroundColor: '#2563eb',
@@ -1035,7 +1035,7 @@ export default function DashboardPage() {
               textAlign: 'center'
             }}
           >
-          📋 ВАШІ ЗАЯВКИ ТА РЕЗУЛЬТАТИ ({applicationItems.length})
+         📋ВАШІ ЗАЯВКИ ТА РЕЗУЛЬТАТИ ({applicationItems.length})
           </button>
         </div>
 
