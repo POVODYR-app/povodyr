@@ -636,21 +636,37 @@ export default function DashboardPage() {
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
             Вітаю{userName ? `, ${userName}` : ''}!
           </h1>
-          <button
-                        onClick={async () => {
-              setIsApplicationsModalOpen(true)
-              if (!userObj?.id) return
-              const { data: savedOpps } = await supabase
-                .from('saved_opportunities')
-                .select('*, opportunity:opportunities(*)')
-                .eq('user_id', userObj.id)
-              if (savedOpps) {
-                setApplicationItems(savedOpps.filter((item: any) => isPipelineApplicationStatus(item.status)))
-              }
+                    <button
+            onClick={() => setIsModalOpen(true)}
+            style={{
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              backgroundColor: '#1e293b',
+              background: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: 12,
+              padding: '8px 12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: '#ffffff',
+              fontSize: '13px',
+              fontWeight: 600,
+              WebkitTextFillColor: '#ffffff',
+              lineHeight: 1.2,
             }}
           >
             <span>🔔</span>
-            <span>{upcomingDeadlinesCount} DEADLINE</span>
+            <span style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}>
+              {upcomingDeadlinesCount} DEADLINE
+            </span>
+            <span style={{ display: 'flex', gap: 2, fontSize: '12px' }}>
+              {Array.from(new Set(
+                applicationItems
+                  .map((item: any) => getDeadlineDetails(item.opportunity?.deadline).indicator)
+              )).join('')}
+            </span>
           </button>
         </div>
 
