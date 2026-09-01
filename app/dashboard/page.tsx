@@ -228,6 +228,7 @@ export default function DashboardPage() {
   const [savedItemsForAlerts, setSavedItemsForAlerts] = useState<any[]>([])  
   const [isApplicationsModalOpen, setIsApplicationsModalOpen] = useState(false)
   const [applicationItems, setApplicationItems] = useState<any[]>([])
+  const [isDeadlineModalOpen, setIsDeadlineModalOpen] = useState(false)
   const [recentRelevantOpps, setRecentRelevantOpps] = useState<any[]>([])
   const [hasNoRecentRelevant, setHasNoRecentRelevant] = useState(false)
   const [isTop3Open, setIsTop3Open] = useState(true)
@@ -636,8 +637,8 @@ export default function DashboardPage() {
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
             Вітаю{userName ? `, ${userName}` : ''}!
           </h1>
-                    <button
-            onClick={() => setIsModalOpen(true)}
+                              <button
+            onClick={() => setIsDeadlineModalOpen(true)}
             style={{
               appearance: 'none',
               WebkitAppearance: 'none',
@@ -681,7 +682,7 @@ export default function DashboardPage() {
             Конкурси · виставки · гранти · резиденції
           </div>
           <button
-            onClick={() => setIsApplicationsModalOpen(true)}
+            onClick={() => setIsModalOpen(true)}
             style={{
               width: '100%',
               backgroundColor: '#2563eb',
@@ -1114,7 +1115,7 @@ export default function DashboardPage() {
           title="ВІДІБРАВ ДЛЯ ВАС"
         />
 
-        <ApplicationsTrackerModal
+                <ApplicationsTrackerModal
           isOpen={isApplicationsModalOpen}
           onClose={() => setIsApplicationsModalOpen(false)}
           items={applicationItems}
@@ -1125,16 +1126,81 @@ export default function DashboardPage() {
           }}
         />
 
-        <ApplicationsTrackerModal
-          isOpen={isApplicationsModalOpen}
-          onClose={() => setIsApplicationsModalOpen(false)}
-          items={applicationItems}
-          onStatusChange={(savedId, newStatus) => {
-            setApplicationItems((prev) => prev.map((item: any) => (
-              item.id === savedId ? { ...item, status: newStatus } : item
-            )))
-          }}
-        />
+        {isDeadlineModalOpen && (
+          <div
+            style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.75)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 9999, padding: 16,
+            }}
+            onClick={() => setIsDeadlineModalOpen(false)}
+          >
+            <div
+              style={{
+                backgroundColor: '#1a1d2d',
+                border: '1px solid #334155',
+                borderRadius: 16,
+                width: '100%',
+                maxWidth: 560,
+                maxHeight: '85vh',
+                overflowY: 'auto',
+                color: '#fff',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #334155' }}>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>ДЕДЛАЙНИ</h2>
+                <button
+                  onClick={() => setIsDeadlineModalOpen(false)}
+                  style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 24, cursor: 'pointer' }}
+                >
+                  ×
+                </button>
+              </div>
+              <div style={{ padding: 16 }}>
+                {applicationItems.filter((item: any) => item.opportunity?.deadline).length === 0 ? (
+                  <div style={{ textAlign: 'center', color: '#94a3b8', padding: '32px 8px', fontSize: 14 }}>
+                    Немає заявок із дедлайном.
+                  </div>
+                ) : (
+                  applicationItems
+                    .filter((item: any) => item.opportunity?.deadline)
+                    .map((item: any) => {
+                      const info = getDeadlineDetails(item.opportunity?.deadline)
+                      const d = new Date(item.opportunity.deadline)
+                      const dateLabel = Number.isNaN(d.getTime())
+                        ? 'не вказано'
+                        : d.toLocaleDateString('uk-UA')
+                      return (
+                        <div
+                          key={item.id}
+                          style={{
+                            backgroundColor: '#0f172a',
+                            border: '1px solid #334155',
+                            borderRadius: 12,
+                            padding: 12,
+                            marginBottom: 10,
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                            <span style={{ fontSize: 16 }}>{info.indicator}</span>
+                            <span style={{ fontSize: 12, color: '#cbd5e1' }}>{info.label}</span>
+                          </div>
+                          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                            {item.opportunity?.title || 'Можливість без назви'}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                            Дата: {dateLabel}
+                          </div>
+                        </div>
+                      )
+                    })
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {isCommercialModalOpen && (
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
