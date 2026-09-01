@@ -25,11 +25,19 @@ export interface NotificationItem {
   recommendedAction?: string;
 }
 
+const PIPELINE_STATUSES = ['FOUND', 'INTERESTED', 'PREPARING', 'SUBMITTED', 'WAITING', 'SELECTED', 'REJECTED'];
+
+function isPipelineApplicationStatus(status: unknown): boolean {
+  const key = String(status || '').trim().toUpperCase();
+  return PIPELINE_STATUSES.indexOf(key) !== -1;
+}
+
 interface NotificationsModalProps {
   isOpen: boolean;
   onClose: () => void;
   notifications: NotificationItem[];
   title?: string;
+  onTrackedApplication?: () => void;
 }
 
 export default function NotificationsModal({
@@ -37,6 +45,7 @@ export default function NotificationsModal({
   onClose,
   notifications,
   title = 'Центр можливостей',
+  onTrackedApplication,
 }: NotificationsModalProps) {
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [userId, setUserId] = useState<string | null>(null);
@@ -46,6 +55,8 @@ export default function NotificationsModal({
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [generatedText, setGeneratedText] = useState<{ [key: string]: string }>({});
   const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
+  const [trackedIds, setTrackedIds] = useState<Set<string>>(new Set());
+  const [addingTrackerId, setAddingTrackerId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -59,11 +70,16 @@ export default function NotificationsModal({
 
         const { data, error } = await supabase
           .from('saved_opportunities')
-          .select('opportunity_id')
+          .select('opportunity_id, status')
           .eq('user_id', user.id);
 
         if (!error && data) {
-          setSavedIds(new Set(data.map((item: any) => item.opportunity_id)));
+          setSavedIds(new Set(data.map((item: any) => item.opportunity_id).filter(Boolean)));
+          setTrackedIds(new Set(
+            data
+              .filter((item: any) => item.opportunity_id && isPipelineApplicationStatus(item.status))
+              .map((item: any) => item.opportunity_id)
+          ));
         }
 
         const { data: profile } = await supabase
@@ -122,6 +138,55 @@ export default function NotificationsModal({
       await supabase
         .from('saved_opportunities')
         .insert({ user_id: userId, opportunity_id: opportunityId });
+    }
+  };
+
+  const handleAddToApplications = async (opportunityId: string) => {
+    if (!userId || !opportunityId) return;
+    setAddingTrackerId(opportunityId);
+    try {
+      const { data: existing, error: existingError } = await supabase
+        .from('saved_opportunities')
+        .select('id, status')
+        .eq('user_id', userId)
+        .eq('opportunity_id', opportunityId)
+        .maybeSingle();
+
+      if (existingError) {
+        throw existingError;
+      }
+
+      if (existing?.id) {
+        const { error: updateError } = await supabase
+          .from('saved_opportunities')
+          .update({ status: 'SUBMITTED' })
+          .eq('id', existing.id);
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from('saved_opportunities')
+          .insert({
+            user_id: userId,
+            opportunity_id: opportunityId,
+            status: 'SUBMITTED',
+          });
+        if (insertError) throw insertError;
+      }
+
+      const nextSaved = new Set(savedIds);
+      nextSaved.add(opportunityId);
+      setSavedIds(nextSaved);
+
+      const nextTracked = new Set(trackedIds);
+      nextTracked.add(opportunityId);
+      setTrackedIds(nextTracked);
+
+      if (onTrackedApplication) onTrackedApplication();
+    } catch (err) {
+      console.error(err);
+      alert('Не вдалося додати заявку в трекер');
+    } finally {
+      setAddingTrackerId(null);
     }
   };
 
@@ -439,6 +504,28 @@ export default function NotificationsModal({
                           }}
                         >
                           ✉️ На пошту
+                        </button>
+                        <button
+                          onClick={() => handleAddToApplications(item.id)}
+                          disabled={addingTrackerId === item.id || trackedIds.has(item.id)}
+                          style={{
+                            flex: '1 1 100%',
+                            padding: '8px 10px',
+                            backgroundColor: trackedIds.has(item.id) ? '#334155' : '#0f766e',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            cursor: trackedIds.has(item.id) ? 'default' : 'pointer',
+                            opacity: addingTrackerId === item.id ? 0.7 : 1,
+                          }}
+                        >
+                          {trackedIds.has(item.id)
+                            ? 'Уже в моїх заявках'
+                            : addingTrackerId === item.id
+                              ? 'Додаю…'
+                              : 'Додати до моїх заявок'}
                         </button>
                       </div>
                     </div>
