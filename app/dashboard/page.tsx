@@ -6,6 +6,7 @@ import TelegramConnect from '../../components/TelegramConnect'
 import NotificationsModal from '../../components/NotificationsModal'
 import FollowUpAlerts from '../../components/FollowUpAlerts'
 import { calculateMatch, ArtistProfile, Opportunity as MatchOpportunity } from '../../lib/matchEngine'
+import { isRealBuyerRequest } from '../../lib/commercialDemandGate'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -185,6 +186,25 @@ function portfolioSummaryLine(artworks: any[]): string {
     themes.length ? `теми: ${themes.join(', ')}` : '',
   ].filter(Boolean)
   return parts.length ? `З портфоліо: ${parts.join('; ')}.` : ''
+}
+
+function isFreshMatchingRequest(reqItem: any, now = Date.now()): boolean {
+  const added = Date.parse(String(reqItem?.created_at || reqItem?.date_added || ''))
+  if (Number.isFinite(added) && now - added > 45 * 24 * 60 * 60 * 1000) return false
+
+  const url = String(reqItem?.source_url || '').toLowerCase()
+  if (!url) return false
+  if (url.indexOf('instagram.com/') !== -1) return false
+  if (url.indexOf('e-lot.com.ua') !== -1) return false
+
+  return isRealBuyerRequest({
+    title: reqItem?.title,
+    description: reqItem?.description,
+    what_is_needed: reqItem?.what_is_needed,
+    organization: reqItem?.organization,
+    source_url: reqItem?.source_url,
+    deadline: reqItem?.deadline,
+  })
 }
 
 export default function DashboardPage() {
@@ -885,6 +905,7 @@ export default function DashboardPage() {
 
                 const matchingWorkCards = commercialOpportunities
                   .filter((reqItem) => isValidHttpUrl(reqItem.source_url))
+                  .filter((reqItem) => isFreshMatchingRequest(reqItem))
                   .map((reqItem) => ({
                     reqItem,
                     matched: matchArtworksToRequest(userArtworks, reqItem),
