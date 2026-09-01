@@ -228,8 +228,6 @@ export default function DashboardPage() {
   const [savedItemsForAlerts, setSavedItemsForAlerts] = useState<any[]>([])  
   const [isApplicationsModalOpen, setIsApplicationsModalOpen] = useState(false)
   const [applicationItems, setApplicationItems] = useState<any[]>([])
-  const [isApplicationsModalOpen, setIsApplicationsModalOpen] = useState(false)
-  const [applicationItems, setApplicationItems] = useState<any[]>([])
   const [recentRelevantOpps, setRecentRelevantOpps] = useState<any[]>([])
   const [hasNoRecentRelevant, setHasNoRecentRelevant] = useState(false)
   const [isTop3Open, setIsTop3Open] = useState(true)
