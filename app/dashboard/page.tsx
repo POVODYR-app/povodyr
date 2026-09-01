@@ -603,7 +603,7 @@ export default function DashboardPage() {
     }
   }
 
-  const getDeadlineDetails = (deadlineStr?: string) => {
+    const getDeadlineDetails = (deadlineStr?: string) => {
     if (!deadlineStr) return { indicator: '🟢', label: 'Довгострокова можливість' }
     const deadlineDate = new Date(deadlineStr)
     const today = new Date()
@@ -612,6 +612,8 @@ export default function DashboardPage() {
       return { indicator: '🔴', label: `Дедлайн через ${diffDays} дн. (до 7 днів)` }
     } else if (diffDays > 7 && diffDays <= 30) {
       return { indicator: '🟡', label: `Дедлайн через ${diffDays} дн. (8–30 днів)` }
+    } else if (diffDays > 30 && diffDays <= 90) {
+      return { indicator: '🔵', label: `Дедлайн через ${diffDays} дн. (31–90 днів)` }
     } else if (diffDays < 0) {
       return { indicator: '⚪', label: 'Термін подачі вийшов' }
     } else {
