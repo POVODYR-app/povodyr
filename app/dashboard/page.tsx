@@ -466,7 +466,7 @@ export default function DashboardPage() {
               return (b.matchScore || 0) - (a.matchScore || 0)
             })
 
-            const listingTitleRe = /актуальний open call та події|актуальні гранти та конкурсні програми/i
+                const listingTitleRe = /актуальний open call та події|актуальні гранти та конкурсні програми|worldwide network open calls|grants database|eu supports ukraine through culture|swiss arts council residencies|selected artists in residence|selected projects/i
             const visibleOpps = formattedOpps.filter((item) => !listingTitleRe.test(String(item.title || '')))
                         setModalOpportunities(visibleOpps)
             setHasNoRecentRelevant(visibleOpps.length === 0)
