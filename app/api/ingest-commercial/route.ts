@@ -51,22 +51,15 @@ const ALLOWED_SUBTYPES = [
   'other',
 ] as const
 
-const CURATED_SOURCES = [
-  { url: 'https://prozorro.gov.ua/uk/search?query=%D0%BA%D0%B0%D1%80%D1%82%D0%B8%D0%BD%D0%B8', name: 'Prozorro — картини' },
-  { url: 'https://prozorro.gov.ua/uk/search?query=%D0%BE%D1%84%D0%BE%D1%80%D0%BC%D0%BB%D0%B5%D0%BD%D0%BD%D1%8F%20%D1%96%D0%BD%D1%82%D0%B5%D1%80%27%D1%94%D1%80%D1%83', name: 'Prozorro — інтер’єр' },
-  { url: 'https://www.olx.ua/uk/hobbi-otdyh-i-sport/iskusstvo/', name: 'OLX — мистецтво' },
-  { url: 'https://www.work.ua/jobs-ukraine-dizajner+inter-eru/', name: 'Work.ua — дизайнери інтер’єру' },
-  { url: 'https://houseofeurope.org.ua/', name: 'House of Europe' },
-  { url: 'https://ucf.in.ua/', name: 'Український культурний фонд' },
-]
+const CURATED_SOURCES: { url: string; name: string }[] = []
 
 const SEARCH_QUERIES = [
   'шукаємо картини для готелю Україна',
-  'закупівля картин для офісу тендер',
+  'офіс шукає картини купити Україна',
   'дизайнер інтер’єру шукає художника картини на замовлення',
   'галерея шукає художника для співпраці купівля робіт Україна',
-  'art for hotel interiors call for artists',
-  'commission original paintings restaurant interior',
+  'готель шукає картини для інтер’єру купити',
+  'ресторан шукає картини на замовлення Україна',
   'corporate art collection looking for artists Ukraine',
 ]
 
@@ -281,8 +274,22 @@ async function upsertItem(item: CommercialItem) {
     source_url: item.source_url,
     contact_person: item.contact_person,
     contact_method: item.contact_method,
-    date_added: new Date().toISOString(),
   }
+
+  if (item.deadline) {
+    record.deadline = item.deadline
+  }
+
+  if (existing?.id) {
+    const { error } = await supabase.from('commercial_opportunities').update(record).eq('id', existing.id)
+    return error ? { status: 'error', error: error.message } : { status: 'updated' }
+  }
+
+  record.date_added = new Date().toISOString()
+  const { error } = await supabase.from('commercial_opportunities').insert(record)
+  if (error) return { status: 'error', error: error.message }
+  return { status: 'inserted' }
+}
 
   if (item.deadline) {
     record.deadline = item.deadline
