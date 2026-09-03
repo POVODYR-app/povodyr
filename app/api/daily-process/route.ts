@@ -25,7 +25,7 @@ const PRIORITY_SOURCES = [
     title: 'Art Fine Nation — Open Call (Україна)',
     type: 'open_call',
     country: 'Україна',
-    description: 'Пріоритетний постійний open call для українських художників, виставок та проєктів.'
+    description: 'Перша українська мистецька агенція Art Fine Nation. Open call: виставки, конкурси, пленери для художників України.'
   },
   {
     url: 'https://houseofeurope.org.ua/',
