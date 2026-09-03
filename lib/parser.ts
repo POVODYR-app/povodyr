@@ -21,7 +21,7 @@ export interface ParsedOpportunity {
 }
 
 export const ART_FINE_NATION_URL =
-  'https://sites.google.com/view/artfinenation/open-call?read_current=1'
+  'https://sites.google.com/view/artfinenation/open-call'
 
 export const SEARCH_KEYWORDS = {
   ua: [
@@ -114,11 +114,11 @@ function isOpportunityValid(title: string, description: string, deadline: string
 export function getGuaranteedArtFineNationOpportunity(): ParsedOpportunity {
   return {
     source_name: 'Art Fine Nation',
-    title: 'Open call та календар можливостей — Art Fine Nation',
+    title: 'Art Fine Nation Перша українська мистецька агенція — Open Call виставки, конкурси, пленери',
     link: ART_FINE_NATION_URL,
     source_url: ART_FINE_NATION_URL,
     type: 'Open Call',
-    deadline: '2026-12-31T00:00:00.000Z',
+    deadline: null,
     country: 'Україна',
     is_free: true,
     cost_amount: 0,
