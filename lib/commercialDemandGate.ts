@@ -186,7 +186,7 @@ export function isRealBuyerRequest(input: CommercialDemandInput): boolean {
   if (!combined.trim()) return false
   if (isDeadlineInPast(input.deadline)) return false
   if (hasStalePlanYear(combined)) return false
-  if (isSellerOrPlanText(combined)) return false
+  if (isJunkText(combined)) return false
   if (!hasDemandSignal(combined)) return false
   return true
 }
