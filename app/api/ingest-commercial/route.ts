@@ -285,21 +285,6 @@ async function upsertItem(item: CommercialItem) {
     return error ? { status: 'error', error: error.message } : { status: 'updated' }
   }
 
-  record.date_added = new Date().toISOString()
-  const { error } = await supabase.from('commercial_opportunities').insert(record)
-  if (error) return { status: 'error', error: error.message }
-  return { status: 'inserted' }
-}
-
-  if (item.deadline) {
-    record.deadline = item.deadline
-  }
-
-  if (existing?.id) {
-    const { error } = await supabase.from('commercial_opportunities').update(record).eq('id', existing.id)
-    return error ? { status: 'error', error: error.message } : { status: 'updated' }
-  }
-
   const { error } = await supabase.from('commercial_opportunities').insert(record)
   if (error) return { status: 'error', error: error.message }
   return { status: 'inserted' }
