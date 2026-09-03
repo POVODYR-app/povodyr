@@ -83,10 +83,12 @@ function isOpportunityValid(title: string, description: string, deadline: string
   const descLower = description.toLowerCase()
   const combinedText = `${titleLower} ${descLower}`
 
-  const negativeKeywords = [
+    const negativeKeywords = [
     'board member', 'welcomes', 'appointed', 'highlights', 'anniversary',
     'meeting', 'conference report', 'goodbye', 'interview', 'spotlight on',
-    'review', 'archived', 'recap',
+    'selected artists', 'selected projects', 'selected project',
+    'awarded', 'announces the recipients', 'congratulations',
+    'now online', 'exhibition opening', 'on view',
   ]
 
   if (negativeKeywords.some((kw) => titleLower.includes(kw))) {
@@ -211,9 +213,12 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
     'submission', 'submit', 'exhibition opportunity', 'artist call', 'mobility',
   ]
 
-  const negativeKeywords = [
+    const negativeKeywords = [
     'board member', 'welcomes', 'appointed', 'highlights', 'anniversary',
     'meeting', 'conference report', 'goodbye', 'interview', 'spotlight on',
+    'selected artists', 'selected projects', 'selected project',
+    'awarded', 'announces the recipients', 'congratulations',
+    'now online', 'exhibition opening', 'on view',
   ]
 
   for (const source of sources) {
@@ -322,25 +327,7 @@ export async function parseUkrainianInstitutionsHTML(): Promise<ParsedOpportunit
 function getCoreOpportunities(): ParsedOpportunity[] {
   return [
     getGuaranteedArtFineNationOpportunity(),
-    {
-      source_name: 'European Commission (Culture)',
-      title: 'EU Supports Ukraine Through Culture',
-      link: 'https://culture.ec.europa.eu/whats-new/news/eu-supports-ukraine-through-culture',
-      source_url: 'https://culture.ec.europa.eu/whats-new/news/eu-supports-ukraine-through-culture',
-      type: 'Grant / Info',
-      deadline: '2026-12-31T00:00:00.000Z',
-      country: 'International / Ukraine',
-      is_free: true,
-      cost_amount: 0,
-      cost_currency: 'EUR',
-      genres: ['Visual Art', 'Culture', 'Performing Arts'],
-      techniques: [],
-      artist_levels: ['Emerging', 'Mid-Career', 'Established'],
-      age_restrictions: 'None',
-      languages: ['en', 'uk'],
-      ukrainians_eligible: true,
-      raw_description: 'Офіційна ініціатива Європейської комісії щодо підтримки українського культурного сектору, митців та ініціатив.',
-    },
+    
     {
       source_name: 'Perform Europe',
       title: 'Open Call of Perform Europe 2026-2028',
@@ -398,63 +385,7 @@ function getCoreOpportunities(): ParsedOpportunity[] {
       ukrainians_eligible: true,
       raw_description: 'Міжнародна мобільність для художників та культурних діячів на 2026-2027 роки.',
     },
-    {
-      source_name: 'Res Artis',
-      title: 'Res Artis Worldwide Network Open Calls & Residencies 2026-2027',
-      link: 'https://resartis.org/open-calls/',
-      source_url: 'https://resartis.org/open-calls/',
-      type: 'Residency',
-      deadline: '2027-12-31T00:00:00.000Z',
-      country: 'International',
-      is_free: true,
-      cost_amount: 0,
-      cost_currency: 'EUR',
-      genres: ['Visual Art', 'Painting', 'Fine Arts'],
-      techniques: [],
-      artist_levels: ['Emerging', 'Mid-Career', 'Established'],
-      age_restrictions: 'None',
-      languages: ['en'],
-      ukrainians_eligible: true,
-      raw_description: 'Глобальна мережа арт-резиденцій на 2026-2027 роки.',
-    },
-    {
-      source_name: 'TransArtists',
-      title: 'Transartists: Art Residencies & Grants Database 2026-2027',
-      link: 'https://www.transartists.org/en/air',
-      source_url: 'https://www.transartists.org/en/air',
-      type: 'Residency',
-      deadline: '2027-12-31T00:00:00.000Z',
-      country: 'International',
-      is_free: true,
-      cost_amount: 0,
-      cost_currency: 'EUR',
-      genres: ['Visual Art', 'Painting'],
-      techniques: [],
-      artist_levels: ['Emerging', 'Mid-Career'],
-      age_restrictions: 'None',
-      languages: ['en'],
-      ukrainians_eligible: true,
-      raw_description: 'Платформа міжнародних резиденцій на 2026-2027 роки.',
-    },
-    {
-      source_name: 'Pro Helvetia',
-      title: 'Pro Helvetia: Swiss Arts Council Residencies 2026-2027',
-      link: 'https://prohelvetia.ch/en/sundry/residencies/',
-      source_url: 'https://prohelvetia.ch/en/sundry/residencies/',
-      type: 'Residency',
-      deadline: '2027-09-30T00:00:00.000Z',
-      country: 'Switzerland',
-      is_free: true,
-      cost_amount: 0,
-      cost_currency: 'CHF',
-      genres: ['Visual Art', 'Painting'],
-      techniques: [],
-      artist_levels: ['Mid-Career', 'Established'],
-      age_restrictions: 'None',
-      languages: ['en'],
-      ukrainians_eligible: true,
-      raw_description: 'Швейцарська рада з питань культури. Програми резиденцій для митців.',
-    },
+    
   ]
 }
 
