@@ -83,6 +83,11 @@ export async function GET(request: NextRequest) {
       .update({ deadline: null })
       .ilike('source_url', '%artfinenation%')
       .not('deadline', 'is', null)
+        await supabase
+      .from('opportunities')
+      .update({ deadline: null })
+      .ilike('source_url', '%artfinenation%')
+      .not('deadline', 'is', null)
         {
       const listingTitlePatterns = [
         '%Актуальний Open Call та події%',
@@ -155,13 +160,13 @@ export async function GET(request: NextRequest) {
       } else {
         await supabase
           .from('opportunities')
-          .update({
+                    .update({
             is_active: true,
             title: source.title,
             description: source.description,
             raw_description: source.description,
             source_url: source.url,
-            deadline: isAfn ? null : undefined,
+            deadline: isAfn ? null : null,
           })
           .eq('id', existingOpp.id);
       }
