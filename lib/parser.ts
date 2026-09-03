@@ -312,79 +312,11 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
 }
 
 export async function parseSocialMediaAndHashtags(): Promise<ParsedOpportunity[]> {
-  const socialSources = [
-    { name: 'ArtBotMe Telegram', link: 'https://t.me/artbotme', type: 'Open Call' },
-    { name: 'Art Salon Vizantia', link: 'https://www.instagram.com/art_salon_vizantia/', type: 'Виставка' },
-    { name: 'Globus Gallery', link: 'https://www.instagram.com/globus_gallery/', type: 'Виставка' },
-    { name: 'НСХУ Дирекція', link: 'https://t.me/nshu_dir', type: 'Open Call' },
-    { name: 'Gallery Globus', link: 'https://t.me/Gallery_Globus', type: 'Виставка / Open Call' },
-  ]
-
-  return socialSources.map((source) => ({
-    source_name: source.name,
-    title: `Актуальний Open Call та події — ${source.name}`,
-    link: source.link,
-    source_url: source.link,
-    type: source.type,
-    deadline: '2026-12-31T00:00:00.000Z',
-    country: 'Україна',
-    is_free: true,
-    cost_amount: 0,
-    cost_currency: 'UAH',
-    genres: ['Образотворче мистецтво', 'Живопис'],
-    techniques: ['Олія', 'Акрил', 'Змішана техніка'],
-    artist_levels: ['Emerging', 'Mid-Career', 'Established'],
-    age_restrictions: 'None',
-    languages: ['uk', 'en'],
-    ukrainians_eligible: true,
-    raw_description: `Оперативні анонси виставок, конкурсів та open call із офіційних джерел ${source.name}.`,
-  }))
+  return []
 }
 
 export async function parseUkrainianInstitutionsHTML(): Promise<ParsedOpportunity[]> {
-  const opportunities: ParsedOpportunity[] = []
-  const ukrainianSources = [
-    {
-      name: 'Український культурний фонд (УКФ)',
-      url: 'https://ucf.in.ua/',
-      type: 'Грант / Open Call',
-      defaultDeadline: '2026-11-30T00:00:00.000Z',
-    },
-    {
-      name: 'Мистецький Арсенал',
-      url: 'https://artarsenal.in.ua',
-      type: 'Виставка / Open Call',
-      defaultDeadline: '2026-12-31T00:00:00.000Z',
-    },
-  ]
-
-  ukrainianSources.forEach((source) => {
-    const title = `Актуальні гранти та конкурсні програми 2026 — ${source.name}`
-    const description = `Офіційний прийом заявок та грантові програми для українських художників, культурних діячів та проєктів від ${source.name}.`
-    if (isOpportunityValid(title, description, source.defaultDeadline, source.url)) {
-      opportunities.push({
-        source_name: source.name,
-        title,
-        link: source.url,
-        source_url: source.url,
-        type: source.type,
-        deadline: source.defaultDeadline,
-        country: 'Україна',
-        is_free: true,
-        cost_amount: 0,
-        cost_currency: 'UAH',
-        genres: ['Образотворче мистецтво', 'Живопис', 'Колаж', 'Сучасне мистецтво'],
-        techniques: ['Олія', 'Акрил', 'Змішана техніка'],
-        artist_levels: ['Emerging', 'Mid-Career', 'Established'],
-        age_restrictions: 'None',
-        languages: ['uk'],
-        ukrainians_eligible: true,
-        raw_description: description,
-      })
-    }
-  })
-
-  return opportunities
+  return []
 }
 
 function getCoreOpportunities(): ParsedOpportunity[] {
