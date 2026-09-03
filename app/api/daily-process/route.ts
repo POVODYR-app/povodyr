@@ -22,7 +22,7 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 const PRIORITY_SOURCES = [
   {
     url: 'https://sites.google.com/view/artfinenation/open-call',
-    title: 'Art Fine Nation — Open Call (Україна)',
+    title: 'Art Fine Nation Перша українська мистецька агенція — Open Call виставки, конкурси, пленери',
     type: 'open_call',
     country: 'Україна',
     description: 'Перша українська мистецька агенція Art Fine Nation. Open call: виставки, конкурси, пленери для художників України.'
