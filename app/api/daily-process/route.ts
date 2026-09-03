@@ -78,6 +78,11 @@ export async function GET(request: NextRequest) {
     }
 
     const testEmail = request.nextUrl.searchParams.get('test_email');
+        await supabase
+      .from('opportunities')
+      .update({ deadline: null })
+      .ilike('source_url', '%artfinenation%')
+      .not('deadline', 'is', null)
         {
       const listingTitlePatterns = [
         '%Актуальний Open Call та події%',
