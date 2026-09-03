@@ -20,7 +20,7 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 }
 
 const PRIORITY_SOURCES = [
-  {
+    {
     url: 'https://sites.google.com/view/artfinenation/open-call',
     title: 'Art Fine Nation Перша українська мистецька агенція — Open Call виставки, конкурси, пленери',
     type: 'open_call',
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
 
     const testEmail = request.nextUrl.searchParams.get('test_email');
 
-    for (const source of PRIORITY_SOURCES) {
+        for (const source of PRIORITY_SOURCES) {
       const isAfn = /artfinenation/i.test(source.url);
       let existingOpp: { id: string } | null = null;
 
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
         eligible_countries: ['Україна', 'International'],
         ukrainians_eligible: true,
         is_active: true,
-        deadline: isAfn ? '2026-12-31T00:00:00.000Z' : null,
+        deadline: isAfn ? null : null,
       };
 
       if (!existingOpp) {
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
             created_at: new Date().toISOString(),
           },
         ]);
-           } else {
+      } else {
         await supabase
           .from('opportunities')
           .update({
@@ -131,8 +131,10 @@ export async function GET(request: NextRequest) {
             title: source.title,
             description: source.description,
             raw_description: source.description,
+            source_url: source.url,
+            deadline: isAfn ? null : undefined,
           })
-          .eq('source_url', source.url);
+          .eq('id', existingOpp.id);
       }
     }
 
