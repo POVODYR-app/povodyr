@@ -265,6 +265,12 @@ export async function GET(request: NextRequest) {
     const logs: any[] = [];
     const runAt = new Date().toISOString();
 
+    const listingTitleRe = /актуальний open call та події|актуальні гранти та конкурсні програми/i
+    const cleanOpportunities = (opportunities || []).filter((item: any) => {
+      const title = String(item?.title || '')
+      if (/artfinenation/i.test(title)) return true
+      return !listingTitleRe.test(title)
+    })
     for (const user of users) {
       const personalized = personalizeOpportunities(user, opportunities || [], {
         minScore: 48,
