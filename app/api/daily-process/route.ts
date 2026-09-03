@@ -123,11 +123,16 @@ export async function GET(request: NextRequest) {
             created_at: new Date().toISOString(),
           },
         ]);
-      } else {
+           } else {
         await supabase
           .from('opportunities')
-          .update(record)
-          .eq('id', existingOpp.id);
+          .update({
+            is_active: true,
+            title: source.title,
+            description: source.description,
+            raw_description: source.description,
+          })
+          .eq('source_url', source.url);
       }
     }
 
