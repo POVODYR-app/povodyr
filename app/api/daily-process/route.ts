@@ -265,7 +265,7 @@ export async function GET(request: NextRequest) {
     const logs: any[] = [];
     const runAt = new Date().toISOString();
 
-    const listingTitleRe = /актуальний open call та події|актуальні гранти та конкурсні програми/i
+        const listingTitleRe = /актуальний open call та події|актуальні гранти та конкурсні програми|worldwide network open calls|grants database|eu supports ukraine through culture|swiss arts council residencies|selected artists in residence|selected projects/i
     const cleanOpportunities = (opportunities || []).filter((item: any) => {
       const title = String(item?.title || '')
       if (/artfinenation/i.test(title)) return true
