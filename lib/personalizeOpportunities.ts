@@ -190,6 +190,81 @@ function isExpired(opp: any): boolean {
   return deadline.getTime() < Date.now() - 12 * 60 * 60 * 1000
 }
 
+const ART_FINE_NATION_URL = 'https://sites.google.com/view/artfinenation/open-call'
+
+function isArtFineNationOpportunity(opp: any): boolean {
+  if (!opp) return false
+  const url = norm(`${opp.source_url || ''} ${opp.link || ''} ${opp.link_url || ''}`)
+  const name = norm(`${opp.source_name || ''} ${opp.title || ''}`)
+  return (
+    url.includes('sites.google.com/view/artfinenation') ||
+    name.includes('art fine nation') ||
+    name.includes('artfinenation')
+  )
+}
+
+function profileHasUkraine(profile: any): boolean {
+  const blob = norm(
+    [
+      ...toArray(profile?.search_countries),
+      ...toArray(profile?.target_countries),
+      ...toArray(profile?.country),
+      profile?.residency_country || '',
+      profile?.citizenship || '',
+    ].join(' ')
+  )
+  return (
+    blob.includes('україн') ||
+    blob.includes('ukraine') ||
+    blob.includes('україна') ||
+    /(^|[^a-zа-яіїєґ])ua([^a-zа-яіїєґ]|$)/.test(blob)
+  )
+}
+
+function forceArtFineNationForUkraine(
+  profile: any,
+  opportunities: any[],
+  ranked: PersonalizedOpportunity[]
+): PersonalizedOpportunity[] {
+  if (!profileHasUkraine(profile)) return ranked
+
+  let afnOpp: any = null
+  const source = opportunities || []
+  for (let i = 0; i < source.length; i += 1) {
+    const opp = source[i]
+    if (!isArtFineNationOpportunity(opp)) continue
+    if (opp.is_active === false) continue
+    if (isExpired(opp)) continue
+    afnOpp = opp
+    break
+  }
+  if (!afnOpp) return ranked
+
+  const existingIndex = ranked.findIndex(
+    (item) =>
+      isArtFineNationOpportunity(item.opportunity) ||
+      (item.opportunity?.id && afnOpp.id && item.opportunity.id === afnOpp.id)
+  )
+
+  const forced: PersonalizedOpportunity = {
+    opportunity: existingIndex >= 0 ? ranked[existingIndex].opportunity : afnOpp,
+    score: 99,
+    reasons: ['Гарантоване джерело для України: Art Fine Nation'],
+  }
+
+  if (existingIndex >= 0) {
+    const current = ranked[existingIndex]
+    forced.opportunity = current.opportunity
+    forced.reasons = Array.from(
+      new Set(['Гарантоване джерело для України: Art Fine Nation', ...current.reasons])
+    )
+    ranked.splice(existingIndex, 1)
+  }
+
+  ranked.unshift(forced)
+  return ranked
+}
+
 export function scoreOpportunityForUser(profile: any, opp: any): PersonalizedOpportunity | null {
   if (!opp) return null
   if (opp.is_active === false) return null
@@ -224,12 +299,14 @@ export function scoreOpportunityForUser(profile: any, opp: any): PersonalizedOpp
   const maxFee = userFeeLimit(profile, opp)
   if (!isFree && maxFee > 0 && fee > maxFee) return null
 
-  if (userTechs.length > 0 && oppTechs.length > 0) {
+    const isAfn = isArtFineNationOpportunity(opp)
+
+  if (!isAfn && userTechs.length > 0 && oppTechs.length > 0) {
     const techHits = hasOverlap(userTechs, oppTechs)
     if (techHits.length === 0) return null
   }
 
-  if (userLevel && oppLevels.length > 0) {
+  if (!isAfn && userLevel && oppLevels.length > 0) {
     const levelHits = hasOverlap([userLevel], oppLevels)
     const openLevel = oppLevels.some((l) => l.includes('open') || l.includes('any') || l.includes('всі') || l.includes('будь'))
     if (levelHits.length === 0 && !openLevel) return null
@@ -302,10 +379,13 @@ export function personalizeOpportunities(
 ): PersonalizedOpportunity[] {
   const minScore = options?.minScore ?? 48
   const limit = options?.limit ?? 20
+  const list = opportunities || []
 
-  return (opportunities || [])
+  const ranked = list
     .map((opp) => scoreOpportunityForUser(profile, opp))
     .filter((item): item is PersonalizedOpportunity => !!item && item.score >= minScore)
     .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
+
+  const withGuaranteedAfn = forceArtFineNationForUkraine(profile, list, ranked)
+  return withGuaranteedAfn.slice(0, limit)
 }
