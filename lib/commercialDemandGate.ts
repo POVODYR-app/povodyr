@@ -110,7 +110,8 @@ const JUNK_PATTERNS = [
   /\bresidency\b/i,
   /\bgrant\b/i,
   /грант(?!ов)/i,
-  /open\s*call(?![\s\S]{0,80}(продаж|sale|buy|купів|замов|artist))/i,
+    /open\s*call/i,
+  /call for artists/i,
 ]
 
 const JOB_BOARD_URL = /work\.ua|robota\.ua|djinni|hh\.ua|linkedin\.com\/jobs/i
@@ -139,8 +140,7 @@ export function isSellerOrPlanText(text: string): boolean {
 }
 
 export function isJunkText(text: string): boolean {
-  return blobHas(  /open\s*call/i,
-  /call for artists/i, text) || isSellerOrPlanText(text)
+  return blobHas(JUNK_PATTERNS, text) || isSellerOrPlanText(text)
 }
 
 export function isDeadlineInPast(deadline?: string | null): boolean {
