@@ -130,7 +130,57 @@ export async function GET(request: NextRequest) {
           .eq('id', existingOpp.id)
       }
     }
+    {
+      const { data: afnRows } = await supabase
+        .from('opportunities')
+        .select('id, source_url, title, is_active')
+        .or('source_url.ilike.%artfinenation%,title.ilike.%art fine nation%,title.ilike.%Всеукраїнський Open Call%,title.ilike.%Календар конкурсів, виставок та пленерів%')
 
+      const rows = afnRows || []
+      const canonicalUrl = 'https://sites.google.com/view/artfinenation/open-call'
+      let keeperId: string | null = null
+
+      for (let i = 0; i < rows.length; i += 1) {
+        const row = rows[i]
+        const url = String(row.source_url || '')
+        if (url.indexOf('sites.google.com/view/artfinenation/open-call') !== -1 && !keeperId) {
+          keeperId = row.id
+        }
+      }
+      if (!keeperId && rows.length > 0) {
+        keeperId = rows[0].id
+      }
+
+      for (let i = 0; i < rows.length; i += 1) {
+        const row = rows[i]
+        if (row.id === keeperId) {
+          await supabase
+            .from('opportunities')
+            .update({
+              source_url: canonicalUrl,
+              link: canonicalUrl,
+              title: 'Art Fine Nation — Open Call (Україна)',
+              description: 'Пріоритетний постійний open call для українських художників, виставок та проєктів.',
+              raw_description: 'Офіційна сторінка open call Першої української мистецької агенції Art Fine Nation.',
+              country: 'Україна',
+              is_active: true,
+              deadline: '2026-12-31T00:00:00.000Z',
+              ukrainians_eligible: true,
+            })
+            .eq('id', row.id)
+        } else {
+          await supabase
+            .from('opportunities')
+            .update({
+              is_active: false,
+              source_url: canonicalUrl,
+              link: canonicalUrl,
+            })
+            .eq('id', row.id)
+        }
+      }
+    }
+    
     let query = supabase.from('profiles').select('*');
     if (testEmail) {
       query = query.eq('email', testEmail);
