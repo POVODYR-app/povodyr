@@ -50,11 +50,6 @@ const DEMAND_PATTERNS = [
   /замовити\s[\s\S]{0,40}картин/i,
   /шука(ємо|ю|є)[\s\S]{0,40}на замовлення/i,
   /looking for (an?\s)?(artist|paintings?|artwork)/i,
-  /open\s*call for artists/i,
-  /call for artists/i,
-  /закуп(ити|івля)\s[\s\S]{0,60}(картин|живопис|художн|мистецтв|полотн|арт)/i,
-  /(картин|живопис|художн|мистецтв|полотн|арт)[\s\S]{0,60}(закупівл|тендер)/i,
-  /тендер[\s\S]{0,60}(картин|живопис|художн|мистецтв|полотн|арт)/i,
   /колекці(я|онер)[\s\S]{0,40}(шука|куп)/i,
   /арт[-\s]?оренд/i,
   /art rental/i,
@@ -144,7 +139,8 @@ export function isSellerOrPlanText(text: string): boolean {
 }
 
 export function isJunkText(text: string): boolean {
-  return blobHas(JUNK_PATTERNS, text) || isSellerOrPlanText(text)
+  return blobHas(  /open\s*call/i,
+  /call for artists/i, text) || isSellerOrPlanText(text)
 }
 
 export function isDeadlineInPast(deadline?: string | null): boolean {
