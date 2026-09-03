@@ -79,27 +79,27 @@ export async function GET(request: NextRequest) {
 
     const testEmail = request.nextUrl.searchParams.get('test_email');
 
-        for (const source of PRIORITY_SOURCES) {
-      const isAfn = /artfinenation/i.test(source.url)
-      let existingOpp: { id: string } | null = null
+    for (const source of PRIORITY_SOURCES) {
+      const isAfn = /artfinenation/i.test(source.url);
+      let existingOpp: { id: string } | null = null;
 
       const { data: exactOpp } = await supabase
         .from('opportunities')
         .select('id')
         .eq('source_url', source.url)
-        .maybeSingle()
+        .maybeSingle();
 
-      existingOpp = exactOpp || null
+      existingOpp = exactOpp || null;
 
       if (!existingOpp && isAfn) {
         const { data: afnOpps } = await supabase
           .from('opportunities')
           .select('id, source_url')
           .ilike('source_url', '%artfinenation%')
-          .limit(5)
+          .limit(5);
 
         if (afnOpps && afnOpps.length > 0) {
-          existingOpp = afnOpps[0]
+          existingOpp = afnOpps[0];
         }
       }
 
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
         ukrainians_eligible: true,
         is_active: true,
         deadline: isAfn ? '2026-12-31T00:00:00.000Z' : null,
-      }
+      };
 
       if (!existingOpp) {
         await supabase.from('opportunities').insert([
@@ -122,43 +122,68 @@ export async function GET(request: NextRequest) {
             ...record,
             created_at: new Date().toISOString(),
           },
-        ])
+        ]);
       } else {
         await supabase
           .from('opportunities')
           .update(record)
-          .eq('id', existingOpp.id)
+          .eq('id', existingOpp.id);
       }
     }
+
     {
-      const { data: afnRows } = await supabase
+      const canonicalUrl = 'https://sites.google.com/view/artfinenation/open-call';
+      const collected: any[] = [];
+
+      const q1 = await supabase
         .from('opportunities')
         .select('id, source_url, title, is_active')
-        .or('source_url.ilike.%artfinenation%,title.ilike.%art fine nation%,title.ilike.%Всеукраїнський Open Call%,title.ilike.%Календар конкурсів, виставок та пленерів%')
+        .ilike('source_url', '%artfinenation%');
+      const q2 = await supabase
+        .from('opportunities')
+        .select('id, source_url, title, is_active')
+        .ilike('title', '%Art Fine Nation%');
+      const q3 = await supabase
+        .from('opportunities')
+        .select('id, source_url, title, is_active')
+        .ilike('title', '%Всеукраїнський Open Call%');
+      const q4 = await supabase
+        .from('opportunities')
+        .select('id, source_url, title, is_active')
+        .ilike('title', '%Календар конкурсів%');
 
-      const rows = afnRows || []
-      const canonicalUrl = 'https://sites.google.com/view/artfinenation/open-call'
-      let keeperId: string | null = null
-
-      for (let i = 0; i < rows.length; i += 1) {
-        const row = rows[i]
-        const url = String(row.source_url || '')
-        if (url.indexOf('sites.google.com/view/artfinenation/open-call') !== -1 && !keeperId) {
-          keeperId = row.id
+      const packs = [q1.data, q2.data, q3.data, q4.data];
+      for (let p = 0; p < packs.length; p += 1) {
+        const pack = packs[p] || [];
+        for (let i = 0; i < pack.length; i += 1) {
+          collected.push(pack[i]);
         }
       }
-      if (!keeperId && rows.length > 0) {
-        keeperId = rows[0].id
+
+      const byId = new Map();
+      for (let i = 0; i < collected.length; i += 1) {
+        const row = collected[i];
+        if (row && row.id) byId.set(row.id, row);
       }
+      const rows = Array.from(byId.values());
+
+      let keeperId: string | null = null;
+      for (let i = 0; i < rows.length; i += 1) {
+        const url = String(rows[i].source_url || '');
+        if (url.indexOf('sites.google.com/view/artfinenation/open-call') !== -1) {
+          keeperId = rows[i].id;
+          break;
+        }
+      }
+      if (!keeperId && rows.length > 0) keeperId = rows[0].id;
 
       for (let i = 0; i < rows.length; i += 1) {
-        const row = rows[i]
+        const row = rows[i];
         if (row.id === keeperId) {
           await supabase
             .from('opportunities')
             .update({
               source_url: canonicalUrl,
-              link: canonicalUrl,
               title: 'Art Fine Nation — Open Call (Україна)',
               description: 'Пріоритетний постійний open call для українських художників, виставок та проєктів.',
               raw_description: 'Офіційна сторінка open call Першої української мистецької агенції Art Fine Nation.',
@@ -167,20 +192,16 @@ export async function GET(request: NextRequest) {
               deadline: '2026-12-31T00:00:00.000Z',
               ukrainians_eligible: true,
             })
-            .eq('id', row.id)
+            .eq('id', row.id);
         } else {
           await supabase
             .from('opportunities')
-            .update({
-              is_active: false,
-              source_url: canonicalUrl,
-              link: canonicalUrl,
-            })
-            .eq('id', row.id)
+            .update({ is_active: false })
+            .eq('id', row.id);
         }
       }
     }
-    
+
     let query = supabase.from('profiles').select('*');
     if (testEmail) {
       query = query.eq('email', testEmail);
