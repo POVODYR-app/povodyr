@@ -189,7 +189,7 @@ export async function GET(request: NextRequest) {
             .from('opportunities')
             .update({
               source_url: canonicalUrl,
-              title: 'Art Fine Nation — Open Call (Україна)',
+              title: 'Art Fine Nation Перша українська мистецька агенція — Open Call виставки, конкурси, пленери',
               description: 'Пріоритетний постійний open call для українських художників, виставок та проєктів.',
               raw_description: 'Офіційна сторінка open call Першої української мистецької агенції Art Fine Nation.',
               country: 'Україна',
