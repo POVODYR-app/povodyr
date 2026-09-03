@@ -466,9 +466,11 @@ export default function DashboardPage() {
               return (b.matchScore || 0) - (a.matchScore || 0)
             })
 
-            setModalOpportunities(formattedOpps)
-            setHasNoRecentRelevant(formattedOpps.length === 0)
-            setRecentRelevantOpps(formattedOpps)
+            const listingTitleRe = /актуальний open call та події|актуальні гранти та конкурсні програми/i
+            const visibleOpps = formattedOpps.filter((item) => !listingTitleRe.test(String(item.title || '')))
+                        setModalOpportunities(visibleOpps)
+            setHasNoRecentRelevant(visibleOpps.length === 0)
+            setRecentRelevantOpps(visibleOpps)
           } else if (isMounted) {
             setModalOpportunities([])
             setRecentRelevantOpps([])
