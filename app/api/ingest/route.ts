@@ -211,6 +211,31 @@ export async function GET(request: NextRequest) {
     }
 
     logs.push(`готово: inserted=${inserted}, updated=${updated}, skipped=${skipped}`)
+        const listingTitlePatterns = [
+      '%Актуальний Open Call та події%',
+      '%Актуальні гранти та конкурсні програми%',
+    ]
+    let deactivatedListings = 0
+    for (let i = 0; i < listingTitlePatterns.length; i += 1) {
+      const { data: listingRows } = await supabase
+        .from('opportunities')
+        .select('id, title')
+        .ilike('title', listingTitlePatterns[i])
+        .eq('is_active', true)
+        .limit(50)
+
+      const rows = listingRows || []
+      for (let j = 0; j < rows.length; j += 1) {
+        const title = String(rows[j].title || '')
+        if (/artfinenation/i.test(title)) continue
+        await supabase
+          .from('opportunities')
+          .update({ is_active: false })
+          .eq('id', rows[j].id)
+        deactivatedListings += 1
+      }
+    }
+    logs.push(`деактивовано лістингів: ${deactivatedListings}`)
 
     return NextResponse.json({
       success: true,
