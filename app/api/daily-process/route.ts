@@ -79,32 +79,55 @@ export async function GET(request: NextRequest) {
 
     const testEmail = request.nextUrl.searchParams.get('test_email');
 
-    for (const source of PRIORITY_SOURCES) {
-      const { data: existingOpp } = await supabase
+        for (const source of PRIORITY_SOURCES) {
+      const isAfn = /artfinenation/i.test(source.url)
+      let existingOpp: { id: string } | null = null
+
+      const { data: exactOpp } = await supabase
         .from('opportunities')
         .select('id')
         .eq('source_url', source.url)
-        .maybeSingle();
+        .maybeSingle()
+
+      existingOpp = exactOpp || null
+
+      if (!existingOpp && isAfn) {
+        const { data: afnOpps } = await supabase
+          .from('opportunities')
+          .select('id, source_url')
+          .ilike('source_url', '%artfinenation%')
+          .limit(5)
+
+        if (afnOpps && afnOpps.length > 0) {
+          existingOpp = afnOpps[0]
+        }
+      }
+
+      const record = {
+        title: source.title,
+        description: source.description,
+        raw_description: source.description,
+        source_url: source.url,
+        type: source.type,
+        country: source.country,
+        eligible_countries: ['Україна', 'International'],
+        ukrainians_eligible: true,
+        is_active: true,
+        deadline: isAfn ? '2026-12-31T00:00:00.000Z' : null,
+      }
 
       if (!existingOpp) {
         await supabase.from('opportunities').insert([
           {
-            title: source.title,
-            description: source.description,
-            raw_description: source.description,
-            source_url: source.url,
-            type: source.type,
-            country: source.country,
-            eligible_countries: ['Україна', 'International'],
-            is_active: true,
-            created_at: new Date().toISOString()
-          }
-        ]);
+            ...record,
+            created_at: new Date().toISOString(),
+          },
+        ])
       } else {
         await supabase
           .from('opportunities')
-          .update({ is_active: true })
-          .eq('source_url', source.url);
+          .update(record)
+          .eq('id', existingOpp.id)
       }
     }
 
