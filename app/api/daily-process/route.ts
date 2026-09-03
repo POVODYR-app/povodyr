@@ -78,6 +78,30 @@ export async function GET(request: NextRequest) {
     }
 
     const testEmail = request.nextUrl.searchParams.get('test_email');
+        {
+      const listingTitlePatterns = [
+        '%Актуальний Open Call та події%',
+        '%Актуальні гранти та конкурсні програми%',
+      ]
+      for (let i = 0; i < listingTitlePatterns.length; i += 1) {
+        const { data: listingRows } = await supabase
+          .from('opportunities')
+          .select('id, title')
+          .ilike('title', listingTitlePatterns[i])
+          .eq('is_active', true)
+          .limit(50)
+
+        const rows = listingRows || []
+        for (let j = 0; j < rows.length; j += 1) {
+          const title = String(rows[j].title || '')
+          if (/artfinenation/i.test(title)) continue
+          await supabase
+            .from('opportunities')
+            .update({ is_active: false })
+            .eq('id', rows[j].id)
+        }
+      }
+    }
 
         for (const source of PRIORITY_SOURCES) {
       const isAfn = /artfinenation/i.test(source.url);
