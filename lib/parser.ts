@@ -323,7 +323,70 @@ export async function parseSocialMediaAndHashtags(): Promise<ParsedOpportunity[]
 export async function parseUkrainianInstitutionsHTML(): Promise<ParsedOpportunity[]> {
   return []
 }
-
+function getLiveUkrainianOpenCalls(): ParsedOpportunity[] {
+  return [
+    {
+      source_name: 'ART4MENTAL',
+      title: 'ART4MENTAL: open call для митців України — VR / арт-терапія, до €5000',
+      link: 'https://www.art4mental.com/application',
+      source_url: 'https://www.art4mental.com/application',
+      type: 'Open Call',
+      deadline: '2026-11-11T18:00:00.000Z',
+      country: 'Україна',
+      is_free: true,
+      cost_amount: 0,
+      cost_currency: 'EUR',
+      genres: ['Образотворче мистецтво', 'Цифрове мистецтво', 'Нові медіа'],
+      techniques: ['Змішана техніка'],
+      artist_levels: ['Emerging', 'Mid-Career', 'Established'],
+      age_restrictions: 'None',
+      languages: ['uk', 'en'],
+      ukrainians_eligible: true,
+      raw_description:
+        'Creative Europe. 20 митців з України та ЄС створюють імерсивні VR-роботи для терапії. Субгрант до €5000, навчання, резиденція в Карпатах. Дедлайн 11.11.2026, 18:00 CEST.',
+    },
+    {
+      source_name: 'Інша Освіта / Culture Helps Solidarity',
+      title: 'Culture Helps Solidarity: проєктні гранти до €7000 — пам’ять і громади',
+      link: 'https://culturehelpssolidarity.eu/project-grants/',
+      source_url: 'https://culturehelpssolidarity.eu/project-grants/',
+      type: 'Grant',
+      deadline: '2026-10-06T13:00:00.000Z',
+      country: 'Україна',
+      is_free: true,
+      cost_amount: 0,
+      cost_currency: 'EUR',
+      genres: ['Образотворче мистецтво', 'Сучасне мистецтво'],
+      techniques: ['Змішана техніка'],
+      artist_levels: ['Emerging', 'Mid-Career', 'Established'],
+      age_restrictions: 'None',
+      languages: ['uk', 'en'],
+      ukrainians_eligible: true,
+      raw_description:
+        'Другий раунд проєктних грантів Culture Helps Solidarity (Insha Osvita, ECF, zusa, VETERANKA). Проєкти пам’яті та комеморації з досвідом війни. До €7000. Дедлайн 6.10.2026.',
+    },
+    {
+      source_name: 'Український культурний фонд',
+      title: 'УКФ «Мистецькі дебюти» — грант 250 000–715 000 грн',
+      link: 'https://ucf.in.ua/news/debiuty-eu',
+      source_url: 'https://ucf.in.ua/news/debiuty-eu',
+      type: 'Grant',
+      deadline: '2026-10-05T15:00:00.000Z',
+      country: 'Україна',
+      is_free: true,
+      cost_amount: 0,
+      cost_currency: 'UAH',
+      genres: ['Образотворче мистецтво', 'Сучасне мистецтво'],
+      techniques: ['Змішана техніка'],
+      artist_levels: ['Emerging', 'Mid-Career'],
+      age_restrictions: 'None',
+      languages: ['uk'],
+      ukrainians_eligible: true,
+      raw_description:
+        'Конкурс програми «Культурні горизонти» УКФ, співфінансування ЄС. Підтримка дебютів митців в Україні, зокрема ВПО, ветеранів, осіб з інвалідністю. Подача через кабінет УКФ до 5.10.2026, 18:00 за Києвом. Заявник — юрособа або ФОП.',
+    },
+  ]
+}
 function getCoreOpportunities(): ParsedOpportunity[] {
   return [
     getGuaranteedArtFineNationOpportunity(),
@@ -440,6 +503,17 @@ export async function fetchFromApprovedSources(logs: string[] = []): Promise<Par
     logs.push(`Помилка парсингу українських інституцій: ${err.message}`)
   }
 
+    logs.push('Додавання живих українських open call...')
+  const liveUa = getLiveUkrainianOpenCalls()
+  logs.push(`живих українських карток: ${liveUa.length}`)
+  for (let i = 0; i < liveUa.length; i += 1) {
+    const item = liveUa[i]
+    if (!allOpportunities.some((o) => o.link === item.link && o.title === item.title)) {
+      if (isOpportunityValid(item.title, item.raw_description, item.deadline, item.link)) {
+        allOpportunities.push(item)
+      }
+    }
+  }
   logs.push('Додавання резервного списку джерел...')
   const coreResults = getCoreOpportunities()
   logs.push(`Базових гарантованих записів: ${coreResults.length}`)
