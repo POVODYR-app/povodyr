@@ -5,6 +5,7 @@ import {
   hasDemandSignal,
   isJunkText,
   isRealBuyerRequest,
+  normalizeCommercialSourceUrl,
   shouldSkipSearchResult,
 } from '../../../lib/commercialDemandGate'
 
@@ -54,12 +55,13 @@ const ALLOWED_SUBTYPES = [
 const CURATED_SOURCES: { url: string; name: string }[] = []
 
 const SEARCH_QUERIES = [
+  'куплю картину Україна',
+  'шукаю картини для інтер’єру купити Україна',
   'шукаємо картини для готелю Україна',
-  'офіс шукає картини купити Україна',
-  'дизайнер інтер’єру шукає художника картини на замовлення',
-  'галерея шукає художника для співпраці купівля робіт Україна',
-  'готель шукає картини для інтер’єру купити',
   'ресторан шукає картини на замовлення Україна',
+  'дизайнер інтер’єру шукає художника картини на замовлення',
+  'галерея шукає художника купівля робіт Україна',
+  'офіс шукає картини купити Україна',
   'corporate art collection looking for artists Ukraine',
 ]
 
@@ -93,6 +95,12 @@ function isValidHttpUrl(raw: string | undefined | null): raw is string {
   } catch {
     return false
   }
+}
+
+function canonicalSourceUrl(raw: string | undefined | null): string {
+  const normalized = normalizeCommercialSourceUrl(raw)
+  if (normalized) return normalized
+  return isValidHttpUrl(raw) ? String(raw).trim() : ''
 }
 
 function isKeepableCommercialItem(item: CommercialItem) {
@@ -229,8 +237,8 @@ source_url має бути прямим http/https посиланням на о�
     return (items as any[])
       .filter((item) => item && item.title && String(item.title).trim().length > 6)
       .map((item) => {
-        const extractedUrl = String(item.source_url || '').trim()
-        const source_url = isValidHttpUrl(extractedUrl) ? extractedUrl : sourceUrl
+        const extractedUrl = canonicalSourceUrl(item.source_url)
+        const source_url = extractedUrl || canonicalSourceUrl(sourceUrl) || sourceUrl
         return {
           title: String(item.title).slice(0, 220),
           description: String(item.description || item.what_is_needed || '').slice(0, 1200),
@@ -252,6 +260,7 @@ source_url має бути прямим http/https посиланням на о�
     return []
   }
 }
+
 async function saveIngestRun(payload: {
   success: boolean
   candidates?: number
@@ -307,6 +316,7 @@ async function upsertItem(item: CommercialItem) {
     return error ? { status: 'error', error: error.message } : { status: 'updated' }
   }
 
+  record.date_added = new Date().toISOString()
   const { error } = await supabase.from('commercial_opportunities').insert(record)
   if (error) return { status: 'error', error: error.message }
   return { status: 'inserted' }
@@ -391,6 +401,7 @@ export async function GET(request: NextRequest) {
     const unique = new Map<string, CommercialItem>()
     for (const item of collected) {
       if (!isKeepableCommercialItem(item)) continue
+      item.source_url = canonicalSourceUrl(item.source_url) || item.source_url
       const key = item.source_url || item.title
       if (!unique.has(key)) unique.set(key, item)
     }
@@ -407,6 +418,7 @@ export async function GET(request: NextRequest) {
     }
 
     logs.push(`готово: candidates=${unique.size}, inserted=${inserted}, updated=${updated}`)
+
     await saveIngestRun({
       success: true,
       candidates: unique.size,
@@ -414,6 +426,7 @@ export async function GET(request: NextRequest) {
       updated,
       logs,
     })
+
     return NextResponse.json({
       success: true,
       scanned_sources: CURATED_SOURCES.length,
@@ -424,14 +437,12 @@ export async function GET(request: NextRequest) {
       logs,
       timestamp: new Date().toISOString(),
     })
-     } catch (err: any) {
+  } catch (err: any) {
     await saveIngestRun({
       success: false,
       error: err.message || 'Unknown error',
       logs,
     })
-    return NextResponse.json({ success: false, error: err.message || 'Unknown error', logs }, { status: 500 })
-  }
     return NextResponse.json({ success: false, error: err.message || 'Unknown error', logs }, { status: 500 })
   }
 }
