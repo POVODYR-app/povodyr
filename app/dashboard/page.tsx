@@ -606,7 +606,10 @@ export default function DashboardPage() {
     }
   }
 
-    const getDeadlineDetails = (deadlineStr?: string) => {
+        const getDeadlineDetails = (deadlineStr?: string, title?: string) => {
+    if (title && /art fine nation|artfinenation/i.test(title)) {
+      return { indicator: '🟢', label: 'Довгострокова можливість' }
+    }
     if (!deadlineStr) return { indicator: '🟢', label: 'Довгострокова можливість' }
     const deadlineDate = new Date(deadlineStr)
     const today = new Date()
@@ -778,7 +781,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 recentRelevantOpps.slice(0, 3).map((opp) => {
-                  const deadlineInfo = getDeadlineDetails(opp.deadline)
+                  const deadlineInfo = getDeadlineDetails(opp.deadline, opp.title)
                   const isExpanded = expandedCardId === opp.id
                   return (
                     <div
