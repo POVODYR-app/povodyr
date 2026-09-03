@@ -252,6 +252,28 @@ source_url має бути прямим http/https посиланням на о�
     return []
   }
 }
+async function saveIngestRun(payload: {
+  success: boolean
+  candidates?: number
+  inserted?: number
+  updated?: number
+  error?: string
+  logs: string[]
+}) {
+  try {
+    await supabase.from('ingest_runs').insert({
+      kind: 'commercial',
+      success: payload.success,
+      candidates: payload.candidates ?? 0,
+      inserted_count: payload.inserted ?? 0,
+      updated_count: payload.updated ?? 0,
+      error: payload.error || null,
+      logs: payload.logs.join('\n').slice(0, 20000),
+    })
+  } catch {
+    // лог не повинен валити інжест
+  }
+}
 
 async function upsertItem(item: CommercialItem) {
   const { data: existing } = await supabase
@@ -385,7 +407,13 @@ export async function GET(request: NextRequest) {
     }
 
     logs.push(`готово: candidates=${unique.size}, inserted=${inserted}, updated=${updated}`)
-
+    await saveIngestRun({
+      success: true,
+      candidates: unique.size,
+      inserted,
+      updated,
+      logs,
+    })
     return NextResponse.json({
       success: true,
       scanned_sources: CURATED_SOURCES.length,
@@ -396,7 +424,14 @@ export async function GET(request: NextRequest) {
       logs,
       timestamp: new Date().toISOString(),
     })
-  } catch (err: any) {
+     } catch (err: any) {
+    await saveIngestRun({
+      success: false,
+      error: err.message || 'Unknown error',
+      logs,
+    })
+    return NextResponse.json({ success: false, error: err.message || 'Unknown error', logs }, { status: 500 })
+  }
     return NextResponse.json({ success: false, error: err.message || 'Unknown error', logs }, { status: 500 })
   }
 }
