@@ -116,6 +116,9 @@ const JUNK_PATTERNS = [
 
 const JOB_BOARD_URL = /work\.ua|robota\.ua|djinni|hh\.ua|linkedin\.com\/jobs/i
 const MARKETPLACE_URL = /prom\.ua|rozetka|etsy\.com|amazon\./i
+const LISTING_OR_EMPTY_URL =
+  /olx\.ua\/(?:uk\/)?list\//i
+const SOCIAL_SHALLOW_URL = /instagram\.com|facebook\.com|fb\.com/i
 
 function blobOf(input: CommercialDemandInput): string {
   return [
@@ -178,12 +181,17 @@ export function shouldSkipSearchResult(title: string, snippet: string, url: stri
   if (JOB_BOARD_URL.test(url)) return true
   if (MARKETPLACE_URL.test(url)) return true
   if (hasStalePlanYear(combined)) return true
+  if (LISTING_OR_EMPTY_URL.test(url)) return true
+  if (SOCIAL_SHALLOW_URL.test(url)) return true
   return false
 }
 
 export function isRealBuyerRequest(input: CommercialDemandInput): boolean {
   const combined = blobOf(input)
   if (!combined.trim()) return false
+  const url = normalizeCommercialSourceUrl(input.source_url) || String(input.source_url || '')
+  if (LISTING_OR_EMPTY_URL.test(url)) return false
+  if (SOCIAL_SHALLOW_URL.test(url)) return false
   if (isDeadlineInPast(input.deadline)) return false
   if (hasStalePlanYear(combined)) return false
   if (isJunkText(combined)) return false
