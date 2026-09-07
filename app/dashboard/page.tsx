@@ -8,6 +8,7 @@ import FollowUpAlerts from '../../components/FollowUpAlerts'
 import ApplicationsTrackerModal from '../../components/ApplicationsTrackerModal'
 import { calculateMatch, ArtistProfile, Opportunity as MatchOpportunity } from '../../lib/matchEngine'
 import { isRealBuyerRequest } from '../../lib/commercialDemandGate'
+import { isUsableOpportunityUrl } from '../../lib/buildDigestPortion'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -466,15 +467,17 @@ export default function DashboardPage() {
               return (b.matchScore || 0) - (a.matchScore || 0)
             })
 
-                const listingTitleRe = /актуальний open call та події|актуальні гранти та конкурсні програми|worldwide network open calls|grants database|eu supports ukraine through culture|swiss arts council residencies|selected artists in residence|selected projects/i
-            const visibleOpps = formattedOpps.filter((item) => !listingTitleRe.test(String(item.title || '')))
-                        setModalOpportunities(visibleOpps)
+                        const listingTitleRe = /актуальний open call та події|актуальні гранти та конкурсні програми|worldwide network open calls|grants database|eu supports ukraine through culture|swiss arts council residencies|selected artists in residence|selected projects/i
+            const visibleOpps = formattedOpps.filter((item) => {
+              if (listingTitleRe.test(String(item.title || ''))) return false
+              return isUsableOpportunityUrl({
+                source_url: item.link_url,
+                title: item.title,
+              })
+            })
+            setModalOpportunities(visibleOpps)
             setHasNoRecentRelevant(visibleOpps.length === 0)
             setRecentRelevantOpps(visibleOpps)
-          } else if (isMounted) {
-            setModalOpportunities([])
-            setRecentRelevantOpps([])
-            setHasNoRecentRelevant(true)
           }
         }
       } catch (err) {
@@ -704,7 +707,7 @@ export default function DashboardPage() {
             📂 ВІДІБРАВ ДЛЯ ВАС
           </button>
           <div style={{ marginTop: 6, fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>
-            Усі знайдені та відібрані пропозиції за останні 7 днів
+            Поточний відбір під ваш профіль
           </div>
         </div>
 
@@ -769,8 +772,11 @@ export default function DashboardPage() {
                 </div>
               ) : hasNoRecentRelevant ? (
                 <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 16, textAlign: 'center' }}>
-                  <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 12 }}>
-                    «Нових можливостей для вашого поточного профілю не знайдено за останні 7 днів.»
+                   <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 12 }}>
+                    У поточному відборі немає нових можливостей під ваш профіль.
+                  </p>
+                  <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.5, marginBottom: 12 }}>
+                    Продовжую шукати під Ваш профіль
                   </p>
                   <button
                     onClick={() => window.location.href = '/profile'}
