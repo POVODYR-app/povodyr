@@ -2,7 +2,13 @@ import { NextResponse, NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import webpush from 'web-push';
-import { personalizeOpportunities } from '../../../lib/personalizeOpportunities';
+import {
+  buildDigestPortion,
+  formatOpportunityCountry,
+  parseIdList,
+  pickOpportunityUrl,
+  sameIdSet,
+} from '../../../lib/buildDigestPortion';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -274,27 +280,21 @@ export async function GET(request: NextRequest) {
     let sentCount = 0;
     const logs: any[] = [];
     const runAt = new Date().toISOString();
+    const keepAliveText = 'Сьогодні нових можливостей не знайшов. Продовжую шукати під Ваш профіль';
 
-        const listingTitleRe = /актуальний open call та події|актуальні гранти та конкурсні програми|worldwide network open calls|grants database|eu supports ukraine through culture|swiss arts council residencies|selected artists in residence|selected projects/i
-    const cleanOpportunities = (opportunities || []).filter((item: any) => {
-      const title = String(item?.title || '')
-      if (/artfinenation/i.test(title)) return true
-      return !listingTitleRe.test(title)
-    })
     for (const user of users) {
-      const personalized = personalizeOpportunities(user, opportunities || [], {
-        minScore: 48,
-        limit: 20,
+      const previousIds = parseIdList(user.digest_opportunity_ids);
+      const portion = buildDigestPortion({
+        profile: user,
+        opportunities: opportunities || [],
+        previousIds,
+        previousRunAt: user.digest_run_at,
       });
 
-      const matchedOpps = personalized.map((item) => item.opportunity);
-      const digestIds = Array.from(
-        new Set(
-          matchedOpps
-            .map((o: any) => o && o.id)
-            .filter((id: any) => typeof id === 'string' && id.length > 0)
-        )
-      );
+      const digestIds = portion.ids;
+      const matchedOpps = portion.items.map((item) => item.opportunity);
+      const isSameSet = sameIdSet(digestIds, previousIds);
+      const hasFreshPortion = digestIds.length > 0 && !isSameSet;
 
       const { error: digestError } = await supabase
         .from('profiles')
@@ -313,35 +313,44 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      if (matchedOpps.length === 0 || user.notifications_enabled !== true) {
+      if (user.notifications_enabled !== true) {
         logs.push({
           user: user.full_name || user.id,
           matched: digestIds.length,
-          status: matchedOpps.length === 0 ? 'skipped_no_matches' : 'digest_saved_notifications_off',
+          status: 'digest_saved_notifications_off',
         });
         continue;
       }
 
-      const title = 'POVODYR: нові можливості для вас';
+      const title = hasFreshPortion
+        ? 'POVODYR: можливості під ваш профіль'
+        : 'POVODYR поруч';
 
       const oppListTelegram = matchedOpps.slice(0, 5).map((o: any) => {
-        const url = o.source_url || o.link || o.link_url || 'https://povodyr.vercel.app/dashboard';
-        return `• <a href="${url}">${o.title || 'Мистецька можливість'}</a> (${o.country || 'Онлайн'})`;
+        const url = pickOpportunityUrl(o) || 'https://povodyr.vercel.app/dashboard';
+        const country = formatOpportunityCountry(o);
+        return `• <a href="${url}">${o.title || 'Мистецька можливість'}</a> (${country})`;
       }).join('\n');
 
-      const telegramMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppListTelegram}\n\n<a href="https://povodyr.vercel.app/dashboard">Перегляньте деталі в особистому кабінеті</a>.`;
+      const telegramMessage = hasFreshPortion
+        ? `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nВідібрано ${matchedOpps.length} можливостей під ваш профіль:\n\n${oppListTelegram}\n\n<a href="https://povodyr.vercel.app/dashboard">Перегляньте деталі в особистому кабінеті</a>.`
+        : `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\n${keepAliveText}`;
 
       const oppListPlain = matchedOpps.slice(0, 5).map((o: any) => {
-        return `• ${o.title || 'Мистецька можливість'} (${o.country || 'Онлайн'})`;
+        return `• ${o.title || 'Мистецька можливість'} (${formatOpportunityCountry(o)})`;
       }).join('\n');
 
-      const appMessage = `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nЗнайдено ${matchedOpps.length} нових можливостей під ваш профіль:\n\n${oppListPlain}\n\nПерегляньте деталі в особистому кабінеті.`;
+      const appMessage = hasFreshPortion
+        ? `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nВідібрано ${matchedOpps.length} можливостей під ваш профіль:\n\n${oppListPlain}\n\nПерегляньте деталі в особистому кабінеті.`
+        : `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\n${keepAliveText}`;
 
       const htmlItems = matchedOpps.slice(0, 5).map((o: any) => {
-        const url = o.source_url || o.link || o.link_url || 'https://povodyr.vercel.app/dashboard';
-        return `<li><a href="${url}"><strong>${o.title}</strong></a> (${o.country || 'Онлайн'})</li>`;
+        const url = pickOpportunityUrl(o) || 'https://povodyr.vercel.app/dashboard';
+        return `<li><a href="${url}"><strong>${o.title}</strong></a> (${formatOpportunityCountry(o)})</li>`;
       }).join('');
-      const emailHtml = `<p>Привіт${user.full_name ? ', ' + user.full_name : ''}!</p><p>Знайдено ${matchedOpps.length} нових можливостей під ваш профіль:</p><ul>${htmlItems}</ul><p><a href="https://povodyr.vercel.app/dashboard">Переглянути в кабінеті</a></p>`;
+      const emailHtml = hasFreshPortion
+        ? `<p>Привіт${user.full_name ? ', ' + user.full_name : ''}!</p><p>Відібрано ${matchedOpps.length} можливостей під ваш профіль:</p><ul>${htmlItems}</ul><p><a href="https://povodyr.vercel.app/dashboard">Переглянути в кабінеті</a></p>`
+        : `<p>Привіт${user.full_name ? ', ' + user.full_name : ''}!</p><p>${keepAliveText}</p>`;
 
       let emailSent = false;
       let pushSent = false;
@@ -368,7 +377,9 @@ export async function GET(request: NextRequest) {
             : user.push_subscription;
           await webpush.sendNotification(sub, JSON.stringify({
             title,
-            body: `Знайдено ${matchedOpps.length} нових можливостей!`,
+            body: hasFreshPortion
+              ? `Відібрано ${matchedOpps.length} можливостей під ваш профіль`
+              : keepAliveText,
             url: 'https://povodyr.vercel.app/dashboard'
           }));
           pushSent = true;
@@ -381,7 +392,9 @@ export async function GET(request: NextRequest) {
         telegramSent = await sendTelegramMessage(user.telegram_chat_id, `<b>${title}</b>\n\n${telegramMessage}`);
       }
 
-      const firstUrl = matchedOpps[0]?.source_url || matchedOpps[0]?.link || 'https://povodyr.vercel.app/dashboard';
+      const firstUrl = hasFreshPortion
+        ? (pickOpportunityUrl(matchedOpps[0]) || 'https://povodyr.vercel.app/dashboard')
+        : 'https://povodyr.vercel.app/dashboard';
       const { error: insertError } = await supabase.from('notifications').insert({
         user_id: user.id,
         title,
@@ -398,9 +411,12 @@ export async function GET(request: NextRequest) {
         logs.push({
           user: user.full_name || user.id,
           matched: matchedOpps.length,
-          top_scores: personalized.slice(0, 5).map((item) => ({
+          fresh: portion.freshCount,
+          keep_alive: !hasFreshPortion,
+          top_scores: portion.items.slice(0, 5).map((item) => ({
             title: item.opportunity?.title,
-            score: item.score
+            score: item.score,
+            country: formatOpportunityCountry(item.opportunity),
           })),
           email: emailSent,
           push: pushSent,
