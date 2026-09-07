@@ -1,6 +1,10 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { personalizeOpportunities } from '../../../lib/personalizeOpportunities';
+import {
+  buildDigestPortion,
+  parseIdList,
+  shouldKeepExistingSameDaySnapshot,
+} from '../../../lib/buildDigestPortion';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -43,30 +47,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: oppError.message }, { status: 500 });
     }
 
-    const personalized = personalizeOpportunities(profile, opportunities || [], {
-      minScore: 48,
-      limit: 20,
+    const previousIds = parseIdList(profile.digest_opportunity_ids);
+    const portion = buildDigestPortion({
+      profile,
+      opportunities: opportunities || [],
+      previousIds,
+      previousRunAt: profile.digest_run_at,
     });
 
-    const digestIds = Array.from(
-      new Set(
-        personalized
-          .map((item) => item.opportunity && item.opportunity.id)
-          .filter((id) => typeof id === 'string' && id.length > 0)
-      )
-    );
+    const keepExisting = shouldKeepExistingSameDaySnapshot({
+      newIds: portion.ids,
+      previousIds,
+      previousRunAt: profile.digest_run_at,
+    });
 
-    const runAt = new Date().toISOString();
-    const { error: digestError } = await supabaseAdmin
-      .from('profiles')
-      .update({
-        digest_opportunity_ids: digestIds,
-        digest_run_at: runAt,
-      })
-      .eq('id', userId);
+    const digestIds = keepExisting ? previousIds : portion.ids;
+    const runAt = keepExisting && profile.digest_run_at ? profile.digest_run_at : nowISO;
 
-    if (digestError) {
-      return NextResponse.json({ success: false, error: digestError.message }, { status: 500 });
+    if (!keepExisting) {
+      const { error: digestError } = await supabaseAdmin
+        .from('profiles')
+        .update({
+          digest_opportunity_ids: digestIds,
+          digest_run_at: runAt,
+        })
+        .eq('id', userId);
+
+      if (digestError) {
+        return NextResponse.json({ success: false, error: digestError.message }, { status: 500 });
+      }
     }
 
     return NextResponse.json({
@@ -74,6 +83,7 @@ export async function POST(request: NextRequest) {
       digest_run_at: runAt,
       count: digestIds.length,
       digest_opportunity_ids: digestIds,
+      kept_existing: keepExisting,
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
