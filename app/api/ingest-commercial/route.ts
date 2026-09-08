@@ -58,8 +58,10 @@ const SEARCH_QUERIES = [
   'site:prozorro.gov.ua/uk/tender UA-2026 картини',
   'site:prozorro.gov.ua/uk/tender UA-2026 "твори мистецтва"',
   'site:prozorro.gov.ua/uk/tender UA-2026 живопис',
-  'site:prozorro.gov.ua/uk/tender UA-2026 "художн" оформлення',
-  'site:freelancehunt.com/ua/project (картин OR живопис OR художник) замовлення',
+  '"looking for artist" (hotel OR restaurant OR office OR clinic) (paintings OR artwork) 2026 -shop -etsy -amazon',
+  '"commission original paintings" (hotel OR restaurant OR interior designer) (Europe OR EU OR UK) 2026 -shop',
+  '"seeking artist" OR "call for artwork" (corporate collection OR hotel interiors) (USA OR "United States") 2026 -etsy -gallery-shop',
+  '"art consultant" "looking for artists" (paintings) 2026 -buy-now',
 ]
 
 function isAuthorized(request: NextRequest) {
