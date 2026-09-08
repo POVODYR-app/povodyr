@@ -119,6 +119,8 @@ const MARKETPLACE_URL = /prom\.ua|rozetka|etsy\.com|amazon\.|olx\.ua/i
 const LISTING_OR_EMPTY_URL =
   /olx\.ua\/(?:uk\/)?list\//i
 const SOCIAL_SHALLOW_URL = /instagram\.com|facebook\.com|fb\.com/i
+const STALE_PUBLIC_URL = /UA-202[0-5]-/i
+const TENDER_LISTING_URL = /prozorro\.gov\.ua\/uk\/search|prozorro\.gov\.ua\/uk\/plan\//i
 
 function blobOf(input: CommercialDemandInput): string {
   return [
@@ -185,6 +187,8 @@ export function shouldSkipSearchResult(title: string, snippet: string, url: stri
   if (hasStalePlanYear(combined)) return true
   if (LISTING_OR_EMPTY_URL.test(url)) return true
   if (SOCIAL_SHALLOW_URL.test(url)) return true
+  if (STALE_PUBLIC_URL.test(url)) return true
+  if (TENDER_LISTING_URL.test(url)) return true
   return false
 }
 
