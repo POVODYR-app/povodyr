@@ -115,7 +115,7 @@ const JUNK_PATTERNS = [
 ]
 
 const JOB_BOARD_URL = /work\.ua|robota\.ua|djinni|hh\.ua|linkedin\.com\/jobs/i
-const MARKETPLACE_URL = /prom\.ua|rozetka|etsy\.com|amazon\./i
+const MARKETPLACE_URL = /prom\.ua|rozetka|etsy\.com|amazon\.|olx\.ua/i
 const LISTING_OR_EMPTY_URL =
   /olx\.ua\/(?:uk\/)?list\//i
 const SOCIAL_SHALLOW_URL = /instagram\.com|facebook\.com|fb\.com/i
@@ -194,6 +194,8 @@ export function isRealBuyerRequest(input: CommercialDemandInput): boolean {
   const url = normalizeCommercialSourceUrl(input.source_url) || String(input.source_url || '')
   if (LISTING_OR_EMPTY_URL.test(url)) return false
   if (SOCIAL_SHALLOW_URL.test(url)) return false
+  if (MARKETPLACE_URL.test(url)) return false
+  if (JOB_BOARD_URL.test(url)) return false
   if (isDeadlineInPast(input.deadline)) return false
   if (hasStalePlanYear(combined)) return false
   if (isJunkText(combined)) return false
