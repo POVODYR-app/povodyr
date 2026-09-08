@@ -55,12 +55,11 @@ const ALLOWED_SUBTYPES = [
 const CURATED_SOURCES: { url: string; name: string }[] = []
 
 const SEARCH_QUERIES = [
-  '"куплю картину" OR "куплю живопис" site:olx.ua',
-  '"шукаю картину" OR "шукаємо картини" site:olx.ua -магазин -каталог',
-  '"шукаємо художника" (готель OR ресторан OR офіс) Україна -вакансія -робота -work.ua',
-  '"дизайнер інтер\'єру" "шукає художника" Україна -вакансія',
-  '"галерея шукає художника" (купівл OR співпрац) Україна -вакансія -робота',
-  '"art for hotel" "looking for artist" Ukraine -shop -buy',
+  'site:prozorro.gov.ua/uk/tender UA-2026 картини',
+  'site:prozorro.gov.ua/uk/tender UA-2026 "твори мистецтва"',
+  'site:prozorro.gov.ua/uk/tender UA-2026 живопис',
+  'site:prozorro.gov.ua/uk/tender UA-2026 "художн" оформлення',
+  'site:freelancehunt.com/ua/project (картин OR живопис OR художник) замовлення',
 ]
 
 function isAuthorized(request: NextRequest) {
