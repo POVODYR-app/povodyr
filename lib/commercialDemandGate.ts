@@ -71,6 +71,18 @@ const STRONG_BUYER_PATTERNS = [
   /потрібн(і|а|о)\s[\s\S]{0,40}картин/i,
 ]
 
+const EXHIBIT_NOT_PURCHASE_PATTERNS = [
+  /to display/i,
+  /for display/i,
+  /rotating exhibit/i,
+  /on display/i,
+  /call for (artists|entries|submissions)/i,
+  /open\s*call/i,
+  /виставк[аиу]\sбез продажу/i,
+  /експозиці/i,
+  /board of county commissioners/i,
+]
+
 const SELLER_OR_PLAN_PATTERNS = [
   /\/plans\//i,
   /e-lot\.com\.ua\/plans/i,
@@ -93,6 +105,7 @@ const SELLER_OR_PLAN_PATTERNS = [
   /rozetka\./i,
   /etsy\.com/i,
   /amazon\./i,
+  /olx\.ua/i,
   /прода(м|ю|ємо|ється)\s[\s\S]{0,40}(картин|живопис|полотн)/i,
   /пропону(є|ю|ємо)\s[\s\S]{0,40}(робот|картин|мистецтв)/i,
   /how to commission/i,
@@ -151,12 +164,16 @@ export function hasStrongBuyerSignal(text: string): boolean {
   return blobHas(STRONG_BUYER_PATTERNS, text)
 }
 
+export function isExhibitNotPurchase(text: string): boolean {
+  return blobHas(EXHIBIT_NOT_PURCHASE_PATTERNS, text)
+}
+
 export function isSellerOrPlanText(text: string): boolean {
   return blobHas(SELLER_OR_PLAN_PATTERNS, text)
 }
 
 export function isJunkText(text: string): boolean {
-  return blobHas(JUNK_PATTERNS, text) || isSellerOrPlanText(text)
+  return blobHas(JUNK_PATTERNS, text) || isSellerOrPlanText(text) || isExhibitNotPurchase(text)
 }
 
 export function isDeadlineInPast(deadline?: string | null): boolean {
@@ -191,15 +208,14 @@ export function shouldSkipSearchResult(title: string, snippet: string, url: stri
   const combined = `${title}\n${snippet}\n${normalizeCommercialSourceUrl(url) || url}`
   const strongBuyer = hasStrongBuyerSignal(`${title}\n${snippet}`)
 
+  if (isExhibitNotPurchase(combined)) return true
   if (LISTING_OR_EMPTY_URL.test(url)) return true
   if (JOB_BOARD_URL.test(url)) return true
   if (MARKETPLACE_URL.test(url)) return true
   if (STALE_PUBLIC_URL.test(url)) return true
   if (TENDER_LISTING_URL.test(url)) return true
   if (hasStalePlanYear(combined)) return true
-
   if (SOCIAL_SHALLOW_URL.test(url) && !strongBuyer) return true
-
   if (isSellerOrPlanText(combined) && !strongBuyer) return true
   if (!hasDemandSignal(combined) && !strongBuyer) return true
   return false
@@ -211,6 +227,7 @@ export function isRealBuyerRequest(input: CommercialDemandInput): boolean {
   const url = normalizeCommercialSourceUrl(input.source_url) || String(input.source_url || '')
   const strongBuyer = hasStrongBuyerSignal(combined)
 
+  if (isExhibitNotPurchase(combined)) return false
   if (LISTING_OR_EMPTY_URL.test(url)) return false
   if (MARKETPLACE_URL.test(url)) return false
   if (JOB_BOARD_URL.test(url)) return false
