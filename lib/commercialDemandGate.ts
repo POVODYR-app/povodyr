@@ -49,14 +49,23 @@ const DEMAND_PATTERNS = [
   /куплю\s[\s\S]{0,40}(картин|живопис|полотн|арт)/i,
   /замовити\s[\s\S]{0,40}картин/i,
   /шука(ємо|ю|є)[\s\S]{0,40}на замовлення/i,
-  /looking for (an?\s)?(artist|paintings?|artwork)/i,
+  /looking for (an?\s)?(artist|painters?|paintings?|artwork|artworks)/i,
+  /seeking (an?\s)?(artist|painters?|paintings?|artwork|artworks)/i,
+  /we are (looking|searching) for (an?\s)?(artist|paintings?|artwork)/i,
+  /needed:?\s*(an?\s)?(artist|paintings?|artwork)/i,
+  /request for (proposal|artwork|art)/i,
+  /\brfp\b[\s\S]{0,40}(art|painting|artist)/i,
+  /(hotel|restaurant|lobby|clinic|hospital|office|corporate)[\s\S]{0,60}(paintings?|artwork|artist)/i,
+  /(paintings?|artwork|artist)[\s\S]{0,60}(hotel|restaurant|lobby|clinic|hospital|office|corporate)/i,
+  /commission (original )?(paintings?|artwork)/i,
+  /artwork commission/i,
   /колекці(я|онер)[\s\S]{0,40}(шука|куп)/i,
   /арт[-\s]?оренд/i,
   /art rental/i,
   /шука(ємо|ю|є)\s[\s\S]{0,80}(партнер|розміщен)/i,
   /продаж робіт художник/i,
   /exhibition for sale/i,
-  /needed:?\s*(an?\s)?(artist|paintings?|artwork)/i,
+  /call for (artwork|paintings|artists)/i,
 ]
 
 const SELLER_OR_PLAN_PATTERNS = [
@@ -76,25 +85,23 @@ const SELLER_OR_PLAN_PATTERNS = [
   /\/catalog/i,
   /\/collections\//i,
   /\/blogs\//i,
-  /\/pages\/commission/i,
   /prom\.ua/i,
   /rozetka\./i,
   /etsy\.com/i,
   /amazon\./i,
   /прода(м|ю|ємо|ється)\s[\s\S]{0,40}(картин|живопис|полотн)/i,
   /how to commission/i,
-  /commission (a |original |bespoke )?(artwork|painting)/i,
-  /bespoke painting/i,
-  /shop now/i,
-  /browse the original/i,
   /start your (artwork )?commission/i,
-  /we (offer|create|paint|deliver|work directly with)[\s\S]{0,40}(commission|bespoke|designers)/i,
+  /shop now/i,
+  /add to cart/i,
+  /browse the original/i,
+  /we (offer|create|paint|deliver)[\s\S]{0,40}(commission|bespoke)/i,
   /certificate of authenticity/i,
+  /free shipping/i,
 ]
 
 const JUNK_PATTERNS = [
   /вакансі/i,
-  /\bjob\b/i,
   /\bhiring\b/i,
   /\bvacancy\b/i,
   /шукаємо (дизайнера|менеджера|продавця|консультанта)/i,
@@ -102,7 +109,6 @@ const JUNK_PATTERNS = [
   /купити рамк/i,
   /багетн/i,
   /прода(ємо|ж) рамк/i,
-  /\bnews\b/i,
   /новини мистецтв/i,
   /інтерв['’`]ю/i,
   /\binterview\b/i,
@@ -110,14 +116,11 @@ const JUNK_PATTERNS = [
   /\bresidency\b/i,
   /\bgrant\b/i,
   /грант(?!ов)/i,
-    /open\s*call/i,
-  /call for artists/i,
 ]
 
 const JOB_BOARD_URL = /work\.ua|robota\.ua|djinni|hh\.ua|linkedin\.com\/jobs/i
 const MARKETPLACE_URL = /prom\.ua|rozetka|etsy\.com|amazon\.|olx\.ua/i
-const LISTING_OR_EMPTY_URL =
-  /olx\.ua\/(?:uk\/)?list\//i
+const LISTING_OR_EMPTY_URL = /olx\.ua\/(?:uk\/)?list\//i
 const SOCIAL_SHALLOW_URL = /instagram\.com|facebook\.com|fb\.com/i
 const STALE_PUBLIC_URL = /UA-202[0-5]-/i
 const TENDER_LISTING_URL = /prozorro\.gov\.ua\/uk\/search|prozorro\.gov\.ua\/uk\/plan\//i
@@ -180,15 +183,12 @@ export function shouldSkipSearchResult(title: string, snippet: string, url: stri
   const combined = `${title}\n${snippet}\n${normalizeCommercialSourceUrl(url) || url}`
   if (LISTING_OR_EMPTY_URL.test(url)) return true
   if (SOCIAL_SHALLOW_URL.test(url)) return true
-  if (isSellerOrPlanText(combined)) return true
-  if (!hasDemandSignal(combined)) return true
   if (JOB_BOARD_URL.test(url)) return true
   if (MARKETPLACE_URL.test(url)) return true
-  if (hasStalePlanYear(combined)) return true
-  if (LISTING_OR_EMPTY_URL.test(url)) return true
-  if (SOCIAL_SHALLOW_URL.test(url)) return true
   if (STALE_PUBLIC_URL.test(url)) return true
   if (TENDER_LISTING_URL.test(url)) return true
+  if (hasStalePlanYear(combined)) return true
+  if (isSellerOrPlanText(combined) && !hasDemandSignal(combined)) return true
   return false
 }
 
@@ -202,7 +202,8 @@ export function isRealBuyerRequest(input: CommercialDemandInput): boolean {
   if (JOB_BOARD_URL.test(url)) return false
   if (isDeadlineInPast(input.deadline)) return false
   if (hasStalePlanYear(combined)) return false
-  if (isJunkText(combined)) return false
+  if (isSellerOrPlanText(combined) && !hasDemandSignal(combined)) return false
+  if (blobHas(JUNK_PATTERNS, combined) && !hasDemandSignal(combined)) return false
   if (!hasDemandSignal(combined)) return false
   return true
 }
