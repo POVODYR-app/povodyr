@@ -5,6 +5,7 @@ import {
   hasDemandSignal,
   isJunkText,
   isRealBuyerRequest,
+  isSellerOrPlanText,
   normalizeCommercialSourceUrl,
   shouldSkipSearchResult,
 } from '../../../lib/commercialDemandGate'
@@ -35,6 +36,16 @@ type CommercialItem = {
   deadline?: string | null
 }
 
+type SearchLocale = {
+  gl: string
+  hl: string
+}
+
+type SearchQuery = {
+  q: string
+  locale: SearchLocale
+}
+
 const ALLOWED_SUBTYPES = [
   'interior_designer',
   'gallery',
@@ -54,14 +65,42 @@ const ALLOWED_SUBTYPES = [
 
 const CURATED_SOURCES: { url: string; name: string }[] = []
 
-const SEARCH_QUERIES = [
-  'site:prozorro.gov.ua/uk/tender UA-2026 картини',
-  'site:prozorro.gov.ua/uk/tender UA-2026 "твори мистецтва"',
-  'site:prozorro.gov.ua/uk/tender UA-2026 живопис',
-  '"looking for artist" (hotel OR restaurant OR office OR clinic) (paintings OR artwork) 2026 -shop -etsy -amazon',
-  '"commission original paintings" (hotel OR restaurant OR interior designer) (Europe OR EU OR UK) 2026 -shop',
-  '"seeking artist" OR "call for artwork" (corporate collection OR hotel interiors) (USA OR "United States") 2026 -etsy -gallery-shop',
-  '"art consultant" "looking for artists" (paintings) 2026 -buy-now',
+const SEARCH_QUERIES: SearchQuery[] = [
+  {
+    q: 'site:prozorro.gov.ua/uk/tender (картини OR живопис OR "твори мистецтва") 2026',
+    locale: { gl: 'ua', hl: 'uk' },
+  },
+  {
+    q: '"шукаємо картини" OR "потрібні картини" (готель OR ресторан OR офіс OR клініка) 2026 -магазин -etsy',
+    locale: { gl: 'ua', hl: 'uk' },
+  },
+  {
+    q: '"looking for artist" OR "seeking artist" (hotel OR restaurant OR lobby OR office) (paintings OR artwork) (Europe OR EU OR UK OR Germany OR France) 2026 -etsy -amazon -shop',
+    locale: { gl: 'uk', hl: 'en' },
+  },
+  {
+    q: '"commission original paintings" OR "commission artwork" (hotel OR restaurant OR interior designer) (Europe OR EU) 2026 -etsy -shop',
+    locale: { gl: 'de', hl: 'en' },
+  },
+  {
+    q: '"looking for artwork" OR "seeking paintings" (hotel OR hospital OR corporate collection) (USA OR "United States") 2026 -etsy -amazon -gallery-shop',
+    locale: { gl: 'us', hl: 'en' },
+  },
+  {
+    q: '"art consultant" "looking for artists" paintings (commission OR collection OR hotel) 2026 -buy-now -etsy',
+    locale: { gl: 'us', hl: 'en' },
+  },
+]
+
+const FALLBACK_QUERIES: SearchQuery[] = [
+  {
+    q: 'hotel RFP artwork paintings "call for artists" lobby 2026',
+    locale: { gl: 'us', hl: 'en' },
+  },
+  {
+    q: '"we are looking for paintings" hotel OR restaurant OR clinic 2026',
+    locale: { gl: 'uk', hl: 'en' },
+  },
 ]
 
 function isAuthorized(request: NextRequest) {
@@ -102,6 +141,29 @@ function canonicalSourceUrl(raw: string | undefined | null): string {
   return isValidHttpUrl(raw) ? String(raw).trim() : ''
 }
 
+function inferCountry(rawCountry: string | undefined, sourceUrl: string, queryLocale?: SearchLocale): string {
+  const value = String(rawCountry || '').trim()
+  if (value) return value.slice(0, 80)
+
+  const url = sourceUrl.toLowerCase()
+  if (/\.ua\b|ukraine|україн/.test(url)) return 'Україна'
+  if (/\.uk\b|united kingdom|\.de\b|\.fr\b|\.it\b|\.nl\b|\.pl\b|europe|eu\b/.test(url)) return 'Europe'
+  if (/\.us\b|united states|usa/.test(url)) return 'USA'
+  if (queryLocale?.gl === 'ua') return 'Україна'
+  if (queryLocale?.gl === 'us') return 'USA'
+  if (queryLocale?.gl === 'uk' || queryLocale?.gl === 'de') return 'Europe'
+  return 'International'
+}
+
+function inferCurrency(rawCurrency: string | undefined, country: string): string | null {
+  const value = String(rawCurrency || '').trim().toUpperCase()
+  if (value === 'UAH' || value === 'EUR' || value === 'USD' || value === 'GBP') return value
+  if (country === 'Україна') return 'UAH'
+  if (country === 'USA') return 'USD'
+  if (country === 'Europe') return 'EUR'
+  return null
+}
+
 function isKeepableCommercialItem(item: CommercialItem) {
   if (!isValidHttpUrl(item.source_url)) return false
   return isRealBuyerRequest({
@@ -114,9 +176,16 @@ function isKeepableCommercialItem(item: CommercialItem) {
   })
 }
 
+function isHardSkipUrl(title: string, snippet: string, url: string): boolean {
+  const combined = `${title}\n${snippet}\n${url}`
+  if (!isValidHttpUrl(url)) return true
+  if (isSellerOrPlanText(combined) && !hasDemandSignal(combined)) return true
+  return shouldSkipSearchResult(title, snippet, url) && hasDemandSignal(`${title}\n${snippet}\n${url}`) === false && isSellerOrPlanText(combined)
+}
+
 async function fetchPageText(url: string) {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 8000)
+  const timer = setTimeout(() => controller.abort(), 7000)
   try {
     const res = await fetch(url, {
       signal: controller.signal,
@@ -135,7 +204,7 @@ async function fetchPageText(url: string) {
   }
 }
 
-async function searchSerper(query: string): Promise<{ title: string; url: string; content: string }[]> {
+async function searchSerper(query: string, locale: SearchLocale): Promise<{ title: string; url: string; content: string }[]> {
   const key = process.env.SERPER_API_KEY
   if (!key) return []
   try {
@@ -145,7 +214,7 @@ async function searchSerper(query: string): Promise<{ title: string; url: string
         'X-API-KEY': key,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ q: query, num: 5, gl: 'ua', hl: 'uk' }),
+      body: JSON.stringify({ q: query, num: 8, gl: locale.gl, hl: locale.hl }),
     })
     if (!res.ok) return []
     const data = await res.json()
@@ -163,7 +232,7 @@ async function searchBrave(query: string): Promise<{ title: string; url: string;
   const key = process.env.BRAVE_API_KEY
   if (!key) return []
   try {
-    const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`
+    const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=8`
     const res = await fetch(url, {
       headers: {
         Accept: 'application/json',
@@ -182,16 +251,21 @@ async function searchBrave(query: string): Promise<{ title: string; url: string;
   }
 }
 
-async function searchWeb(query: string): Promise<{ title: string; url: string; content: string }[]> {
-  const serper = await searchSerper(query)
+async function searchWeb(query: SearchQuery): Promise<{ title: string; url: string; content: string }[]> {
+  const serper = await searchSerper(query.q, query.locale)
   if (serper.length) return serper
-  const brave = await searchBrave(query)
+  const brave = await searchBrave(query.q)
   if (brave.length) return brave
   return []
 }
 
-async function extractCommercialItems(sourceName: string, sourceUrl: string, text: string): Promise<CommercialItem[]> {
-  if (!process.env.OPENAI_API_KEY || text.length < 120) return []
+async function extractCommercialItems(
+  sourceName: string,
+  sourceUrl: string,
+  text: string,
+  queryLocale?: SearchLocale
+): Promise<CommercialItem[]> {
+  if (!process.env.OPENAI_API_KEY || text.length < 80) return []
 
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -201,20 +275,22 @@ async function extractCommercialItems(sourceName: string, sourceUrl: string, tex
       {
         role: 'system',
         content: `Ти аналітик арт-ринку для сервісу POVODYR.
-З тексту витягни ЛИШЕ реальні комерційні запити покупця/замовника: купівля картин, комісії, арт для готелів/ресторанів/офісів, галерейний запит робіт художника, оренда мистецтва, колаборації з бізнесом.
-Ігноруй новини, open call без продажу, гранти, резиденції, вакансії, магазини рамок/готових картин, каталоги продавців, вітрини «купити картину», маркетплейси продавця, плани закупівель і сторінки на кшталт e-lot /plans/ або UA-P- за минулі роки.
+З тексту витягни ЛИШЕ реальні комерційні запити покупця/замовника на картини або оригінальний живопис:
+купівля картин, комісії, арт для готелів/ресторанів/офісів/клінік, галерейний запит робіт художника, оренда мистецтва, корпоративні колекції.
+Географія: Україна, Європа, США, інші країни. Не обмежуйся Україною.
+Ігноруй новини, open call без продажу, гранти, резиденції, вакансії, магазини рамок/готових картин, каталоги продавців, вітрини «купити картину», маркетплейси продавця, плани закупівель і сторінки e-lot /plans/ або UA-P- за минулі роки.
 source_url має бути прямим http/https посиланням на оголошення або сторінку замовника. Не вигадуй URL.
 Поверни JSON:
 { "items": [{
   "title": "коротка назва запиту",
   "description": "1-3 речення",
-  "what_is_needed": "що саме потрібно",
+  "what_is_needed": "що саме потрібно (бажано картини / живопис)",
   "organization": "організація або автор оголошення",
   "city": "місто або порожньо",
-  "country": "Україна або інша країна",
+  "country": "країна (Україна, USA, Germany, International тощо)",
   "subtype": "один з: interior_designer|gallery|hotel|restaurant|corporate_space|collector|art_consultant|developer|commercial_project|commission|art_rental|exhibition_for_sale|collaboration|other",
   "budget": "сума або null",
-  "currency": "UAH|EUR|USD|null",
+  "currency": "UAH|EUR|USD|GBP|null",
   "source_url": "пряме посилання якщо є, інакше джерело",
   "contact_person": "якщо є",
   "contact_method": "email/телефон якщо є",
@@ -238,16 +314,17 @@ source_url має бути прямим http/https посиланням на о�
       .map((item) => {
         const extractedUrl = canonicalSourceUrl(item.source_url)
         const source_url = extractedUrl || canonicalSourceUrl(sourceUrl) || sourceUrl
+        const country = inferCountry(item.country, String(source_url), queryLocale)
         return {
           title: String(item.title).slice(0, 220),
           description: String(item.description || item.what_is_needed || '').slice(0, 1200),
           what_is_needed: String(item.what_is_needed || item.description || '').slice(0, 800),
           organization: String(item.organization || sourceName).slice(0, 180),
           city: item.city ? String(item.city).slice(0, 80) : '',
-          country: item.country ? String(item.country).slice(0, 80) : 'Україна',
+          country,
           subtype: normalizeSubtype(item.subtype),
           budget: item.budget ?? null,
-          currency: item.currency || 'UAH',
+          currency: inferCurrency(item.currency, country),
           source_url: String(source_url).slice(0, 500),
           contact_person: item.contact_person || null,
           contact_method: item.contact_method || null,
@@ -296,11 +373,11 @@ async function upsertItem(item: CommercialItem) {
     what_is_needed: item.what_is_needed,
     organization: item.organization,
     city: item.city || null,
-    country: item.country || 'Україна',
+    country: item.country || 'International',
     subtype: item.subtype,
     opportunity_type: 'commercial',
     budget: item.budget,
-    currency: item.currency || 'UAH',
+    currency: item.currency || null,
     source_url: item.source_url,
     contact_person: item.contact_person,
     contact_method: item.contact_method,
@@ -319,6 +396,70 @@ async function upsertItem(item: CommercialItem) {
   const { error } = await supabase.from('commercial_opportunities').insert(record)
   if (error) return { status: 'error', error: error.message }
   return { status: 'inserted' }
+}
+
+async function collectFromSearchQueries(
+  queries: SearchQuery[],
+  logs: string[],
+  allowWeakSnippet: boolean
+): Promise<CommercialItem[]> {
+  const collected: CommercialItem[] = []
+
+  for (const query of queries) {
+    logs.push(`Пошук [${query.locale.gl}/${query.locale.hl}]: ${query.q}`)
+    const results = await searchWeb(query)
+    logs.push(`сирих результатів: ${results.length}`)
+    let kept = 0
+    let skippedJunk = 0
+
+    for (const result of results.slice(0, 3)) {
+      if (!isValidHttpUrl(result.url)) {
+        skippedJunk++
+        logs.push(`пропуск без URL: ${result.title}`)
+        continue
+      }
+
+      const snippetBlob = `${result.title}\n${result.content}`.trim()
+      const snippetLooksJunk = shouldSkipSearchResult(result.title, result.content, result.url)
+
+      if (snippetLooksJunk && !allowWeakSnippet) {
+        skippedJunk++
+        logs.push(`пропуск сміття (snippet): ${result.title}`)
+        continue
+      }
+
+      if (isHardSkipUrl(result.title, result.content, result.url) && !allowWeakSnippet) {
+        skippedJunk++
+        logs.push(`пропуск вітрини: ${result.title}`)
+        continue
+      }
+
+      const pageText = await fetchPageText(result.url)
+      const pageBlob = pageText ? `${snippetBlob}\n\n${pageText}` : snippetBlob
+      const blob = pageBlob.slice(0, 8000)
+
+      if (!hasDemandSignal(blob) && (isJunkText(blob) || isSellerOrPlanText(blob))) {
+        skippedJunk++
+        logs.push(`пропуск після сторінки: ${result.title}`)
+        continue
+      }
+
+      logs.push(
+        pageText
+          ? `сторінка: ${result.url} (${pageText.length} символів)`
+          : `сторінка порожня, snippet: ${result.url}`
+      )
+
+      const items = await extractCommercialItems(result.title || query.q, result.url, blob, query.locale)
+      kept += items.length
+      logs.push(`після фільтра GPT: ${items.length}`)
+      collected.push(...items)
+    }
+
+    logs.push(`запит «${query.q}»: raw=${results.length}, skipped_junk=${skippedJunk}, kept=${kept}`)
+  }
+
+  return collected
 }
 
 export async function GET(request: NextRequest) {
@@ -355,43 +496,12 @@ export async function GET(request: NextRequest) {
 
     const hasSearch = !!(process.env.SERPER_API_KEY || process.env.BRAVE_API_KEY)
     if (hasSearch) {
-      logs.push(process.env.SERPER_API_KEY ? 'Пошук через Serper' : 'Пошук через Brave')
-      for (const query of SEARCH_QUERIES) {
-        logs.push(`Пошук: ${query}`)
-        const results = await searchWeb(query)
-        logs.push(`сирих результатів: ${results.length}`)
-        let kept = 0
-        let skippedJunk = 0
-        for (const result of results.slice(0, 3)) {
-          if (!isValidHttpUrl(result.url)) {
-            skippedJunk++
-            logs.push(`пропуск без URL: ${result.title}`)
-            continue
-          }
-          if (shouldSkipSearchResult(result.title, result.content, result.url)) {
-            skippedJunk++
-            logs.push(`пропуск сміття: ${result.title}`)
-            continue
-          }
-          const snippetBlob = `${result.title}\n${result.content}`.trim()
-          const pageText = await fetchPageText(result.url)
-          const blob = (pageText
-            ? `${snippetBlob}\n\n${pageText}`
-            : snippetBlob
-          ).slice(0, 8000)
+      logs.push(process.env.SERPER_API_KEY ? 'Пошук через Serper (UA + Europe + USA)' : 'Пошук через Brave')
+      collected.push(...(await collectFromSearchQueries(SEARCH_QUERIES, logs, false)))
 
-          logs.push(
-            pageText
-              ? `сторінка: ${result.url} (${pageText.length} символів)`
-              : `сторінка порожня, snippet: ${result.url}`
-          )
-
-          const items = await extractCommercialItems(result.title || query, result.url, blob)
-          kept += items.length
-          logs.push(`після фільтра GPT: ${items.length}`)
-          collected.push(...items)
-        }
-        logs.push(`запит «${query}»: raw=${results.length}, skipped_junk=${skippedJunk}, kept=${kept}`)
+      if (collected.length === 0) {
+        logs.push('0 кандидатів після основного пошуку — fallback-запити з перевіркою сторінки')
+        collected.push(...(await collectFromSearchQueries(FALLBACK_QUERIES, logs, true)))
       }
     } else {
       logs.push('SERPER_API_KEY / BRAVE_API_KEY немає — працюємо лише по списку джерел')
