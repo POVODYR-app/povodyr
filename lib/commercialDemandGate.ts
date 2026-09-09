@@ -50,22 +50,25 @@ const DEMAND_PATTERNS = [
   /замовити\s[\s\S]{0,40}картин/i,
   /шука(ємо|ю|є)[\s\S]{0,40}на замовлення/i,
   /looking for (an?\s)?(artist|painters?|paintings?|artwork|artworks)/i,
+  /looking to (purchase|buy|source) (art|paintings?|artwork)/i,
   /seeking (an?\s)?(artist|painters?|paintings?|artwork|artworks)/i,
-  /we are (looking|searching) for (an?\s)?(artist|paintings?|artwork)/i,
   /needed:?\s*(an?\s)?(artist|paintings?|artwork)/i,
-  /request for (proposal|artwork|art)/i,
-  /\brfp\b[\s\S]{0,40}(art|painting|artist)/i,
-  /(hotel|restaurant|lobby|clinic|hospital|office|corporate)[\s\S]{0,60}(paintings?|artwork|artist)/i,
-  /(paintings?|artwork|artist)[\s\S]{0,60}(hotel|restaurant|lobby|clinic|hospital|office|corporate)/i,
-  /commission (original )?(paintings?|artwork)/i,
-  /artwork commission/i,
   /колекці(я|онер)[\s\S]{0,40}(шука|куп)/i,
   /арт[-\s]?оренд/i,
   /art rental/i,
   /шука(ємо|ю|є)\s[\s\S]{0,80}(партнер|розміщен)/i,
   /продаж робіт художник/i,
   /exhibition for sale/i,
-  /call for (artwork|paintings|artists)/i,
+]
+
+const STRONG_BUYER_PATTERNS = [
+  /looking to (purchase|buy|source) (art|paintings?|artwork)/i,
+  /looking for artwork/i,
+  /seeking (original )?artwork/i,
+  /купимо\s[\s\S]{0,40}(картин|живопис|полотн|арт)/i,
+  /куплю\s[\s\S]{0,40}(картин|живопис|полотн|арт)/i,
+  /шука(ємо|ю|є)\s[\s\S]{0,40}картин/i,
+  /потрібн(і|а|о)\s[\s\S]{0,40}картин/i,
 ]
 
 const SELLER_OR_PLAN_PATTERNS = [
@@ -85,17 +88,18 @@ const SELLER_OR_PLAN_PATTERNS = [
   /\/catalog/i,
   /\/collections\//i,
   /\/blogs\//i,
+  /\/pages\/commission/i,
   /prom\.ua/i,
   /rozetka\./i,
   /etsy\.com/i,
   /amazon\./i,
   /прода(м|ю|ємо|ється)\s[\s\S]{0,40}(картин|живопис|полотн)/i,
+  /пропону(є|ю|ємо)\s[\s\S]{0,40}(робот|картин|мистецтв)/i,
   /how to commission/i,
   /start your (artwork )?commission/i,
   /shop now/i,
   /add to cart/i,
   /browse the original/i,
-  /we (offer|create|paint|deliver)[\s\S]{0,40}(commission|bespoke)/i,
   /certificate of authenticity/i,
   /free shipping/i,
 ]
@@ -143,6 +147,10 @@ export function hasDemandSignal(text: string): boolean {
   return blobHas(DEMAND_PATTERNS, text)
 }
 
+export function hasStrongBuyerSignal(text: string): boolean {
+  return blobHas(STRONG_BUYER_PATTERNS, text)
+}
+
 export function isSellerOrPlanText(text: string): boolean {
   return blobHas(SELLER_OR_PLAN_PATTERNS, text)
 }
@@ -181,14 +189,19 @@ export function hasStalePlanYear(text: string, now = new Date()): boolean {
 
 export function shouldSkipSearchResult(title: string, snippet: string, url: string): boolean {
   const combined = `${title}\n${snippet}\n${normalizeCommercialSourceUrl(url) || url}`
+  const strongBuyer = hasStrongBuyerSignal(`${title}\n${snippet}`)
+
   if (LISTING_OR_EMPTY_URL.test(url)) return true
-  if (SOCIAL_SHALLOW_URL.test(url)) return true
   if (JOB_BOARD_URL.test(url)) return true
   if (MARKETPLACE_URL.test(url)) return true
   if (STALE_PUBLIC_URL.test(url)) return true
   if (TENDER_LISTING_URL.test(url)) return true
   if (hasStalePlanYear(combined)) return true
-  if (isSellerOrPlanText(combined) && !hasDemandSignal(combined)) return true
+
+  if (SOCIAL_SHALLOW_URL.test(url) && !strongBuyer) return true
+
+  if (isSellerOrPlanText(combined) && !strongBuyer) return true
+  if (!hasDemandSignal(combined) && !strongBuyer) return true
   return false
 }
 
@@ -196,14 +209,16 @@ export function isRealBuyerRequest(input: CommercialDemandInput): boolean {
   const combined = blobOf(input)
   if (!combined.trim()) return false
   const url = normalizeCommercialSourceUrl(input.source_url) || String(input.source_url || '')
+  const strongBuyer = hasStrongBuyerSignal(combined)
+
   if (LISTING_OR_EMPTY_URL.test(url)) return false
-  if (SOCIAL_SHALLOW_URL.test(url)) return false
   if (MARKETPLACE_URL.test(url)) return false
   if (JOB_BOARD_URL.test(url)) return false
+  if (SOCIAL_SHALLOW_URL.test(url) && !strongBuyer) return false
   if (isDeadlineInPast(input.deadline)) return false
   if (hasStalePlanYear(combined)) return false
-  if (isSellerOrPlanText(combined) && !hasDemandSignal(combined)) return false
-  if (blobHas(JUNK_PATTERNS, combined) && !hasDemandSignal(combined)) return false
-  if (!hasDemandSignal(combined)) return false
+  if (isSellerOrPlanText(combined) && !strongBuyer) return false
+  if (blobHas(JUNK_PATTERNS, combined) && !strongBuyer) return false
+  if (!hasDemandSignal(combined) && !strongBuyer) return false
   return true
 }
