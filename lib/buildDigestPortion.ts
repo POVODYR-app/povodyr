@@ -17,23 +17,6 @@ function norm(value: any): string {
     .trim()
 }
 
-function toArray(raw: any): string[] {
-  if (!raw) return []
-  if (Array.isArray(raw)) return raw.map((i) => String(i).trim()).filter(Boolean)
-  if (typeof raw === 'string') {
-    const trimmed = raw.trim()
-    if (!trimmed) return []
-    try {
-      const parsed = JSON.parse(trimmed)
-      if (Array.isArray(parsed)) return parsed.map((i) => String(i).trim()).filter(Boolean)
-    } catch {
-      // fall through
-    }
-    return trimmed.split(/[,;|/]/).map((i) => i.trim()).filter(Boolean)
-  }
-  return []
-}
-
 export function parseIdList(raw: any): string[] {
   if (Array.isArray(raw)) {
     return Array.from(new Set(raw.map((id) => String(id)).filter(Boolean)))
@@ -117,26 +100,6 @@ function isUkraineToken(value: string): boolean {
   )
 }
 
-function isInternationalToken(value: string): boolean {
-  const v = norm(value)
-  if (!v) return false
-  return (
-    v.indexOf('international') !== -1 ||
-    v.indexOf('worldwide') !== -1 ||
-    v.indexOf('world') !== -1 ||
-    v.indexOf('europe') !== -1 ||
-    v.indexOf('європ') !== -1 ||
-    v.indexOf('eu ') !== -1 ||
-    v.indexOf(' eu') !== -1 ||
-    v === 'eu' ||
-    v.indexOf('онлайн') !== -1 ||
-    v.indexOf('online') !== -1 ||
-    v.indexOf('swiss') !== -1 ||
-    v.indexOf('switzerland') !== -1 ||
-    v.indexOf('швейцар') !== -1 ||
-    v.indexOf('solidarity') !== -1
-  )
-}
 export function formatOpportunityCountry(opp: any): string {
   const country = String(opp?.country || '').trim()
   const url = pickOpportunityUrl(opp)
@@ -155,7 +118,6 @@ export function formatOpportunityCountry(opp: any): string {
   return 'Онлайн'
 }
 
-function itemTimestamp(opp: any): number {
 function itemTimestamp(opp: any): number {
   const created = Date.parse(String(opp?.created_at || ''))
   return Number.isFinite(created) ? created : NaN
@@ -214,7 +176,7 @@ export function buildDigestPortion(options: {
     }
   }
 
-    let selected: PersonalizedOpportunity[] = []
+  let selected: PersonalizedOpportunity[] = []
   if (fresh.length >= minNew) {
     selected = fresh.slice(0, limit)
   } else if (fresh.length > 0) {
@@ -229,7 +191,7 @@ export function buildDigestPortion(options: {
   const seen: { [key: string]: boolean } = {}
   for (let i = 0; i < selected.length; i += 1) {
     const id = selected[i]?.opportunity?.id ? String(selected[i].opportunity.id) : ''
-    if (!id || seen[id]) continue
+    if (!id || seen[id]) return selected as any
     seen[id] = true
     ids.push(id)
   }
