@@ -26,7 +26,7 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 }
 
 const PRIORITY_SOURCES = [
-    {
+  {
     url: 'https://sites.google.com/view/artfinenation/open-call',
     title: 'Art Fine Nation Перша українська мистецька агенція — Open Call виставки, конкурси, пленери',
     type: 'open_call',
@@ -84,42 +84,42 @@ export async function GET(request: NextRequest) {
     }
 
     const testEmail = request.nextUrl.searchParams.get('test_email');
-        await supabase
+    await supabase
       .from('opportunities')
       .update({ deadline: null })
       .ilike('source_url', '%artfinenation%')
-      .not('deadline', 'is', null)
-        await supabase
+      .not('deadline', 'is', null);
+    await supabase
       .from('opportunities')
       .update({ deadline: null })
       .ilike('source_url', '%artfinenation%')
-      .not('deadline', 'is', null)
-        {
+      .not('deadline', 'is', null);
+    {
       const listingTitlePatterns = [
         '%Актуальний Open Call та події%',
         '%Актуальні гранти та конкурсні програми%',
-      ]
+      ];
       for (let i = 0; i < listingTitlePatterns.length; i += 1) {
         const { data: listingRows } = await supabase
           .from('opportunities')
           .select('id, title')
           .ilike('title', listingTitlePatterns[i])
           .eq('is_active', true)
-          .limit(50)
+          .limit(50);
 
-        const rows = listingRows || []
+        const rows = listingRows || [];
         for (let j = 0; j < rows.length; j += 1) {
-          const title = String(rows[j].title || '')
-          if (/artfinenation/i.test(title)) continue
+          const title = String(rows[j].title || '');
+          if (/artfinenation/i.test(title)) continue;
           await supabase
             .from('opportunities')
             .update({ is_active: false })
-            .eq('id', rows[j].id)
+            .eq('id', rows[j].id);
         }
       }
     }
 
-        for (const source of PRIORITY_SOURCES) {
+    for (const source of PRIORITY_SOURCES) {
       const isAfn = /artfinenation/i.test(source.url);
       let existingOpp: { id: string } | null = null;
 
@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
       } else {
         await supabase
           .from('opportunities')
-                    .update({
+          .update({
             is_active: true,
             title: source.title,
             description: source.description,
@@ -295,8 +295,7 @@ export async function GET(request: NextRequest) {
       const matchedOpps = portion.items.map((item) => item.opportunity);
       const isSameSet = sameIdSet(digestIds, previousIds);
       const hasFreshPortion = digestIds.length > 0 && !isSameSet;
-
-      const idsToStore = digestIds.length > 0 ? digestIds : previousIds
+      const idsToStore = digestIds.length > 0 ? digestIds : previousIds;
 
       const { error: digestError } = await supabase
         .from('profiles')
@@ -393,17 +392,22 @@ export async function GET(request: NextRequest) {
       if (user.telegram_chat_id) {
         telegramSent = await sendTelegramMessage(user.telegram_chat_id, `<b>${title}</b>\n\n${telegramMessage}`);
       }
-      let shouldWriteNotification = hasFreshPortion
+
+      const firstUrl = hasFreshPortion
+        ? (pickOpportunityUrl(matchedOpps[0]) || 'https://povodyr.vercel.app/dashboard')
+        : 'https://povodyr.vercel.app/dashboard';
+
+      let shouldWriteNotification = hasFreshPortion;
       if (!hasFreshPortion) {
-        const sinceIso = new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString()
+        const sinceIso = new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString();
         const { data: recentKeep } = await supabase
           .from('notifications')
           .select('id')
           .eq('user_id', user.id)
           .eq('title', 'POVODYR поруч')
           .gte('created_at', sinceIso)
-          .limit(1)
-        shouldWriteNotification = !(recentKeep && recentKeep.length > 0)
+          .limit(1);
+        shouldWriteNotification = !(recentKeep && recentKeep.length > 0);
       }
 
       if (shouldWriteNotification) {
@@ -417,7 +421,26 @@ export async function GET(request: NextRequest) {
           sent_email: emailSent,
           created_at: new Date().toISOString()
         });
-        // далі існуючий if (!insertError) { sentCount++; logs... }
+
+        if (!insertError) {
+          sentCount++;
+          logs.push({
+            user: user.full_name || user.id,
+            matched: matchedOpps.length,
+            fresh: portion.freshCount,
+            keep_alive: !hasFreshPortion,
+            top_scores: portion.items.slice(0, 5).map((item) => ({
+              title: item.opportunity?.title,
+              score: item.score,
+              country: formatOpportunityCountry(item.opportunity),
+            })),
+            email: emailSent,
+            push: pushSent,
+            telegram: telegramSent
+          });
+        } else {
+          logs.push({ user: user.full_name || user.id, status: 'error', error: insertError.message });
+        }
       } else {
         sentCount++;
         logs.push({
@@ -430,39 +453,6 @@ export async function GET(request: NextRequest) {
           push: pushSent,
           telegram: telegramSent
         });
-      }
-      const firstUrl = hasFreshPortion
-        ? (pickOpportunityUrl(matchedOpps[0]) || 'https://povodyr.vercel.app/dashboard')
-        : 'https://povodyr.vercel.app/dashboard';
-      const { error: insertError } = await supabase.from('notifications').insert({
-        user_id: user.id,
-        title,
-        message: appMessage,
-        link_url: firstUrl,
-        is_read: false,
-        sent_push: pushSent,
-        sent_email: emailSent,
-        created_at: new Date().toISOString()
-      });
-
-      if (!insertError) {
-        sentCount++;
-        logs.push({
-          user: user.full_name || user.id,
-          matched: matchedOpps.length,
-          fresh: portion.freshCount,
-          keep_alive: !hasFreshPortion,
-          top_scores: portion.items.slice(0, 5).map((item) => ({
-            title: item.opportunity?.title,
-            score: item.score,
-            country: formatOpportunityCountry(item.opportunity),
-          })),
-          email: emailSent,
-          push: pushSent,
-          telegram: telegramSent
-        });
-      } else {
-        logs.push({ user: user.full_name || user.id, status: 'error', error: insertError.message });
       }
     }
 
