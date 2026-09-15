@@ -140,10 +140,9 @@ function isInternationalToken(value: string): boolean {
 
 export function formatOpportunityCountry(opp: any): string {
   const country = String(opp?.country || '').trim()
-  const eligible = toArray(opp?.eligible_countries)
   const url = pickOpportunityUrl(opp)
   const title = String(opp?.title || '')
-  const blob = norm([country, eligible.join(' '), title, url].join(' '))
+  const blob = norm([country, title, url].join(' '))
 
   const forcedIntl =
     blob.indexOf('culturehelpssolidarity') !== -1 ||
@@ -151,15 +150,11 @@ export function formatOpportunityCountry(opp: any): string {
     blob.indexOf('prohelvetia') !== -1 ||
     blob.indexOf('culture helps') !== -1
 
-  const countryIsUa = isUkraineToken(country)
-  const countryIsIntl = isInternationalToken(country) || forcedIntl
-  const eligibleIntl = eligible.some((item) => isInternationalToken(item))
-  const eligibleNonUa = eligible.some((item) => item && !isUkraineToken(item) && !isInternationalToken(item))
-
-  if (forcedIntl || countryIsIntl) {
-    if (country && !countryIsUa) return country
-    return 'Міжнародна'
-  }
+  if (forcedIntl) return 'Міжнародна'
+  if (isUkraineToken(country) && !forcedIntl) return 'Україна'
+  if (country) return country
+  return 'Онлайн'
+}
 
   if (country && !countryIsUa) return country
 
@@ -176,10 +171,7 @@ export function formatOpportunityCountry(opp: any): string {
 
 function itemTimestamp(opp: any): number {
   const created = Date.parse(String(opp?.created_at || ''))
-  const updated = Date.parse(String(opp?.updated_at || ''))
-  const times = [created, updated].filter((n) => Number.isFinite(n))
-  if (times.length === 0) return NaN
-  return Math.max.apply(null, times)
+  return Number.isFinite(created) ? created : NaN
 }
 
 export type DigestPortion = {
@@ -235,11 +227,13 @@ export function buildDigestPortion(options: {
     }
   }
 
-  let selected: PersonalizedOpportunity[] = []
+    let selected: PersonalizedOpportunity[] = []
   if (fresh.length >= minNew) {
     selected = fresh.slice(0, limit)
   } else if (fresh.length > 0) {
     selected = fresh.concat(fill).slice(0, limit)
+  } else if (previousIds.length === 0) {
+    selected = ranked.slice(0, limit)
   } else {
     selected = []
   }
