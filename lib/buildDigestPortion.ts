@@ -137,7 +137,6 @@ function isInternationalToken(value: string): boolean {
     v.indexOf('solidarity') !== -1
   )
 }
-
 export function formatOpportunityCountry(opp: any): string {
   const country = String(opp?.country || '').trim()
   const url = pickOpportunityUrl(opp)
@@ -156,19 +155,7 @@ export function formatOpportunityCountry(opp: any): string {
   return 'Онлайн'
 }
 
-  if (country && !countryIsUa) return country
-
-  if (countryIsUa && !eligibleIntl && !eligibleNonUa && !forcedIntl) {
-    return 'Україна'
-  }
-
-  if (eligibleNonUa && country && !countryIsUa) return country
-  if (eligibleIntl || eligibleNonUa) return country && !countryIsUa ? country : 'Міжнародна'
-
-  if (country) return country
-  return 'Онлайн'
-}
-
+function itemTimestamp(opp: any): number {
 function itemTimestamp(opp: any): number {
   const created = Date.parse(String(opp?.created_at || ''))
   return Number.isFinite(created) ? created : NaN
