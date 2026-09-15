@@ -296,10 +296,12 @@ export async function GET(request: NextRequest) {
       const isSameSet = sameIdSet(digestIds, previousIds);
       const hasFreshPortion = digestIds.length > 0 && !isSameSet;
 
+      const idsToStore = digestIds.length > 0 ? digestIds : previousIds
+
       const { error: digestError } = await supabase
         .from('profiles')
         .update({
-          digest_opportunity_ids: digestIds,
+          digest_opportunity_ids: idsToStore,
           digest_run_at: runAt,
         })
         .eq('id', user.id);
@@ -391,7 +393,44 @@ export async function GET(request: NextRequest) {
       if (user.telegram_chat_id) {
         telegramSent = await sendTelegramMessage(user.telegram_chat_id, `<b>${title}</b>\n\n${telegramMessage}`);
       }
+      let shouldWriteNotification = hasFreshPortion
+      if (!hasFreshPortion) {
+        const sinceIso = new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString()
+        const { data: recentKeep } = await supabase
+          .from('notifications')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('title', 'POVODYR поруч')
+          .gte('created_at', sinceIso)
+          .limit(1)
+        shouldWriteNotification = !(recentKeep && recentKeep.length > 0)
+      }
 
+      if (shouldWriteNotification) {
+        const { error: insertError } = await supabase.from('notifications').insert({
+          user_id: user.id,
+          title,
+          message: appMessage,
+          link_url: firstUrl,
+          is_read: false,
+          sent_push: pushSent,
+          sent_email: emailSent,
+          created_at: new Date().toISOString()
+        });
+        // далі існуючий if (!insertError) { sentCount++; logs... }
+      } else {
+        sentCount++;
+        logs.push({
+          user: user.full_name || user.id,
+          matched: matchedOpps.length,
+          fresh: portion.freshCount,
+          keep_alive: true,
+          skipped_dashboard_duplicate: true,
+          email: emailSent,
+          push: pushSent,
+          telegram: telegramSent
+        });
+      }
       const firstUrl = hasFreshPortion
         ? (pickOpportunityUrl(matchedOpps[0]) || 'https://povodyr.vercel.app/dashboard')
         : 'https://povodyr.vercel.app/dashboard';
