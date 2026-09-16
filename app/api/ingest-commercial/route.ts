@@ -66,7 +66,7 @@ const ALLOWED_SUBTYPES = [
 const CURATED_SOURCES: { url: string; name: string }[] = []
 
 const SEARCH_EXCLUDES =
-  '-facebook -instagram -etsy -amazon -pinterest -olx -shop -blog -"paint by numbers" -"картини за номерами"'
+  '-facebook -instagram -etsy -amazon -olx -pinterest -"paint by numbers" -"картини за номерами"'
 
 const SEARCH_QUERIES: SearchQuery[] = [
   {
@@ -74,35 +74,35 @@ const SEARCH_QUERIES: SearchQuery[] = [
     locale: { gl: 'ua', hl: 'uk' },
   },
   {
-    q: `"закупівля" (картини OR живопис OR "твори мистецтва") (готель OR лікарня OR університет OR офіс) 2026 ${SEARCH_EXCLUDES}`,
+    q: `"шукаємо картини" OR "потрібні картини" OR "купимо картини" (готель OR ресторан OR офіс OR клініка) ${SEARCH_EXCLUDES}`,
     locale: { gl: 'ua', hl: 'uk' },
   },
   {
-    q: `"request for proposal" OR RFP (artwork OR paintings) (hotel OR hospital OR lobby) 2026 ${SEARCH_EXCLUDES}`,
+    q: `"looking for artist" OR "seeking artist" OR "looking for artwork" (hotel OR restaurant OR lobby OR office OR hospital) (paintings OR artwork) ${SEARCH_EXCLUDES}`,
     locale: { gl: 'us', hl: 'en' },
   },
   {
-    q: `"invitation to tender" OR procurement (paintings OR "works of art") (hotel OR hospital OR municipality) (Europe OR EU OR UK) 2026 ${SEARCH_EXCLUDES}`,
+    q: `"commission original paintings" OR "we need original paintings" (hotel OR restaurant OR "interior designer" OR clinic) ${SEARCH_EXCLUDES}`,
     locale: { gl: 'uk', hl: 'en' },
   },
   {
-    q: `"art consultant" (RFP OR procurement OR "seeking proposals") paintings hotel 2026 ${SEARCH_EXCLUDES}`,
+    q: `(RFP OR "request for proposal" OR tender OR procurement) (artwork OR paintings OR "works of art") (hotel OR hospital OR municipal) ${SEARCH_EXCLUDES}`,
     locale: { gl: 'us', hl: 'en' },
   },
   {
-    q: `"commission original paintings" (hotel OR restaurant OR "interior designer") (budget OR contract OR procurement) 2026 ${SEARCH_EXCLUDES}`,
-    locale: { gl: 'de', hl: 'en' },
+    q: `"corporate art collection" OR "art consultant" ("looking for artists" OR "seeking artists") paintings ${SEARCH_EXCLUDES}`,
+    locale: { gl: 'au', hl: 'en' },
   },
 ]
 
 const FALLBACK_QUERIES: SearchQuery[] = [
   {
-    q: `hotel "purchase artwork" OR "buy original paintings" lobby 2026 ${SEARCH_EXCLUDES}`,
+    q: `"purchase original art" OR "buy original paintings" (hotel OR hospital OR office) ${SEARCH_EXCLUDES}`,
     locale: { gl: 'us', hl: 'en' },
   },
   {
-    q: `"шукаємо художника" (готель OR ресторан OR клініка) (закупівля OR бюджет) 2026 ${SEARCH_EXCLUDES}`,
-    locale: { gl: 'ua', hl: 'uk' },
+    q: `"cherche artiste" OR "suche künstler" OR "buscamos artista" (hotel OR restaurant) (pintura OR gemälde OR peinture) ${SEARCH_EXCLUDES}`,
+    locale: { gl: 'fr', hl: 'fr' },
   },
 ]
 
@@ -154,21 +154,24 @@ function inferCountry(rawCountry: string | undefined, sourceUrl: string, queryLo
   if (/\.us\b|united states|usa/.test(url)) return 'USA'
   if (queryLocale?.gl === 'ua') return 'Україна'
   if (queryLocale?.gl === 'us') return 'USA'
-  if (queryLocale?.gl === 'uk' || queryLocale?.gl === 'de') return 'Europe'
+  if (queryLocale?.gl === 'uk' || queryLocale?.gl === 'de' || queryLocale?.gl === 'fr') return 'Europe'
+  if (queryLocale?.gl === 'au') return 'Australia'
   return 'International'
 }
 
 function inferCurrency(rawCurrency: string | undefined, country: string): string | null {
   const value = String(rawCurrency || '').trim().toUpperCase()
-  if (value === 'UAH' || value === 'EUR' || value === 'USD' || value === 'GBP') return value
+  if (value === 'UAH' || value === 'EUR' || value === 'USD' || value === 'GBP' || value === 'AUD') return value
   if (country === 'Україна') return 'UAH'
   if (country === 'USA') return 'USD'
+  if (country === 'Australia') return 'AUD'
   if (country === 'Europe') return 'EUR'
   return null
 }
 
 function isKeepableCommercialItem(item: CommercialItem) {
   if (!isValidHttpUrl(item.source_url)) return false
+  if (/facebook\.com|fb\.com|instagram\.com/i.test(item.source_url)) return false
   return isRealBuyerRequest({
     title: item.title,
     description: item.description,
@@ -281,7 +284,7 @@ async function extractCommercialItems(
         content: `Ти аналітик арт-ринку для сервісу POVODYR.
 З тексту витягни ЛИШЕ реальні комерційні запити покупця/замовника на картини або оригінальний живопис:
 купівля картин, комісії, тендери, RFP, арт для готелів/ресторанів/офісів/клінік, корпоративні колекції.
-Географія: Україна, Європа, США, інші країни. Не обмежуйся Україною.
+Географія: будь-яка країна. Україна, Європа, США, Канада, Азія, Близький Схід, Австралія — без обмежень.
 Ігноруй Facebook, Instagram, новини, open call без продажу, виставки «to display», гранти, резиденції, вакансії, магазини, блоги художників, картини за номерами, плани закупівель e-lot /plans/ і UA-P- за минулі роки.
 source_url має бути прямим http/https посиланням на тендер, RFP або сторінку замовника. Не вигадуй URL.
 Поверни JSON:
@@ -291,10 +294,10 @@ source_url має бути прямим http/https посиланням на т�
   "what_is_needed": "що саме потрібно (бажано картини / живопис)",
   "organization": "організація або автор оголошення",
   "city": "місто або порожньо",
-  "country": "країна (Україна, USA, Germany, International тощо)",
+  "country": "країна (Україна, USA, Germany, France, Australia, International тощо)",
   "subtype": "один з: interior_designer|gallery|hotel|restaurant|corporate_space|collector|art_consultant|developer|commercial_project|commission|art_rental|exhibition_for_sale|collaboration|other",
   "budget": "сума або null",
-  "currency": "UAH|EUR|USD|GBP|null",
+  "currency": "UAH|EUR|USD|GBP|AUD|null",
   "source_url": "пряме посилання якщо є, інакше джерело",
   "contact_person": "якщо є",
   "contact_method": "email/телефон якщо є",
@@ -416,7 +419,7 @@ async function collectFromSearchQueries(
     let kept = 0
     let skippedJunk = 0
 
-    for (const result of results.slice(0, 3)) {
+    for (const result of results.slice(0, 4)) {
       if (!isValidHttpUrl(result.url)) {
         skippedJunk++
         logs.push(`пропуск без URL: ${result.title}`)
@@ -506,7 +509,7 @@ export async function GET(request: NextRequest) {
 
     const hasSearch = !!(process.env.SERPER_API_KEY || process.env.BRAVE_API_KEY)
     if (hasSearch) {
-      logs.push(process.env.SERPER_API_KEY ? 'Пошук через Serper (тендери/RFP UA + Europe + USA)' : 'Пошук через Brave')
+      logs.push(process.env.SERPER_API_KEY ? 'Пошук через Serper (світ, без ліміту країни)' : 'Пошук через Brave')
       collected.push(...(await collectFromSearchQueries(SEARCH_QUERIES, logs, false)))
 
       if (collected.length === 0) {
