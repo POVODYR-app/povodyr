@@ -139,6 +139,7 @@ const JUNK_PATTERNS = [
 
 const JOB_BOARD_URL = /work\.ua|robota\.ua|djinni|hh\.ua|linkedin\.com\/jobs/i
 const MARKETPLACE_URL = /prom\.ua|rozetka|etsy\.com|amazon\.|olx\.ua/i
+const ARTIST_BLOG_OR_FICTION_URL = /angelacameron\.com|arkush\.net|\/blogs\//i
 const LISTING_OR_EMPTY_URL = /olx\.ua\/(?:uk\/)?list\//i
 const SOCIAL_SHALLOW_URL =
   /instagram\.com|facebook\.com|fb\.com|facebook\.com\/groups|facebook\.com\/.*\/mentions|facebook\.com\/.*\/posts/i
@@ -216,6 +217,7 @@ export function shouldSkipSearchResult(title: string, snippet: string, url: stri
   if (SOCIAL_SHALLOW_URL.test(url)) return true
   if (JOB_BOARD_URL.test(url)) return true
   if (MARKETPLACE_URL.test(url)) return true
+  if (ARTIST_BLOG_OR_FICTION_URL.test(url)) return true
   if (STALE_PUBLIC_URL.test(url)) return true
   if (TENDER_LISTING_URL.test(url)) return true
   if (hasStalePlanYear(combined)) return true
@@ -234,6 +236,7 @@ export function isRealBuyerRequest(input: CommercialDemandInput): boolean {
   if (LISTING_OR_EMPTY_URL.test(url)) return false
   if (SOCIAL_SHALLOW_URL.test(url)) return false
   if (MARKETPLACE_URL.test(url)) return false
+  if (ARTIST_BLOG_OR_FICTION_URL.test(url)) return false
   if (JOB_BOARD_URL.test(url)) return false
   if (isDeadlineInPast(input.deadline)) return false
   if (hasStalePlanYear(combined)) return false
