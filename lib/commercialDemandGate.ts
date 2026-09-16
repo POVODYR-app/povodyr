@@ -115,6 +115,8 @@ const SELLER_OR_PLAN_PATTERNS = [
   /browse the original/i,
   /certificate of authenticity/i,
   /free shipping/i,
+  /картин[иа]?\sза номерами/i,
+  /paint[-\s]?by[-\s]?numbers/i,
 ]
 
 const JUNK_PATTERNS = [
@@ -138,7 +140,8 @@ const JUNK_PATTERNS = [
 const JOB_BOARD_URL = /work\.ua|robota\.ua|djinni|hh\.ua|linkedin\.com\/jobs/i
 const MARKETPLACE_URL = /prom\.ua|rozetka|etsy\.com|amazon\.|olx\.ua/i
 const LISTING_OR_EMPTY_URL = /olx\.ua\/(?:uk\/)?list\//i
-const SOCIAL_SHALLOW_URL = /instagram\.com|facebook\.com|fb\.com/i
+const SOCIAL_SHALLOW_URL =
+  /instagram\.com|facebook\.com|fb\.com|facebook\.com\/groups|facebook\.com\/.*\/mentions|facebook\.com\/.*\/posts/i
 const STALE_PUBLIC_URL = /UA-202[0-5]-/i
 const TENDER_LISTING_URL = /prozorro\.gov\.ua\/uk\/search|prozorro\.gov\.ua\/uk\/plan\//i
 
@@ -210,12 +213,12 @@ export function shouldSkipSearchResult(title: string, snippet: string, url: stri
 
   if (isExhibitNotPurchase(combined)) return true
   if (LISTING_OR_EMPTY_URL.test(url)) return true
+  if (SOCIAL_SHALLOW_URL.test(url)) return true
   if (JOB_BOARD_URL.test(url)) return true
   if (MARKETPLACE_URL.test(url)) return true
   if (STALE_PUBLIC_URL.test(url)) return true
   if (TENDER_LISTING_URL.test(url)) return true
   if (hasStalePlanYear(combined)) return true
-  if (SOCIAL_SHALLOW_URL.test(url) && !strongBuyer) return true
   if (isSellerOrPlanText(combined) && !strongBuyer) return true
   if (!hasDemandSignal(combined) && !strongBuyer) return true
   return false
@@ -229,9 +232,9 @@ export function isRealBuyerRequest(input: CommercialDemandInput): boolean {
 
   if (isExhibitNotPurchase(combined)) return false
   if (LISTING_OR_EMPTY_URL.test(url)) return false
+  if (SOCIAL_SHALLOW_URL.test(url)) return false
   if (MARKETPLACE_URL.test(url)) return false
   if (JOB_BOARD_URL.test(url)) return false
-  if (SOCIAL_SHALLOW_URL.test(url) && !strongBuyer) return false
   if (isDeadlineInPast(input.deadline)) return false
   if (hasStalePlanYear(combined)) return false
   if (isSellerOrPlanText(combined) && !strongBuyer) return false
