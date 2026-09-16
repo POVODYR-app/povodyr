@@ -65,41 +65,44 @@ const ALLOWED_SUBTYPES = [
 
 const CURATED_SOURCES: { url: string; name: string }[] = []
 
+const SEARCH_EXCLUDES =
+  '-facebook -instagram -etsy -amazon -pinterest -olx -shop -blog -"paint by numbers" -"картини за номерами"'
+
 const SEARCH_QUERIES: SearchQuery[] = [
   {
-    q: 'site:prozorro.gov.ua/uk/tender (картини OR живопис OR "твори мистецтва") 2026',
+    q: `site:prozorro.gov.ua/uk/tender (картини OR живопис OR "твори мистецтва") 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'ua', hl: 'uk' },
   },
   {
-    q: '"шукаємо картини" OR "потрібні картини" (готель OR ресторан OR офіс OR клініка) 2026 -магазин -etsy',
+    q: `"закупівля" (картини OR живопис OR "твори мистецтва") (готель OR лікарня OR університет OR офіс) 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'ua', hl: 'uk' },
   },
   {
-    q: '"looking for artist" OR "seeking artist" (hotel OR restaurant OR lobby OR office) (paintings OR artwork) (Europe OR EU OR UK OR Germany OR France) 2026 -etsy -amazon -shop',
+    q: `"request for proposal" OR RFP (artwork OR paintings) (hotel OR hospital OR lobby) 2026 ${SEARCH_EXCLUDES}`,
+    locale: { gl: 'us', hl: 'en' },
+  },
+  {
+    q: `"invitation to tender" OR procurement (paintings OR "works of art") (hotel OR hospital OR municipality) (Europe OR EU OR UK) 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'uk', hl: 'en' },
   },
   {
-    q: '"commission original paintings" OR "commission artwork" (hotel OR restaurant OR interior designer) (Europe OR EU) 2026 -etsy -shop',
+    q: `"art consultant" (RFP OR procurement OR "seeking proposals") paintings hotel 2026 ${SEARCH_EXCLUDES}`,
+    locale: { gl: 'us', hl: 'en' },
+  },
+  {
+    q: `"commission original paintings" (hotel OR restaurant OR "interior designer") (budget OR contract OR procurement) 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'de', hl: 'en' },
-  },
-  {
-    q: '"looking for artwork" OR "seeking paintings" (hotel OR hospital OR corporate collection) (USA OR "United States") 2026 -etsy -amazon -gallery-shop',
-    locale: { gl: 'us', hl: 'en' },
-  },
-  {
-    q: '"art consultant" "looking for artists" paintings (commission OR collection OR hotel) 2026 -buy-now -etsy',
-    locale: { gl: 'us', hl: 'en' },
   },
 ]
 
 const FALLBACK_QUERIES: SearchQuery[] = [
   {
-    q: 'hotel RFP artwork paintings "call for artists" lobby 2026',
+    q: `hotel "purchase artwork" OR "buy original paintings" lobby 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'us', hl: 'en' },
   },
   {
-    q: '"we are looking for paintings" hotel OR restaurant OR clinic 2026',
-    locale: { gl: 'uk', hl: 'en' },
+    q: `"шукаємо художника" (готель OR ресторан OR клініка) (закупівля OR бюджет) 2026 ${SEARCH_EXCLUDES}`,
+    locale: { gl: 'ua', hl: 'uk' },
   },
 ]
 
@@ -179,8 +182,9 @@ function isKeepableCommercialItem(item: CommercialItem) {
 function isHardSkipUrl(title: string, snippet: string, url: string): boolean {
   const combined = `${title}\n${snippet}\n${url}`
   if (!isValidHttpUrl(url)) return true
+  if (/facebook\.com|fb\.com|instagram\.com/i.test(url)) return true
   if (isSellerOrPlanText(combined) && !hasDemandSignal(combined)) return true
-  return shouldSkipSearchResult(title, snippet, url) && hasDemandSignal(`${title}\n${snippet}\n${url}`) === false && isSellerOrPlanText(combined)
+  return shouldSkipSearchResult(title, snippet, url)
 }
 
 async function fetchPageText(url: string) {
@@ -276,10 +280,10 @@ async function extractCommercialItems(
         role: 'system',
         content: `Ти аналітик арт-ринку для сервісу POVODYR.
 З тексту витягни ЛИШЕ реальні комерційні запити покупця/замовника на картини або оригінальний живопис:
-купівля картин, комісії, арт для готелів/ресторанів/офісів/клінік, галерейний запит робіт художника, оренда мистецтва, корпоративні колекції.
+купівля картин, комісії, тендери, RFP, арт для готелів/ресторанів/офісів/клінік, корпоративні колекції.
 Географія: Україна, Європа, США, інші країни. Не обмежуйся Україною.
-Ігноруй новини, open call без продажу, гранти, резиденції, вакансії, магазини рамок/готових картин, каталоги продавців, вітрини «купити картину», маркетплейси продавця, плани закупівель і сторінки e-lot /plans/ або UA-P- за минулі роки.
-source_url має бути прямим http/https посиланням на оголошення або сторінку замовника. Не вигадуй URL.
+Ігноруй Facebook, Instagram, новини, open call без продажу, виставки «to display», гранти, резиденції, вакансії, магазини, блоги художників, картини за номерами, плани закупівель e-lot /plans/ і UA-P- за минулі роки.
+source_url має бути прямим http/https посиланням на тендер, RFP або сторінку замовника. Не вигадуй URL.
 Поверни JSON:
 { "items": [{
   "title": "коротка назва запиту",
@@ -419,6 +423,12 @@ async function collectFromSearchQueries(
         continue
       }
 
+      if (/facebook\.com|fb\.com|instagram\.com/i.test(result.url)) {
+        skippedJunk++
+        logs.push(`пропуск соцмережі: ${result.title}`)
+        continue
+      }
+
       const snippetBlob = `${result.title}\n${result.content}`.trim()
       const snippetLooksJunk = shouldSkipSearchResult(result.title, result.content, result.url)
 
@@ -496,7 +506,7 @@ export async function GET(request: NextRequest) {
 
     const hasSearch = !!(process.env.SERPER_API_KEY || process.env.BRAVE_API_KEY)
     if (hasSearch) {
-      logs.push(process.env.SERPER_API_KEY ? 'Пошук через Serper (UA + Europe + USA)' : 'Пошук через Brave')
+      logs.push(process.env.SERPER_API_KEY ? 'Пошук через Serper (тендери/RFP UA + Europe + USA)' : 'Пошук через Brave')
       collected.push(...(await collectFromSearchQueries(SEARCH_QUERIES, logs, false)))
 
       if (collected.length === 0) {
