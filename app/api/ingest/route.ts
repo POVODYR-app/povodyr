@@ -19,6 +19,18 @@ const AFN_TITLE =
 const AFN_DESCRIPTION =
   'Перша українська мистецька агенція Art Fine Nation. Open call: виставки, конкурси, пленери для художників України.'
 
+const KNOWN_DEAD_URLS = [
+  'https://prohelvetia.ch/en/sundry/residencies',
+  'http://prohelvetia.ch/en/sundry/residencies',
+  'https://www.prohelvetia.ch/en/sundry/residencies',
+]
+
+const LISTING_TITLE_RE =
+  /актуальн(ий|і)\s+(open\s*call|гранти)|open\s*call та події|grants?\s+database|residenc(y|ies)\s+listing|swiss arts council residencies/i
+
+const LISTING_URL_RE =
+  /\/open-calls\/?$|\/residencies\/?$|\/grants\/?$|\/opportunities\/?$|\/calls\/?$/i
+
 function isAuthorized(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   const secret = process.env.CRON_SECRET
@@ -56,8 +68,26 @@ function normalizeUrl(raw: string | undefined | null): string {
     }
     return href
   } catch {
-    return value
+    return ''
   }
+}
+
+function isKnownDeadUrl(url: string): boolean {
+  const n = normalizeUrl(url).toLowerCase()
+  for (let i = 0; i < KNOWN_DEAD_URLS.length; i += 1) {
+    if (n === normalizeUrl(KNOWN_DEAD_URLS[i]).toLowerCase()) return true
+  }
+  return false
+}
+
+function isListingCard(item: ParsedOpportunity, sourceUrl: string): boolean {
+  if (isArtFineNationUrl(sourceUrl) || isArtFineNationUrl(item.title)) return false
+  const title = String(item.title || '')
+  if (LISTING_TITLE_RE.test(title)) return true
+  if (LISTING_URL_RE.test(sourceUrl) && /resartis|transartists|prohelvetia|on-the-move|fundsforngos/i.test(sourceUrl)) {
+    return true
+  }
+  return false
 }
 
 function buildAfnCard(): ParsedOpportunity {
@@ -82,16 +112,36 @@ function buildAfnCard(): ParsedOpportunity {
   }
 }
 
-function toRecord(item: ParsedOpportunity, sourceUrl: string, isAfn: boolean) {
+function resolveCountry(item: ParsedOpportunity, isAfn: boolean): string {
+  if (isAfn) return 'Україна'
+  const raw = String(item.country || '').trim()
+  if (!raw) return 'International'
+  return raw.slice(0, 120)
+}
+
+function resolveEligibleCountries(item: ParsedOpportunity, isAfn: boolean, country: string): string[] {
+  if (isAfn) return ['Україна']
+  const fromItem = (item as ParsedOpportunity & { eligible_countries?: string[] }).eligible_countries
+  if (Array.isArray(fromItem) && fromItem.length > 0) {
+    return Array.from(new Set(fromItem.map((c) => String(c).slice(0, 80))))
+  }
+  if (/україн/i.test(country) && !/international|єс|eu|europe/i.test(country)) {
+    return ['Україна']
+  }
+  return ['International']
+}
+
+function toInsertRecord(item: ParsedOpportunity, sourceUrl: string, isAfn: boolean) {
   const now = new Date().toISOString()
+  const country = resolveCountry(item, isAfn)
   return {
     title: isAfn ? AFN_TITLE : String(item.title || '').slice(0, 280),
     description: isAfn ? AFN_DESCRIPTION : String(item.raw_description || item.title || '').slice(0, 2000),
     raw_description: isAfn ? AFN_DESCRIPTION : String(item.raw_description || '').slice(0, 4000),
     source_url: sourceUrl,
     type: isAfn ? 'open_call' : String(item.type || 'open_call').slice(0, 80),
-    country: isAfn ? 'Україна' : String(item.country || 'International').slice(0, 120),
-    eligible_countries: ['Україна', 'International'],
+    country,
+    eligible_countries: resolveEligibleCountries(item, isAfn, country),
     ukrainians_eligible: item.ukrainians_eligible !== false,
     is_free: item.is_free !== false,
     cost_amount: item.cost_amount ?? 0,
@@ -104,14 +154,81 @@ function toRecord(item: ParsedOpportunity, sourceUrl: string, isAfn: boolean) {
   }
 }
 
+function toUpdateRecord(item: ParsedOpportunity, sourceUrl: string, isAfn: boolean) {
+  const country = resolveCountry(item, isAfn)
+  return {
+    title: isAfn ? AFN_TITLE : String(item.title || '').slice(0, 280),
+    description: isAfn ? AFN_DESCRIPTION : String(item.raw_description || item.title || '').slice(0, 2000),
+    raw_description: isAfn ? AFN_DESCRIPTION : String(item.raw_description || '').slice(0, 4000),
+    source_url: sourceUrl,
+    type: isAfn ? 'open_call' : String(item.type || 'open_call').slice(0, 80),
+    country,
+    eligible_countries: resolveEligibleCountries(item, isAfn, country),
+    ukrainians_eligible: item.ukrainians_eligible !== false,
+    is_free: item.is_free !== false,
+    cost_amount: item.cost_amount ?? 0,
+    cost_currency: item.cost_currency || 'UAH',
+    genres: item.genres || [],
+    techniques: item.techniques || [],
+    deadline: isAfn ? null : item.deadline || null,
+    is_active: true,
+  }
+}
+
+async function probeUrl(url: string): Promise<{ ok: boolean; status: number }> {
+  if (isArtFineNationUrl(url)) return { ok: true, status: 200 }
+  if (isKnownDeadUrl(url)) return { ok: false, status: 404 }
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 6000)
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      redirect: 'follow',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; PovodyrBot/1.0)',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    })
+    clearTimeout(timeoutId)
+    if (res.status === 404 || res.status === 410) return { ok: false, status: res.status }
+    if (res.status >= 200 && res.status < 400) return { ok: true, status: res.status }
+    return { ok: false, status: res.status }
+  } catch {
+    clearTimeout(timeoutId)
+    return { ok: false, status: 0 }
+  }
+}
+
+async function deactivateBySourceUrl(sourceUrl: string) {
+  await supabase
+    .from('opportunities')
+    .update({ is_active: false })
+    .eq('source_url', sourceUrl)
+}
+
 async function upsertOpportunity(item: ParsedOpportunity): Promise<{ status: string; error?: string }> {
   const isAfn = isArtFineNationUrl(item.link) || isArtFineNationUrl(item.source_url) || isArtFineNationUrl(item.title)
   const sourceUrl = isAfn ? AFN_CANONICAL_URL : normalizeUrl(item.source_url || item.link)
   if (!sourceUrl) return { status: 'skipped' }
+  if (!/^https?:\/\//i.test(sourceUrl)) return { status: 'skipped' }
 
-  const record = toRecord(item, sourceUrl, isAfn)
+  if (isListingCard(item, sourceUrl)) {
+    await deactivateBySourceUrl(sourceUrl)
+    return { status: 'skipped' }
+  }
+
+  const probe = await probeUrl(sourceUrl)
+  if (!probe.ok) {
+    await deactivateBySourceUrl(sourceUrl)
+    return { status: 'skipped' }
+  }
 
   if (isAfn) {
+    const recordInsert = toInsertRecord(item, sourceUrl, true)
+    const recordUpdate = toUpdateRecord(item, sourceUrl, true)
+
     const { data: afnRows, error: afnError } = await supabase
       .from('opportunities')
       .select('id, source_url')
@@ -131,7 +248,7 @@ async function upsertOpportunity(item: ParsedOpportunity): Promise<{ status: str
     if (!keeperId && rows.length > 0) keeperId = rows[0].id
 
     if (keeperId) {
-      const { error } = await supabase.from('opportunities').update(record).eq('id', keeperId)
+      const { error } = await supabase.from('opportunities').update(recordUpdate).eq('id', keeperId)
       if (error) return { status: 'error', error: error.message }
 
       for (let i = 0; i < rows.length; i += 1) {
@@ -142,7 +259,7 @@ async function upsertOpportunity(item: ParsedOpportunity): Promise<{ status: str
       return { status: 'updated' }
     }
 
-    const { error } = await supabase.from('opportunities').insert(record)
+    const { error } = await supabase.from('opportunities').insert(recordInsert)
     if (error) return { status: 'error', error: error.message }
     return { status: 'inserted' }
   }
@@ -156,12 +273,15 @@ async function upsertOpportunity(item: ParsedOpportunity): Promise<{ status: str
   if (findError) return { status: 'error', error: findError.message }
 
   if (existing?.id) {
-    const { error } = await supabase.from('opportunities').update(record).eq('id', existing.id)
+    const { error } = await supabase
+      .from('opportunities')
+      .update(toUpdateRecord(item, sourceUrl, false))
+      .eq('id', existing.id)
     if (error) return { status: 'error', error: error.message }
     return { status: 'updated' }
   }
 
-  const { error } = await supabase.from('opportunities').insert(record)
+  const { error } = await supabase.from('opportunities').insert(toInsertRecord(item, sourceUrl, false))
   if (error) return { status: 'error', error: error.message }
   return { status: 'inserted' }
 }
@@ -211,7 +331,8 @@ export async function GET(request: NextRequest) {
     }
 
     logs.push(`готово: inserted=${inserted}, updated=${updated}, skipped=${skipped}`)
-        const listingTitlePatterns = [
+
+    const listingTitlePatterns = [
       '%Актуальний Open Call та події%',
       '%Актуальні гранти та конкурсні програми%',
     ]
