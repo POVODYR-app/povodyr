@@ -25,6 +25,15 @@ const KNOWN_DEAD_URLS = [
   'https://www.prohelvetia.ch/en/sundry/residencies',
 ]
 
+const KNOWN_JUNK_URLS = [
+  'https://www.e-flux.com/events/6783387/bar-laika-presents-playback-0040-with-solpara',
+  'https://www.e-flux.com/readers/490459/ghosts',
+  'https://www.e-flux.com/announcements/',
+]
+
+const JUNK_URL_RE =
+  /e-flux\.com\/(events|readers|journal|criticism|video)\//i
+
 const LISTING_TITLE_RE =
   /актуальн(ий|і)\s+(open\s*call|гранти)|open\s*call та події|grants?\s+database|residenc(y|ies)\s+listing|swiss arts council residencies/i
 
@@ -76,6 +85,16 @@ function isKnownDeadUrl(url: string): boolean {
   const n = normalizeUrl(url).toLowerCase()
   for (let i = 0; i < KNOWN_DEAD_URLS.length; i += 1) {
     if (n === normalizeUrl(KNOWN_DEAD_URLS[i]).toLowerCase()) return true
+  }
+  return false
+}
+
+function isKnownJunkUrl(url: string): boolean {
+  const n = normalizeUrl(url)
+  if (!n) return false
+  if (JUNK_URL_RE.test(n)) return true
+  for (let i = 0; i < KNOWN_JUNK_URLS.length; i += 1) {
+    if (n === normalizeUrl(KNOWN_JUNK_URLS[i])) return true
   }
   return false
 }
@@ -177,7 +196,7 @@ function toUpdateRecord(item: ParsedOpportunity, sourceUrl: string, isAfn: boole
 
 async function probeUrl(url: string): Promise<{ ok: boolean; status: number }> {
   if (isArtFineNationUrl(url)) return { ok: true, status: 200 }
-  if (isKnownDeadUrl(url)) return { ok: false, status: 404 }
+    if (isKnownDeadUrl(url) || isKnownJunkUrl(url)) return { ok: false, status: 404 }
 
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 6000)
@@ -356,7 +375,44 @@ export async function GET(request: NextRequest) {
         deactivatedListings += 1
       }
     }
-    logs.push(`деактивовано лістингів: ${deactivatedListings}`)
+           logs.push(`деактивовано лістингів: ${deactivatedListings}`)
+
+    const junkOrPatterns = [
+      '%e-flux.com/events%',
+      '%e-flux.com/readers%',
+      '%Bar Laika%',
+      '%Ghosts - Readers%',
+      '%ТОП світових програм Open call%',
+      '%August 2026: Open calls and opportunities%',
+      '%September 2026 Opportunities%',
+      '%Arts Opportunities | Arizona%',
+      '%River of stories%',
+      '%Time, place & practice%',
+      '%100 Emerging Artworks%',
+    ]
+    let deactivatedJunk = 0
+    for (let i = 0; i < junkOrPatterns.length; i += 1) {
+      const pattern = junkOrPatterns[i]
+      const column = pattern.indexOf('e-flux.com') >= 0 ? 'source_url' : 'title'
+      const { data: junkRows } = await supabase
+        .from('opportunities')
+        .select('id, title, source_url')
+        .ilike(column, pattern)
+        .eq('is_active', true)
+        .limit(50)
+
+      const rows = junkRows || []
+      for (let j = 0; j < rows.length; j += 1) {
+        const title = String(rows[j].title || '')
+        if (/artfinenation/i.test(title)) continue
+        await supabase
+          .from('opportunities')
+          .update({ is_active: false })
+          .eq('id', rows[j].id)
+        deactivatedJunk += 1
+      }
+    }
+    logs.push(`деактивовано junk: ${deactivatedJunk}`)
 
     return NextResponse.json({
       success: true,
