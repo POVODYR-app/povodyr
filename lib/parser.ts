@@ -30,10 +30,16 @@ const SERPER_MAX_QUERIES = 6
 const SERPER_RESULTS_PER_QUERY = 8
 
 const LISTING_TITLE_RE =
-  /актуальн(ий|і)\s+(open\s*call|гранти)|open\s*call та події|grants?\s+database|residenc(y|ies)\s+listing|swiss arts council residencies|календар конкурсів|база грантів/i
+  /актуальн(ий|і)\s+(open\s*call|гранти)|open\s*call та події|grants?\s+database|residenc(y|ies)\s+listing|swiss arts council residencies|календар конкурсів|база грантів|топ світових програм|open calls and opportunities|september \d{4} opportunities|august \d{4}:?\s*open calls|opportunities for artists and art/i
 
 const LISTING_HOST_PATH_RE =
-  /(resartis\.org\/open-calls\/?$|transartists\.org\/en\/?$|on-the-move\.org\/news\/?$|prohelvetia\.ch\/en\/sundry\/residencies|fundsforngos|grant\.market\/?$|getgrant\.ua\/?$)/i
+  /(resartis\.org\/open-calls\/?$|transartists\.org\/en\/?$|on-the-move\.org\/news\/?$|prohelvetia\.ch\/en\/sundry\/residencies|fundsforngos|grant\.market\/?$|getgrant\.ua\/?$|colossal\.com\/.*opportunities|arts\.az\.gov\/.*opportunit)/i
+
+const JUNK_PATH_RE =
+  /e-flux\.com\/(events|readers|journal|criticism|video)\//i
+
+const JUNK_TITLE_RE =
+  /bar laika|presents playback|ghosts\s*-\s*readers|river of stories|time, place & practice|five artist in residence reflections|100 emerging artworks|arts to hearts/i
 
 const DEAD_URL_RE = /prohelvetia\.ch\/en\/sundry\/residencies/i
 
@@ -78,6 +84,12 @@ function looksLikeListing(title: string, url: string): boolean {
   if (isArtFineNationLink(url) || isArtFineNationLink(title)) return false
   if (LISTING_TITLE_RE.test(title)) return true
   if (LISTING_HOST_PATH_RE.test(url)) return true
+  if (JUNK_PATH_RE.test(url)) return true
+  if (JUNK_TITLE_RE.test(title) || JUNK_TITLE_RE.test(url)) return true
+  if (/commission on the arts|arts opportunities \|/i.test(title)) return true
+  if (/prohelvetia\.ch\/en\/(blog|stories|magazine|news)\//i.test(url) && !/open.?call|apply|deadline/i.test(title)) {
+    return true
+  }
   return false
 }
 
@@ -197,7 +209,7 @@ function isOpportunityValid(
   const descLower = description.toLowerCase()
   const combinedText = `${titleLower} ${descLower}`
 
-  const negativeKeywords = [
+    const negativeKeywords = [
     'board member',
     'welcomes',
     'appointed',
@@ -217,6 +229,11 @@ function isOpportunityValid(
     'now online',
     'exhibition opening',
     'on view',
+    'presents playback',
+    'join us at',
+    'readers - e-flux',
+    'reflections',
+    'where stories come from',
   ]
 
   if (negativeKeywords.some((kw) => titleLower.includes(kw))) {
