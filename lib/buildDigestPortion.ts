@@ -1,10 +1,12 @@
 import { personalizeOpportunities, PersonalizedOpportunity } from './personalizeOpportunities'
 
 export const LISTING_TITLE_RE =
-  /актуальний open call та події|актуальні гранти та конкурсні програми|worldwide network open calls|grants database|eu supports ukraine through culture|swiss arts council residencies|selected artists in residence|selected projects/i
-
+  /актуальний open call та події|актуальні гранти та конкурсні програми|worldwide network open calls|grants database|eu supports ukraine through culture|swiss arts council residencies|selected artists in residence|selected projects|bar laika|presents playback|ghosts\s*-\s*readers|топ світових програм|open calls and opportunities|september \d{4} opportunities|august \d{4}:?\s*open calls|arts opportunities \| arizona|river of stories|time, place & practice|100 emerging artworks/i
 const KNOWN_DEAD_URL_PARTS = [
   'prohelvetia.ch/en/sundry/residencies',
+  'e-flux.com/events/',
+  'e-flux.com/readers/',
+  'e-flux.com/journal/',
 ]
 
 const MS_24H = 24 * 60 * 60 * 1000
@@ -67,6 +69,8 @@ export function isUsableOpportunityUrl(opp: any): boolean {
   const url = pickOpportunityUrl(opp)
   if (!isValidHttpUrl(url)) return false
   if (isKnownDeadUrl(url)) return false
+  const title = String(opp?.title || '')
+  if (LISTING_TITLE_RE.test(title) && !/artfinenation/i.test(title)) return false
   return true
 }
 
