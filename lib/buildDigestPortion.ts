@@ -70,6 +70,70 @@ export function isUsableOpportunityUrl(opp: any): boolean {
   return true
 }
 
+function isArtFineNationOpp(opp: any): boolean {
+  if (!opp) return false
+  const blob = norm(
+    `${opp.source_url || ''} ${opp.link || ''} ${opp.title || ''} ${opp.source_name || ''}`
+  )
+  return (
+    blob.indexOf('sites.google.com/view/artfinenation') !== -1 ||
+    blob.indexOf('art fine nation') !== -1 ||
+    blob.indexOf('artfinenation') !== -1
+  )
+}
+
+function profileWantsUkraine(profile: any): boolean {
+  const blob = norm(
+    [
+      profile?.search_countries,
+      profile?.target_countries,
+      profile?.country,
+      profile?.residency_country,
+      profile?.citizenship,
+    ].join(' ')
+  )
+  return (
+    blob.indexOf('україн') !== -1 ||
+    blob.indexOf('ukraine') !== -1 ||
+    /(^|[^a-zа-яіїєґ])ua([^a-zа-яіїєґ]|$)/.test(blob)
+  )
+}
+
+function findAfnInPool(pool: any[]): any | null {
+  const list = pool || []
+  for (let i = 0; i < list.length; i += 1) {
+    if (isArtFineNationOpp(list[i])) return list[i]
+  }
+  return null
+}
+
+function pinAfnIfUkraine(
+  selected: PersonalizedOpportunity[],
+  pool: any[],
+  profile: any
+): PersonalizedOpportunity[] {
+  if (!profileWantsUkraine(profile)) return selected
+  if (!selected.length) return selected
+
+  const afnOpp = findAfnInPool(pool)
+  if (!afnOpp || !afnOpp.id) return selected
+
+  const afnId = String(afnOpp.id)
+  const without: PersonalizedOpportunity[] = []
+  for (let i = 0; i < selected.length; i += 1) {
+    const row = selected[i]
+    const id = row?.opportunity?.id ? String(row.opportunity.id) : ''
+    if (id === afnId || isArtFineNationOpp(row?.opportunity)) continue
+    without.push(row)
+  }
+
+  const pinned: PersonalizedOpportunity = {
+    opportunity: afnOpp,
+    score: 99,
+    reasons: ['Гарантоване джерело для України: Art Fine Nation'],
+  }
+  return [pinned].concat(without)
+}
 function isListingTitle(title: string): boolean {
   const t = String(title || '')
   if (/artfinenation/i.test(t)) return false
@@ -187,6 +251,7 @@ export function buildDigestPortion(options: {
     selected = []
   }
 
+  selected = pinAfnIfUkraine(selected, pool, options.profile)
   const ids: string[] = []
   const seen: { [key: string]: boolean } = {}
   for (let i = 0; i < selected.length; i += 1) {
