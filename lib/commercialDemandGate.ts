@@ -130,16 +130,19 @@ const JUNK_PATTERNS = [
   /прода(ємо|ж) рамк/i,
   /новини мистецтв/i,
   /інтерв['’`]ю/i,
-  /\binterview\b/i,
-  /резиденці/i,
-  /\bresidency\b/i,
-  /\bgrant\b/i,
-  /грант(?!ов)/i,
+   /\binterview\b/i,
+  /\bq-a\b/i,
+  /q\s*&\s*a/i,
+  /wandmaler gesucht/i,
+  /graffiti/i,
+  /стінопис/i,
+  /мураліст/i,
 ]
 
 const JOB_BOARD_URL = /work\.ua|robota\.ua|djinni|hh\.ua|linkedin\.com\/jobs/i
 const MARKETPLACE_URL = /prom\.ua|rozetka|etsy\.com|amazon\.|olx\.ua/i
-const ARTIST_BLOG_OR_FICTION_URL = /angelacameron\.com|arkush\.net|\/blogs\//i
+const ARTIST_BLOG_OR_FICTION_URL =
+  /angelacameron\.com|arkush\.net|thirdandwall\.com|heiek\.de|\/blogs\/|\/q-a-/i
 const LISTING_OR_EMPTY_URL = /olx\.ua\/(?:uk\/)?list\//i
 const SOCIAL_SHALLOW_URL =
   /instagram\.com|facebook\.com|fb\.com|facebook\.com\/groups|facebook\.com\/.*\/mentions|facebook\.com\/.*\/posts/i
@@ -221,7 +224,8 @@ export function shouldSkipSearchResult(title: string, snippet: string, url: stri
   if (STALE_PUBLIC_URL.test(url)) return true
   if (TENDER_LISTING_URL.test(url)) return true
   if (hasStalePlanYear(combined)) return true
-  if (isSellerOrPlanText(combined) && !strongBuyer) return true
+    if (isSellerOrPlanText(combined)) return true
+  if (blobHas(JUNK_PATTERNS, combined)) return true
   if (!hasDemandSignal(combined) && !strongBuyer) return true
   return false
 }
@@ -240,8 +244,8 @@ export function isRealBuyerRequest(input: CommercialDemandInput): boolean {
   if (JOB_BOARD_URL.test(url)) return false
   if (isDeadlineInPast(input.deadline)) return false
   if (hasStalePlanYear(combined)) return false
-  if (isSellerOrPlanText(combined) && !strongBuyer) return false
-  if (blobHas(JUNK_PATTERNS, combined) && !strongBuyer) return false
+  if (isSellerOrPlanText(combined)) return false
+  if (blobHas(JUNK_PATTERNS, combined)) return false
   if (!hasDemandSignal(combined) && !strongBuyer) return false
   return true
 }
