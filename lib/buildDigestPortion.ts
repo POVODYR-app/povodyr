@@ -73,9 +73,8 @@ export function isKnownDeadUrl(url: string): boolean {
   return false
 }
 
-export function isUsableOpportunityUrl(opp: any): boolean {
-  const BANNED_REGION_RE =
-  /росі[яи]|россия|россий|russia|russian federation|рф\b|москва|moscow|беларус|білорус|belarus|минск|мінськ|гомель|гродно|\.ru\b|\.by\b|t\.me\/s\/gdeart|t\.me\/gdeart|где выставка|где выставка/i
+const BANNED_REGION_RE =
+  /росі[яи]|россия|россий|russia|russian federation|рф\b|москва|moscow|беларус|білорус|belarus|минск|мінськ|гомель|гродно|\.ru\b|\.by\b|t\.me\/s\/gdeart|t\.me\/gdeart|где выставка/i
 
 export function isBannedRegionOpportunity(opp: any): boolean {
   const blob = norm(
