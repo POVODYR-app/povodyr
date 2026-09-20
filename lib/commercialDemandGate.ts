@@ -115,6 +115,10 @@ const SELLER_OR_PLAN_PATTERNS = [
   /browse the original/i,
   /certificate of authenticity/i,
   /free shipping/i,
+  /framed prints/i,
+  /canvas prints/i,
+  /metal prints/i,
+  /wall murals/i,
   /картин[иа]?\sза номерами/i,
   /paint[-\s]?by[-\s]?numbers/i,
 ]
@@ -142,7 +146,7 @@ const JUNK_PATTERNS = [
 const JOB_BOARD_URL = /work\.ua|robota\.ua|djinni|hh\.ua|linkedin\.com\/jobs/i
 const MARKETPLACE_URL = /prom\.ua|rozetka|etsy\.com|amazon\.|olx\.ua/i
 const ARTIST_BLOG_OR_FICTION_URL =
-  /angelacameron\.com|arkush\.net|thirdandwall\.com|heiek\.de|\/blogs\/|\/q-a-/i
+  /angelacameron\.com|arkush\.net|thirdandwall\.com|heiek\.de|rogersphotography\.com|\/blogs\/|\/q-a-|\/commercial-artwork/i
 const LISTING_OR_EMPTY_URL = /olx\.ua\/(?:uk\/)?list\//i
 const SOCIAL_SHALLOW_URL =
   /instagram\.com|facebook\.com|fb\.com|facebook\.com\/groups|facebook\.com\/.*\/mentions|facebook\.com\/.*\/posts/i
