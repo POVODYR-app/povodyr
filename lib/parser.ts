@@ -41,7 +41,10 @@ const JUNK_PATH_RE =
 const JUNK_TITLE_RE =
   /bar laika|presents playback|ghosts\s*-\s*readers|river of stories|time, place & practice|five artist in residence reflections|100 emerging artworks|arts to hearts/i
 
-const DEAD_URL_RE = /prohelvetia\.ch\/en\/sundry\/residencies/i
+const DEAD_URL_RE = /prohelvetia\.ch\/en\/sundry\/residencies|\.ru\/|\.by\/|t\.me\/s\/gdeart|t\.me\/gdeart/i
+
+const BANNED_REGION_RE =
+  /росі[яи]|россия|россий|russia|russian federation|\bрф\b|москва|moscow|беларус|білорус|belarus|минск|мінськ|гомель|гродно|где выставка|gdeart/i
 
 export const SEARCH_KEYWORDS = {
   ua: [
@@ -82,6 +85,8 @@ function isArtFineNationLink(link: string | undefined | null) {
 
 function looksLikeListing(title: string, url: string): boolean {
   if (isArtFineNationLink(url) || isArtFineNationLink(title)) return false
+  if (/t\.me\//i.test(url) || /где выставка|gdeart/i.test(title + ' ' + url)) return true
+  if (BANNED_REGION_RE.test(title + ' ' + url)) return true
   if (LISTING_TITLE_RE.test(title)) return true
   if (LISTING_HOST_PATH_RE.test(url)) return true
   if (JUNK_PATH_RE.test(url)) return true
@@ -202,6 +207,9 @@ function isOpportunityValid(
   link?: string
 ): boolean {
   if (isArtFineNationLink(link)) return true
+  const banBlob = `${title} ${description} ${link || ''}`
+  if (BANNED_REGION_RE.test(banBlob)) return false
+  if (/t\.me\//i.test(String(link || ''))) return false
   if (DEAD_URL_RE.test(String(link || ''))) return false
   if (looksLikeListing(title, String(link || ''))) return false
 
@@ -700,6 +708,8 @@ async function searchSerper(
 
 function isUsefulSearchHit(title: string, snippet: string, link: string): boolean {
   if (!/^https?:\/\//i.test(link)) return false
+  if (BANNED_REGION_RE.test(`${title} ${snippet} ${link}`)) return false
+  if (/t\.me\//i.test(link)) return false
   if (isArtFineNationLink(link) || isArtFineNationLink(title)) return false
   if (DEAD_URL_RE.test(link) || looksLikeListing(title, link)) return false
   if (/\.(pdf|docx?|zip)(\?|$)/i.test(link)) return false
