@@ -10,6 +10,11 @@ const KNOWN_DEAD_URL_PARTS = [
   'e-flux.com/journal/',
   'on-the-move.org/news/summer-sessions',
   'e-flux.com/announcements/6787818/artist-and-curatorial-fellowships-at-gasworks',
+    't.me/s/gdeart',
+  't.me/gdeart',
+  '.ru/',
+  '.рф/',
+  '.by/',
 ]
 
 const MS_24H = 24 * 60 * 60 * 1000
@@ -69,11 +74,37 @@ export function isKnownDeadUrl(url: string): boolean {
 }
 
 export function isUsableOpportunityUrl(opp: any): boolean {
+  const BANNED_REGION_RE =
+  /росі[яи]|россия|россий|russia|russian federation|рф\b|москва|moscow|беларус|білорус|belarus|минск|мінськ|гомель|гродно|\.ru\b|\.by\b|t\.me\/s\/gdeart|t\.me\/gdeart|где выставка|где выставка/i
+
+export function isBannedRegionOpportunity(opp: any): boolean {
+  const blob = norm(
+    [
+      opp?.country,
+      opp?.eligible_countries,
+      opp?.title,
+      opp?.source_name,
+      opp?.description,
+      opp?.raw_description,
+      pickOpportunityUrl(opp),
+    ].join(' ')
+  )
+  if (!blob) return false
+  if (/україн|ukraine|artfinenation/.test(blob) && !/росі|russia|беларус|білорус|belarus/.test(blob)) {
+    return false
+  }
+  return BANNED_REGION_RE.test(blob)
+}
+
+export function isUsableOpportunityUrl(opp: any): boolean {
   const url = pickOpportunityUrl(opp)
   if (!isValidHttpUrl(url)) return false
   if (isKnownDeadUrl(url)) return false
+  if (isBannedRegionOpportunity(opp)) return false
   const title = String(opp?.title || '')
   if (LISTING_TITLE_RE.test(title) && !/artfinenation/i.test(title)) return false
+  if (/где выставка|gdeart/i.test(title)) return false
+  if (/t\.me\//i.test(url)) return false
   return true
 }
 
@@ -156,6 +187,7 @@ export function filterDigestPool(opportunities: any[]): any[] {
     if (item.is_active === false) continue
     if (isListingTitle(item.title)) continue
     if (!isUsableOpportunityUrl(item)) continue
+    if (isBannedRegionOpportunity(item)) continue
     out.push(item)
   }
   return out
