@@ -200,6 +200,10 @@ const JUNK_PATTERNS = [
   /стінопис/i,
   /мураліст/i,
   /sponsored feature/i,
+    /sponsored feature/i,
+  /guidelines for public art/i,
+  /public art committee/i,
+  /guidelines for public art acquisition/i,
 ]
 
 const WALL_TRADE_PATTERNS = [
