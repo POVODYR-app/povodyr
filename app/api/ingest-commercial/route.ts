@@ -336,8 +336,19 @@ source_url має бути прямим http/https посиланням на т�
     return (items as any[])
       .filter((item) => item && item.title && String(item.title).trim().length > 6)
       .map((item) => {
-        const extractedUrl = canonicalSourceUrl(item.source_url)
-        const source_url = extractedUrl || canonicalSourceUrl(sourceUrl) || sourceUrl
+                const extractedUrl = canonicalSourceUrl(item.source_url)
+        const fetchedUrl = canonicalSourceUrl(sourceUrl) || sourceUrl
+        const sameHost =
+          extractedUrl &&
+          fetchedUrl &&
+          (() => {
+            try {
+              return new URL(extractedUrl).host === new URL(fetchedUrl).host
+            } catch {
+              return false
+            }
+          })()
+        const source_url = sameHost ? extractedUrl : fetchedUrl
         const country = inferCountry(item.country, String(source_url), queryLocale)
         return {
           title: String(item.title).slice(0, 220),
