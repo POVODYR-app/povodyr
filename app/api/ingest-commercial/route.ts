@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import OpenAI from 'openai'
 import {
+  hasArtPurchaseObject,
   hasDemandSignal,
+  hasStrongBuyerSignal,
   isJunkText,
   isRealBuyerRequest,
   isSellerOrPlanText,
+  isWallTradeNotArt,
   normalizeCommercialSourceUrl,
   shouldSkipSearchResult,
+  titleFingerprint,
 } from '../../../lib/commercialDemandGate'
 
 export const dynamic = 'force-dynamic'
@@ -66,43 +70,43 @@ const ALLOWED_SUBTYPES = [
 const CURATED_SOURCES: { url: string; name: string }[] = []
 
 const SEARCH_EXCLUDES =
-  '-facebook -instagram -etsy -amazon -olx -pinterest -"paint by numbers" -"картини за номерами"'
+  '-facebook -instagram -etsy -amazon -olx -pinterest -shop -blog -prints -muralist -"wall painting" -coatings -"painting contractors" -"paint by numbers" -"картини за номерами"'
 
 const SEARCH_QUERIES: SearchQuery[] = [
   {
-    q: `site:prozorro.gov.ua/uk/tender (картини OR живопис OR "твори мистецтва") 2026 ${SEARCH_EXCLUDES}`,
+    q: `site:prozorro.gov.ua/uk/tender (живопис OR "оригінальні картини" OR "твори мистецтва" OR "художні полотна") 2026 -фарба -емаль -малярний ${SEARCH_EXCLUDES}`,
     locale: { gl: 'ua', hl: 'uk' },
   },
   {
-    q: `"шукаємо картини" OR "потрібні картини" OR "купимо картини" (готель OR ресторан OR офіс OR клініка) ${SEARCH_EXCLUDES}`,
+    q: `"закупівля" (живопис OR "оригінальні картини" OR "твори живопису") (готель OR лікарня OR університет OR офіс) 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'ua', hl: 'uk' },
   },
   {
-    q: `"looking for artist" OR "seeking artist" OR "looking for artwork" (hotel OR restaurant OR lobby OR office OR hospital) (paintings OR artwork) ${SEARCH_EXCLUDES}`,
+    q: `(RFP OR RFQ OR "request for proposal" OR "request for qualifications") ("original paintings" OR "original artwork" OR "fine art" OR "works of art") (hotel OR hospital OR lobby OR university) 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'us', hl: 'en' },
   },
   {
-    q: `"commission original paintings" OR "we need original paintings" (hotel OR restaurant OR "interior designer" OR clinic) ${SEARCH_EXCLUDES}`,
+    q: `(tender OR procurement OR "art acquisition") ("original artwork" OR "original paintings" OR "works of art") (hospital OR hotel OR municipal OR museum) 2026 ${SEARCH_EXCLUDES}`,
+    locale: { gl: 'us', hl: 'en' },
+  },
+  {
+    q: `"buy original paintings" OR "purchase original artwork" OR "commission original paintings" (hotel OR hospital OR clinic OR "corporate office") 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'uk', hl: 'en' },
   },
   {
-    q: `(RFP OR "request for proposal" OR tender OR procurement) (artwork OR paintings OR "works of art") (hotel OR hospital OR municipal) ${SEARCH_EXCLUDES}`,
-    locale: { gl: 'us', hl: 'en' },
-  },
-  {
-    q: `"corporate art collection" OR "art consultant" ("looking for artists" OR "seeking artists") paintings ${SEARCH_EXCLUDES}`,
-    locale: { gl: 'au', hl: 'en' },
+    q: `site:ted.europa.eu ("works of art" OR "artistic services" OR "original paintings") (acquisition OR commission OR supply) 2026 ${SEARCH_EXCLUDES}`,
+    locale: { gl: 'de', hl: 'en' },
   },
 ]
 
 const FALLBACK_QUERIES: SearchQuery[] = [
   {
-    q: `"purchase original art" OR "buy original paintings" (hotel OR hospital OR office) ${SEARCH_EXCLUDES}`,
+    q: `(hospital OR hotel OR university) ("purchase original artwork" OR "buy original paintings" OR "art acquisition") 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'us', hl: 'en' },
   },
   {
-    q: `"cherche artiste" OR "suche künstler" OR "buscamos artista" (hotel OR restaurant) (pintura OR gemälde OR peinture) ${SEARCH_EXCLUDES}`,
-    locale: { gl: 'fr', hl: 'fr' },
+    q: `"закупівля картин" OR "придбання живопису" (готель OR лікарня OR університет OR офіс) 2026 ${SEARCH_EXCLUDES}`,
+    locale: { gl: 'ua', hl: 'uk' },
   },
 ]
 
@@ -186,7 +190,8 @@ function isHardSkipUrl(title: string, snippet: string, url: string): boolean {
   const combined = `${title}\n${snippet}\n${url}`
   if (!isValidHttpUrl(url)) return true
   if (/facebook\.com|fb\.com|instagram\.com/i.test(url)) return true
-  if (isSellerOrPlanText(combined) && !hasDemandSignal(combined)) return true
+  if (isSellerOrPlanText(combined)) return true
+  if (isWallTradeNotArt(combined)) return true
   return shouldSkipSearchResult(title, snippet, url)
 }
 
@@ -286,6 +291,8 @@ async function extractCommercialItems(
 купівля картин, комісії, тендери, RFP, арт для готелів/ресторанів/офісів/клінік, корпоративні колекції.
 Географія: будь-яка країна. Україна, Європа, США, Канада, Азія, Близький Схід, Австралія — без обмежень.
 Ігноруй Facebook, Instagram, новини, open call без продажу, виставки «to display», гранти, резиденції, вакансії, магазини, блоги художників, картини за номерами, плани закупівель e-lot /plans/ і UA-P- за минулі роки.
+Ігноруй «looking for artist / шукаємо художника», якщо немає купівлі або комісії саме картин/живопису.
+Ігноруй малярні тендери (фарба, емаль, wall painting, coatings, framing services, graffiti, мураліст як вакансія).
 source_url має бути прямим http/https посиланням на тендер, RFP або сторінку замовника. Не вигадуй URL.
 Поверни JSON:
 { "items": [{
@@ -407,8 +414,7 @@ async function upsertItem(item: CommercialItem) {
 
 async function collectFromSearchQueries(
   queries: SearchQuery[],
-  logs: string[],
-  allowWeakSnippet: boolean
+  logs: string[]
 ): Promise<CommercialItem[]> {
   const collected: CommercialItem[] = []
 
@@ -432,28 +438,32 @@ async function collectFromSearchQueries(
         continue
       }
 
-      const snippetBlob = `${result.title}\n${result.content}`.trim()
-      const snippetLooksJunk = shouldSkipSearchResult(result.title, result.content, result.url)
-
-      if (snippetLooksJunk && !allowWeakSnippet) {
+      if (shouldSkipSearchResult(result.title, result.content, result.url)) {
         skippedJunk++
         logs.push(`пропуск сміття (snippet): ${result.title}`)
         continue
       }
 
-      if (isHardSkipUrl(result.title, result.content, result.url) && !allowWeakSnippet) {
+      if (isHardSkipUrl(result.title, result.content, result.url)) {
         skippedJunk++
         logs.push(`пропуск вітрини: ${result.title}`)
         continue
       }
 
+      const snippetBlob = `${result.title}\n${result.content}`.trim()
       const pageText = await fetchPageText(result.url)
       const pageBlob = pageText ? `${snippetBlob}\n\n${pageText}` : snippetBlob
       const blob = pageBlob.slice(0, 8000)
 
-      if (!hasDemandSignal(blob) && (isJunkText(blob) || isSellerOrPlanText(blob))) {
+      if (isSellerOrPlanText(blob) || isWallTradeNotArt(blob) || isJunkText(blob)) {
         skippedJunk++
-        logs.push(`пропуск після сторінки: ${result.title}`)
+        logs.push(`пропуск після сторінки (продавець/сміття): ${result.title}`)
+        continue
+      }
+
+      if (!hasDemandSignal(blob) && !hasStrongBuyerSignal(blob) && !hasArtPurchaseObject(blob)) {
+        skippedJunk++
+        logs.push(`пропуск після сторінки (немає об'єкта купівлі): ${result.title}`)
         continue
       }
 
@@ -494,7 +504,7 @@ export async function GET(request: NextRequest) {
         logs.push(`сирих: 0 → після фільтра: 0 (порожня відповідь)`)
         continue
       }
-      if (isJunkText(text) && !hasDemandSignal(text)) {
+      if (isJunkText(text) || isSellerOrPlanText(text) || isWallTradeNotArt(text)) {
         logs.push(`сирих: 1 сторінка → після фільтра: 0 (сміття/не запит покупця)`)
         continue
       }
@@ -510,29 +520,39 @@ export async function GET(request: NextRequest) {
     const hasSearch = !!(process.env.SERPER_API_KEY || process.env.BRAVE_API_KEY)
     if (hasSearch) {
       logs.push(process.env.SERPER_API_KEY ? 'Пошук через Serper (світ, без ліміту країни)' : 'Пошук через Brave')
-      collected.push(...(await collectFromSearchQueries(SEARCH_QUERIES, logs, false)))
+      collected.push(...(await collectFromSearchQueries(SEARCH_QUERIES, logs)))
 
       if (collected.length === 0) {
-        logs.push('0 кандидатів після основного пошуку — fallback-запити з перевіркою сторінки')
-        collected.push(...(await collectFromSearchQueries(FALLBACK_QUERIES, logs, true)))
+        logs.push('0 кандидатів після основного пошуку — fallback-запити з тим самим гейтом')
+        collected.push(...(await collectFromSearchQueries(FALLBACK_QUERIES, logs)))
       }
     } else {
       logs.push('SERPER_API_KEY / BRAVE_API_KEY немає — працюємо лише по списку джерел')
     }
 
     const unique = new Map<string, CommercialItem>()
-    for (const item of collected) {
+    const seenTitles = new Map<string, string>()
+    const incoming = collected.slice()
+    for (let i = 0; i < incoming.length; i += 1) {
+      const item = incoming[i]
       if (!isKeepableCommercialItem(item)) continue
       item.source_url = canonicalSourceUrl(item.source_url) || item.source_url
-      const key = item.source_url || item.title
-      if (!unique.has(key)) unique.set(key, item)
+      const urlKey = item.source_url || ''
+      const titleKey = titleFingerprint(item.title)
+      if (!urlKey) continue
+      if (unique.has(urlKey)) continue
+      if (titleKey && seenTitles.has(titleKey)) continue
+      unique.set(urlKey, item)
+      if (titleKey) seenTitles.set(titleKey, urlKey)
     }
 
     let inserted = 0
     let updated = 0
     const errors: string[] = []
+    const uniqueItems = Array.from(unique.values())
 
-    for (const item of Array.from(unique.values())) {
+    for (let i = 0; i < uniqueItems.length; i += 1) {
+      const item = uniqueItems[i]
       const result = await upsertItem(item)
       if (result.status === 'inserted') inserted++
       else if (result.status === 'updated') updated++
