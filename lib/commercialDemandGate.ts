@@ -60,6 +60,9 @@ const ART_OBJECT_PATTERNS = [
   /works of art/i,
   /art acquisition/i,
   /придбання (картин|живопису|творів мистецтва)/i,
+  /public art(work)?s?/i,
+  /site[-\s]?specific artwork/i,
+  /permanent (outdoor )?public artwork/i,
 ]
 
 const DEMAND_PATTERNS = [
