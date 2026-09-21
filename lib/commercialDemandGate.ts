@@ -268,7 +268,10 @@ export function isTalentNotBuyer(text: string): boolean {
 }
 
 export function isExhibitNotPurchase(text: string): boolean {
-  return blobHas(EXHIBIT_NOT_PURCHASE_PATTERNS, text)
+  if (!blobHas(EXHIBIT_NOT_PURCHASE_PATTERNS, text)) return false
+  if (/\b(RFQ|RFP|RFSQ|commission|eoi|expression of interest)\b/i.test(text)) return false
+  if (/\$\s*\d|budget|дедлайн|deadline/i.test(text) && hasArtPurchaseObject(text)) return false
+  return true
 }
 
 export function isArtistSaleEvent(text: string): boolean {
