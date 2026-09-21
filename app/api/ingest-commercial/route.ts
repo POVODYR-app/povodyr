@@ -9,6 +9,7 @@ import {
   isRealBuyerRequest,
   isSellerOrPlanText,
   isWallTradeNotArt,
+  isArtistSaleEvent,
   normalizeCommercialSourceUrl,
   shouldSkipSearchResult,
   titleFingerprint,
@@ -67,7 +68,16 @@ const ALLOWED_SUBTYPES = [
   'other',
 ] as const
 
-const CURATED_SOURCES: { url: string; name: string }[] = []
+const CURATED_SOURCES: { url: string; name: string }[] = [
+  {
+    url: 'https://akimbo.ca/listings/call-for-expressions-of-interest-permanent-public-art-for-dave-ryan-park-city-of-pickering/',
+    name: 'City of Pickering — Dave Ryan Park public art EOI',
+  },
+  {
+    url: 'https://akimbo.ca/listings/request-for-qualifications-site-specific-artwork-for-riverside-south-community-centre-library-ottawa/',
+    name: 'City of Ottawa — Riverside South Community Centre & Library RFQ',
+  },
+]
 
 const SEARCH_EXCLUDES =
   '-facebook -instagram -etsy -amazon -olx -pinterest -shop -blog -prints -muralist -"wall painting" -coatings -"painting contractors" -"paint by numbers" -"картини за номерами"'
@@ -497,19 +507,15 @@ export async function GET(request: NextRequest) {
 
     const collected: CommercialItem[] = []
 
-    for (const source of CURATED_SOURCES) {
+        for (const source of CURATED_SOURCES) {
       logs.push(`Джерело: ${source.name}`)
       const text = await fetchPageText(source.url)
       if (!text) {
         logs.push(`сирих: 0 → після фільтра: 0 (порожня відповідь)`)
         continue
       }
-      if (isJunkText(text) || isSellerOrPlanText(text) || isWallTradeNotArt(text)) {
-        logs.push(`сирих: 1 сторінка → після фільтра: 0 (сміття/не запит покупця)`)
-        continue
-      }
-      if (shouldSkipSearchResult(source.name, text.slice(0, 500), source.url)) {
-        logs.push(`сирих: 1 сторінка → після фільтра: 0 (вітрина/план/не попит)`)
+      if (isSellerOrPlanText(text) || isWallTradeNotArt(text) || isArtistSaleEvent(text)) {
+        logs.push(`сирих: 1 сторінка → після фільтра: 0 (продавець/ярмарок)`)
         continue
       }
       const items = await extractCommercialItems(source.name, source.url, text)
