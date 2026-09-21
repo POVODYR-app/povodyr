@@ -124,6 +124,20 @@ const EXHIBIT_NOT_PURCHASE_PATTERNS = [
   /looking for artwork to display/i,
 ]
 
+const ARTIST_SALE_EVENT_PATTERNS = [
+  /artists selling (their )?work/i,
+  /for sale by artists/i,
+  /under the bed sale/i,
+  /opportunity to purchase artwork from .{0,80}artists/i,
+  /unique opportunity to purchase artwork/i,
+  /priced from\s*[£$€₴]/i,
+  /walk away with/i,
+  /studio (clearance|sale)/i,
+  /affordable opportunity for people to (start|continue) their art collections/i,
+  /all for immediate sale/i,
+  /over \d+ artists selling/i,
+]
+
 const SELLER_OR_PLAN_PATTERNS = [
   /\/plans\//i,
   /e-lot\.com\.ua\/plans/i,
@@ -162,6 +176,9 @@ const SELLER_OR_PLAN_PATTERNS = [
   /wall murals/i,
   /картин[иа]?\sза номерами/i,
   /paint[-\s]?by[-\s]?numbers/i,
+  /artists selling (their )?work/i,
+  /for sale by artists/i,
+  /under the bed sale/i,
 ]
 
 const JUNK_PATTERNS = [
@@ -182,6 +199,7 @@ const JUNK_PATTERNS = [
   /graffiti/i,
   /стінопис/i,
   /мураліст/i,
+  /sponsored feature/i,
 ]
 
 const WALL_TRADE_PATTERNS = [
@@ -209,12 +227,13 @@ const WALL_TRADE_PATTERNS = [
 const JOB_BOARD_URL = /work\.ua|robota\.ua|djinni|hh\.ua|linkedin\.com\/jobs/i
 const MARKETPLACE_URL = /prom\.ua|rozetka|etsy\.com|amazon\.|olx\.ua/i
 const ARTIST_BLOG_OR_FICTION_URL =
-  /angelacameron\.com|arkush\.net|thirdandwall\.com|heiek\.de|rogersphotography\.com|\/blogs\/|\/q-a-|\/commercial-artwork/i
+  /angelacameron\.com|arkush\.net|thirdandwall\.com|heiek\.de|rogersphotography\.com|despinapaintings\.com|onthewight\.com|\/blogs\/|\/q-a-|\/commercial-artwork/i
 const LISTING_OR_EMPTY_URL = /olx\.ua\/(?:uk\/)?list\//i
 const SOCIAL_SHALLOW_URL =
-  /instagram\.com|facebook\.com|fb\.com|facebook\.com\/groups|facebook\.com\/.*\/mentions|facebook\.com\/.*\/posts/i
+  /instagram\.com|facebook\.com|fb\.com|threads\.com|threads\.net|facebook\.com\/groups|facebook\.com\/.*\/mentions|facebook\.com\/.*\/posts/i
 const STALE_PUBLIC_URL = /UA-202[0-5]-/i
-const TENDER_LISTING_URL = /prozorro\.gov\.ua\/uk\/search|prozorro\.gov\.ua\/uk\/plan\//i
+const TENDER_LISTING_URL =
+  /prozorro\.gov\.ua\/uk\/search|prozorro\.gov\.ua\/uk\/plan\/|prozorro\.gov\.ua\/uk\/tender\/UA-[^/]+\/complaints/i
 const PROCUREMENT_URL =
   /prozorro\.gov\.ua\/uk\/tender\/UA-|ted\.europa\.eu\/.+\/notice|sam\.gov\/(?:opp|workspace\/contract\/opp)\//i
 
@@ -252,8 +271,12 @@ export function isExhibitNotPurchase(text: string): boolean {
   return blobHas(EXHIBIT_NOT_PURCHASE_PATTERNS, text)
 }
 
+export function isArtistSaleEvent(text: string): boolean {
+  return blobHas(ARTIST_SALE_EVENT_PATTERNS, text)
+}
+
 export function isSellerOrPlanText(text: string): boolean {
-  return blobHas(SELLER_OR_PLAN_PATTERNS, text)
+  return blobHas(SELLER_OR_PLAN_PATTERNS, text) || isArtistSaleEvent(text)
 }
 
 export function isWallTradeNotArt(text: string): boolean {
@@ -265,12 +288,14 @@ export function isJunkText(text: string): boolean {
     blobHas(JUNK_PATTERNS, text) ||
     isSellerOrPlanText(text) ||
     isExhibitNotPurchase(text) ||
-    isWallTradeNotArt(text)
+    isWallTradeNotArt(text) ||
+    isArtistSaleEvent(text)
   )
 }
 
 export function isProcurementSourceUrl(raw?: string | null): boolean {
   const url = normalizeCommercialSourceUrl(raw) || String(raw || '')
+  if (TENDER_LISTING_URL.test(url)) return false
   return PROCUREMENT_URL.test(url)
 }
 
@@ -296,7 +321,7 @@ export function hasStalePlanYear(text: string, now = new Date()): boolean {
   let hasPast = false
   for (let i = 0; i < years.length; i += 1) {
     const year = Number(years[i])
-  if (year < currentYear) hasPast = true
+    if (year < currentYear) hasPast = true
     if (year >= currentYear) hasCurrentOrFuture = true
   }
   return hasPast && !hasCurrentOrFuture
@@ -304,6 +329,7 @@ export function hasStalePlanYear(text: string, now = new Date()): boolean {
 
 function failsSharedRejects(combined: string, url: string): boolean {
   if (isExhibitNotPurchase(combined)) return true
+  if (isArtistSaleEvent(combined)) return true
   if (LISTING_OR_EMPTY_URL.test(url)) return true
   if (SOCIAL_SHALLOW_URL.test(url)) return true
   if (JOB_BOARD_URL.test(url)) return true
@@ -327,7 +353,7 @@ export function shouldSkipSearchResult(title: string, snippet: string, url: stri
   const procurement = isProcurementSourceUrl(normalizedUrl) && hasArtPurchaseObject(combined)
   if (isTalentNotBuyer(combined) && !strongBuyer && !procurement) return true
   if (procurement) return false
-  if (strongBuyer && hasArtPurchaseObject(combined)) return false
+  if (strongBuyer && hasArtPurchaseObject(combined) && !isArtistSaleEvent(combined)) return false
   if (hasDemandSignal(combined) && hasArtPurchaseObject(combined) && !isTalentNotBuyer(combined)) {
     return false
   }
@@ -345,6 +371,7 @@ export function isRealBuyerRequest(input: CommercialDemandInput): boolean {
   const artObject = hasArtPurchaseObject(combined)
   const procurement = isProcurementSourceUrl(url) && artObject
 
+  if (isArtistSaleEvent(combined)) return false
   if (isTalentNotBuyer(combined) && !strongBuyer && !procurement) return false
   if (procurement) return true
   if (strongBuyer && artObject) return true
