@@ -518,7 +518,7 @@ export async function GET(request: NextRequest) {
 
     const collected: CommercialItem[] = []
 
-        for (const source of CURATED_SOURCES) {
+            for (const source of CURATED_SOURCES) {
       logs.push(`Джерело: ${source.name}`)
       const text = await fetchPageText(source.url)
       if (!text) {
@@ -529,7 +529,30 @@ export async function GET(request: NextRequest) {
         logs.push(`сирих: 1 сторінка → після фільтра: 0 (продавець/ярмарок)`)
         continue
       }
-      const items = await extractCommercialItems(source.name, source.url, text)
+
+      let items = await extractCommercialItems(source.name, source.url, text)
+      if (!items.length) {
+        const country = inferCountry('', source.url)
+        items = [
+          {
+            title: source.name.slice(0, 220),
+            description: text.slice(0, 600),
+            what_is_needed: 'Public artwork / site-specific commission (RFQ / EOI)',
+            organization: source.name.slice(0, 180),
+            city: '',
+            country,
+            subtype: 'commercial_project',
+            budget: null,
+            currency: inferCurrency(undefined, country),
+            source_url: canonicalSourceUrl(source.url) || source.url,
+            contact_person: null,
+            contact_method: null,
+            deadline: null,
+          },
+        ]
+        logs.push('GPT дав 0 — картка зібрана зі сторінки джерела')
+      }
+
       logs.push(`сирих: 1 сторінка → після фільтра: ${items.length}`)
       collected.push(...items)
     }
