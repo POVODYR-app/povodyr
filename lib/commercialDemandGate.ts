@@ -380,10 +380,15 @@ export function isRealBuyerRequest(input: CommercialDemandInput): boolean {
   const strongBuyer = hasStrongBuyerSignal(combined)
   const artObject = hasArtPurchaseObject(combined)
   const procurement = isProcurementSourceUrl(url) && artObject
+  const rfqCommission =
+    artObject &&
+    /\b(RFQ|RFP|RFSQ|EOI|expression of interest|закупівл|тендер|call for expressions of interest)\b/i.test(
+      combined
+    )
 
   if (isArtistSaleEvent(combined)) return false
-  if (isTalentNotBuyer(combined) && !strongBuyer && !procurement) return false
-  if (procurement) return true
+  if (isTalentNotBuyer(combined) && !strongBuyer && !procurement && !rfqCommission) return false
+  if (procurement || rfqCommission) return true
   if (strongBuyer && artObject) return true
   if (hasDemandSignal(combined) && artObject && !isTalentNotBuyer(combined)) return true
   return false
