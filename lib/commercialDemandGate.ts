@@ -42,33 +42,73 @@ export function normalizeCommercialSourceUrl(raw?: string | null): string {
   }
 }
 
+export function titleFingerprint(raw?: string | null): string {
+  return String(raw || '')
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/[^a-zа-яіїєґ0-9]+/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 96)
+}
+
+const ART_OBJECT_PATTERNS = [
+  /оригінальн(і|их|у)\s(картин|живопис|полотн)/i,
+  /(картин[аиу]|живопис|художн(і|их)\sполотн|творів мистецтва)/i,
+  /original (oil |acrylic |canvas )?(paintings?|artwork|artworks)/i,
+  /\bfine art\b/i,
+  /works of art/i,
+  /art acquisition/i,
+  /придбання (картин|живопису|творів мистецтва)/i,
+]
+
 const DEMAND_PATTERNS = [
-  /шука(ємо|ю|є)\s[\s\S]{0,80}(картин|живопис|художн|полотн|арт[-\s]?партнер|мистецтв)/i,
-  /потрібн(і|а|о)\s[\s\S]{0,80}(картин|живопис|художн|полотн|арт)/i,
+  /шука(ємо|ю|є)\s[\s\S]{0,80}(картин|живопис|полотн)/i,
+  /потрібн(і|а|о)\s[\s\S]{0,80}(картин|живопис|полотн)/i,
   /купимо\s[\s\S]{0,40}(картин|живопис|полотн|арт)/i,
   /куплю\s[\s\S]{0,40}(картин|живопис|полотн|арт)/i,
   /замовити\s[\s\S]{0,40}картин/i,
-  /шука(ємо|ю|є)[\s\S]{0,40}на замовлення/i,
-  /looking for (an?\s)?(artist|painters?|paintings?|artwork|artworks)/i,
-  /looking to (purchase|buy|source) (art|paintings?|artwork)/i,
-  /seeking (an?\s)?(artist|painters?|paintings?|artwork|artworks)/i,
-  /needed:?\s*(an?\s)?(artist|paintings?|artwork)/i,
+  /закуп(івля|ити|овуємо)\s[\s\S]{0,60}(картин|живопис|полотн|творів мистецтва)/i,
+  /looking to (purchase|buy|source|commission) (original )?(art|paintings?|artwork)/i,
+  /looking for (original )?(paintings?|artwork)/i,
+  /needed:?\s*(original )?(paintings?|artwork)/i,
   /колекці(я|онер)[\s\S]{0,40}(шука|куп)/i,
   /арт[-\s]?оренд/i,
   /art rental/i,
-  /шука(ємо|ю|є)\s[\s\S]{0,80}(партнер|розміщен)/i,
-  /продаж робіт художник/i,
-  /exhibition for sale/i,
+  /purchase (original )?(art|paintings?|artwork)/i,
+  /buy (original )?(paintings?|artwork)/i,
+  /commission (original )?(paintings?|artwork)/i,
 ]
 
 const STRONG_BUYER_PATTERNS = [
-  /looking to (purchase|buy|source) (art|paintings?|artwork)/i,
-  /looking for artwork/i,
-  /seeking (original )?artwork/i,
+  /looking to (purchase|buy|source|commission) (original )?(art|paintings?|artwork)/i,
   /купимо\s[\s\S]{0,40}(картин|живопис|полотн|арт)/i,
   /куплю\s[\s\S]{0,40}(картин|живопис|полотн|арт)/i,
   /шука(ємо|ю|є)\s[\s\S]{0,40}картин/i,
   /потрібн(і|а|о)\s[\s\S]{0,40}картин/i,
+  /закуп(івля|ити|овуємо)\s[\s\S]{0,60}(картин|живопис|полотн|творів мистецтва)/i,
+  /purchase (original )?(art|paintings?|artwork)/i,
+  /buy (original )?(paintings?|artwork)/i,
+  /we need original paintings/i,
+  /commission original (paintings?|artwork)/i,
+  /request for (proposal|qualifications)[\s\S]{0,100}(artwork|paintings?|fine art|public art)/i,
+  /\bRF[PQ]\b[\s\S]{0,100}(artwork|paintings?|fine art|public art|живопис|картин)/i,
+  /art acquisition/i,
+  /придбання (картин|живопису|творів мистецтва)/i,
+]
+
+const TALENT_NOT_BUYER_PATTERNS = [
+  /looking for (an?\s)?(artists?|painters?)\b/i,
+  /seeking (an?\s)?(artists?|painters?)\b/i,
+  /needed:?\s*(an?\s)?(artists?|painters?)\b/i,
+  /hire (an?\s)?(artist|painter)/i,
+  /hiring (an?\s)?(artist|painter|muralist)/i,
+  /шука(ємо|ю|є)\s[\s\S]{0,40}художник/i,
+  /потрібен художник/i,
+  /cherche artiste/i,
+  /suche künstler/i,
+  /buscamos artista/i,
+  /art consultant[\s\S]{0,60}(looking for|seeking) artists/i,
 ]
 
 const EXHIBIT_NOT_PURCHASE_PATTERNS = [
@@ -81,6 +121,7 @@ const EXHIBIT_NOT_PURCHASE_PATTERNS = [
   /виставк[аиу]\sбез продажу/i,
   /експозиці/i,
   /board of county commissioners/i,
+  /looking for artwork to display/i,
 ]
 
 const SELLER_OR_PLAN_PATTERNS = [
@@ -134,13 +175,35 @@ const JUNK_PATTERNS = [
   /прода(ємо|ж) рамк/i,
   /новини мистецтв/i,
   /інтерв['’`]ю/i,
-   /\binterview\b/i,
+  /\binterview\b/i,
   /\bq-a\b/i,
   /q\s*&\s*a/i,
   /wandmaler gesucht/i,
   /graffiti/i,
   /стінопис/i,
   /мураліст/i,
+]
+
+const WALL_TRADE_PATTERNS = [
+  /wandmaler/i,
+  /graffiti artist/i,
+  /стінопис/i,
+  /мураліст/i,
+  /\bmuralist\b/i,
+  /wall painting contractors/i,
+  /painting and coatings/i,
+  /paintings?\s*&\s*coatings/i,
+  /exterior painting and/i,
+  /interior and exterior painting/i,
+  /naics code:\s*238320/i,
+  /малярн(ий|і|ого)\s(валік|роботи|послуг)/i,
+  /мінівалик малярний/i,
+  /фарб[аи]\sгрунтуюч/i,
+  /емал[іі]\sалкідн/i,
+  /дк 021:2015:\s*44810000/i,
+  /дк 021:2015:\s*44510000/i,
+  /professional art framing services/i,
+  /painting service contract/i,
 ]
 
 const JOB_BOARD_URL = /work\.ua|robota\.ua|djinni|hh\.ua|linkedin\.com\/jobs/i
@@ -152,6 +215,8 @@ const SOCIAL_SHALLOW_URL =
   /instagram\.com|facebook\.com|fb\.com|facebook\.com\/groups|facebook\.com\/.*\/mentions|facebook\.com\/.*\/posts/i
 const STALE_PUBLIC_URL = /UA-202[0-5]-/i
 const TENDER_LISTING_URL = /prozorro\.gov\.ua\/uk\/search|prozorro\.gov\.ua\/uk\/plan\//i
+const PROCUREMENT_URL =
+  /prozorro\.gov\.ua\/uk\/tender\/UA-|ted\.europa\.eu\/.+\/notice|sam\.gov\/(?:opp|workspace\/contract\/opp)\//i
 
 function blobOf(input: CommercialDemandInput): string {
   return [
@@ -175,6 +240,14 @@ export function hasStrongBuyerSignal(text: string): boolean {
   return blobHas(STRONG_BUYER_PATTERNS, text)
 }
 
+export function hasArtPurchaseObject(text: string): boolean {
+  return blobHas(ART_OBJECT_PATTERNS, text)
+}
+
+export function isTalentNotBuyer(text: string): boolean {
+  return blobHas(TALENT_NOT_BUYER_PATTERNS, text)
+}
+
 export function isExhibitNotPurchase(text: string): boolean {
   return blobHas(EXHIBIT_NOT_PURCHASE_PATTERNS, text)
 }
@@ -183,8 +256,22 @@ export function isSellerOrPlanText(text: string): boolean {
   return blobHas(SELLER_OR_PLAN_PATTERNS, text)
 }
 
+export function isWallTradeNotArt(text: string): boolean {
+  return blobHas(WALL_TRADE_PATTERNS, text)
+}
+
 export function isJunkText(text: string): boolean {
-  return blobHas(JUNK_PATTERNS, text) || isSellerOrPlanText(text) || isExhibitNotPurchase(text)
+  return (
+    blobHas(JUNK_PATTERNS, text) ||
+    isSellerOrPlanText(text) ||
+    isExhibitNotPurchase(text) ||
+    isWallTradeNotArt(text)
+  )
+}
+
+export function isProcurementSourceUrl(raw?: string | null): boolean {
+  const url = normalizeCommercialSourceUrl(raw) || String(raw || '')
+  return PROCUREMENT_URL.test(url)
 }
 
 export function isDeadlineInPast(deadline?: string | null): boolean {
@@ -209,16 +296,13 @@ export function hasStalePlanYear(text: string, now = new Date()): boolean {
   let hasPast = false
   for (let i = 0; i < years.length; i += 1) {
     const year = Number(years[i])
-    if (year < currentYear) hasPast = true
+  if (year < currentYear) hasPast = true
     if (year >= currentYear) hasCurrentOrFuture = true
   }
   return hasPast && !hasCurrentOrFuture
 }
 
-export function shouldSkipSearchResult(title: string, snippet: string, url: string): boolean {
-  const combined = `${title}\n${snippet}\n${normalizeCommercialSourceUrl(url) || url}`
-  const strongBuyer = hasStrongBuyerSignal(`${title}\n${snippet}`)
-
+function failsSharedRejects(combined: string, url: string): boolean {
   if (isExhibitNotPurchase(combined)) return true
   if (LISTING_OR_EMPTY_URL.test(url)) return true
   if (SOCIAL_SHALLOW_URL.test(url)) return true
@@ -228,28 +312,42 @@ export function shouldSkipSearchResult(title: string, snippet: string, url: stri
   if (STALE_PUBLIC_URL.test(url)) return true
   if (TENDER_LISTING_URL.test(url)) return true
   if (hasStalePlanYear(combined)) return true
-    if (isSellerOrPlanText(combined)) return true
+  if (isSellerOrPlanText(combined)) return true
+  if (isWallTradeNotArt(combined)) return true
   if (blobHas(JUNK_PATTERNS, combined)) return true
-  if (!hasDemandSignal(combined) && !strongBuyer) return true
   return false
+}
+
+export function shouldSkipSearchResult(title: string, snippet: string, url: string): boolean {
+  const normalizedUrl = normalizeCommercialSourceUrl(url) || url
+  const combined = `${title}\n${snippet}\n${normalizedUrl}`
+  if (failsSharedRejects(combined, normalizedUrl)) return true
+
+  const strongBuyer = hasStrongBuyerSignal(`${title}\n${snippet}`)
+  const procurement = isProcurementSourceUrl(normalizedUrl) && hasArtPurchaseObject(combined)
+  if (isTalentNotBuyer(combined) && !strongBuyer && !procurement) return true
+  if (procurement) return false
+  if (strongBuyer && hasArtPurchaseObject(combined)) return false
+  if (hasDemandSignal(combined) && hasArtPurchaseObject(combined) && !isTalentNotBuyer(combined)) {
+    return false
+  }
+  return true
 }
 
 export function isRealBuyerRequest(input: CommercialDemandInput): boolean {
   const combined = blobOf(input)
   if (!combined.trim()) return false
   const url = normalizeCommercialSourceUrl(input.source_url) || String(input.source_url || '')
-  const strongBuyer = hasStrongBuyerSignal(combined)
-
-  if (isExhibitNotPurchase(combined)) return false
-  if (LISTING_OR_EMPTY_URL.test(url)) return false
-  if (SOCIAL_SHALLOW_URL.test(url)) return false
-  if (MARKETPLACE_URL.test(url)) return false
-  if (ARTIST_BLOG_OR_FICTION_URL.test(url)) return false
-  if (JOB_BOARD_URL.test(url)) return false
   if (isDeadlineInPast(input.deadline)) return false
-  if (hasStalePlanYear(combined)) return false
-  if (isSellerOrPlanText(combined)) return false
-  if (blobHas(JUNK_PATTERNS, combined)) return false
-  if (!hasDemandSignal(combined) && !strongBuyer) return false
-  return true
+  if (failsSharedRejects(combined, url)) return false
+
+  const strongBuyer = hasStrongBuyerSignal(combined)
+  const artObject = hasArtPurchaseObject(combined)
+  const procurement = isProcurementSourceUrl(url) && artObject
+
+  if (isTalentNotBuyer(combined) && !strongBuyer && !procurement) return false
+  if (procurement) return true
+  if (strongBuyer && artObject) return true
+  if (hasDemandSignal(combined) && artObject && !isTalentNotBuyer(combined)) return true
+  return false
 }
