@@ -1,7 +1,7 @@
 import { personalizeOpportunities, PersonalizedOpportunity } from './personalizeOpportunities'
 
 export const LISTING_TITLE_RE =
-  /актуальний open call та події|актуальні гранти та конкурсні програми|worldwide network open calls|grants database|eu supports ukraine through culture|swiss arts council residencies|selected artists in residence|selected projects|bar laika|presents playback|ghosts\s*-\s*readers|топ світових програм|open calls and opportunities|september \d{4} opportunities|august \d{4}:?\s*open calls|arts opportunities \| arizona|river of stories|time, place & practice|100 emerging artworks|artist and curatorial fellowships at gasworks|summer sessions:\s*art and technology/i
+  /актуальний open call та події|актуальні гранти та конкурсні програми|worldwide network open calls|grants database|eu supports ukraine through culture|swiss arts council residencies|selected artists in residence|selected projects|bar laika|presents playback|ghosts\s*-\s*readers|топ світових програм|open calls and opportunities|september \d{4} opportunities|august \d{4}:?\s*open calls|arts opportunities \| arizona|river of stories|time, place & practice|100 emerging artworks|artist and curatorial fellowships at gasworks|summer sessions:\s*art and technology|exhibition programme 2026|le garage moderne|international residencies & open calls|kunsthaus z/i
 
 const KNOWN_DEAD_URL_PARTS = [
   'prohelvetia.ch/en/sundry/residencies',
@@ -15,6 +15,8 @@ const KNOWN_DEAD_URL_PARTS = [
   '.ru/',
   '.рф/',
   '.by/',
+    'e-flux.com/announcements/6784702/exhibition-programme-2026',
+  'legaragemoderne.org',
 ]
 
 const MS_24H = 24 * 60 * 60 * 1000
