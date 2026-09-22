@@ -30,7 +30,7 @@ const SERPER_MAX_QUERIES = 6
 const SERPER_RESULTS_PER_QUERY = 8
 
 const LISTING_TITLE_RE =
-  /актуальн(ий|і)\s+(open\s*call|гранти)|open\s*call та події|grants?\s+database|residenc(y|ies)\s+listing|swiss arts council residencies|календар конкурсів|база грантів|топ світових програм|open calls and opportunities|september \d{4} opportunities|august \d{4}:?\s*open calls|opportunities for artists and art/i
+  /актуальн(ий|і)\s+(open\s*call|гранти)|open\s*call та події|grants?\s+database|residenc(y|ies)\s+listing|swiss arts council residencies|календар конкурсів|база грантів|топ світових програм|open calls and opportunities|september \d{4} opportunities|august \d{4}:?\s*open calls|opportunities for artists and art|exhibition programme 2026|le garage moderne|international residencies & open calls|kunsthaus z/i
 
 const LISTING_HOST_PATH_RE =
   /(resartis\.org\/open-calls\/?$|transartists\.org\/en\/?$|on-the-move\.org\/news\/?$|prohelvetia\.ch\/en\/sundry\/residencies|fundsforngos|grant\.market\/?$|getgrant\.ua\/?$|colossal\.com\/.*opportunities|arts\.az\.gov\/.*opportunit)/i
@@ -39,9 +39,9 @@ const JUNK_PATH_RE =
   /e-flux\.com\/(events|readers|journal|criticism|video)\//i
 
 const JUNK_TITLE_RE =
-  /bar laika|presents playback|ghosts\s*-\s*readers|river of stories|time, place & practice|five artist in residence reflections|100 emerging artworks|arts to hearts/i
+  /bar laika|presents playback|ghosts\s*-\s*readers|river of stories|time, place & practice|five artist in residence reflections|100 emerging artworks|arts to hearts|exhibition programme 2026|le garage moderne|international residencies & open calls/i
 
-const DEAD_URL_RE = /prohelvetia\.ch\/en\/sundry\/residencies|\.ru\/|\.by\/|t\.me\/s\/gdeart|t\.me\/gdeart/i
+const DEAD_URL_RE = /prohelvetia\.ch\/en\/sundry\/residencies|\.ru\/|\.by\/|t\.me\/s\/gdeart|t\.me\/gdeart|e-flux\.com\/announcements\/6784702\/exhibition-programme-2026|legaragemoderne\.org/i
 
 const BANNED_REGION_RE =
   /росі[яи]|россия|россий|russia|russian federation|\bрф\b|москва|moscow|беларус|білорус|belarus|минск|мінськ|гомель|гродно|где выставка|gdeart/i
