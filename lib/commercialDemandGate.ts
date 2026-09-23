@@ -138,7 +138,13 @@ const ARTIST_SALE_EVENT_PATTERNS = [
   /studio (clearance|sale)/i,
   /affordable opportunity for people to (start|continue) their art collections/i,
   /all for immediate sale/i,
-  /over \d+ artists selling/i,
+    /over \d+ artists selling/i,
+  /artfest/i,
+  /kids['’`]?\s*gallery/i,
+  /children can purchase original artwork/i,
+  /festival artists/i,
+  /art (show|festival|extravaganza)/i,
+  /open-air gallery/i,
 ]
 
 const SELLER_OR_PLAN_PATTERNS = [
@@ -234,7 +240,7 @@ const WALL_TRADE_PATTERNS = [
 const JOB_BOARD_URL = /work\.ua|robota\.ua|djinni|hh\.ua|linkedin\.com\/jobs/i
 const MARKETPLACE_URL = /prom\.ua|rozetka|etsy\.com|amazon\.|olx\.ua/i
 const ARTIST_BLOG_OR_FICTION_URL =
-  /angelacameron\.com|arkush\.net|thirdandwall\.com|heiek\.de|rogersphotography\.com|despinapaintings\.com|onthewight\.com|\/blogs\/|\/q-a-|\/commercial-artwork/i
+  /angelacameron\.com|arkush\.net|thirdandwall\.com|heiek\.de|rogersphotography\.com|despinapaintings\.com|onthewight\.com|leanesuarezgroup\.com|\/blogs\/|\/q-a-|\/commercial-artwork/i
 const LISTING_OR_EMPTY_URL = /olx\.ua\/(?:uk\/)?list\//i
 const SOCIAL_SHALLOW_URL =
   /instagram\.com|facebook\.com|fb\.com|threads\.com|threads\.net|facebook\.com\/groups|facebook\.com\/.*\/mentions|facebook\.com\/.*\/posts/i
