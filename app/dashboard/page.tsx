@@ -718,8 +718,8 @@ export default function DashboardPage() {
           <div style={{ marginBottom: 8, fontSize: '12px', color: '#94a3b8' }}>
             Покупці · дизайнери · галереї · готелі · ресторани · колекціонери
           </div>
-          <button
-            onClick={() => setIsCommercialModalOpen(true)}
+                    <button
+            onClick={() => { window.location.href = '/commercial' }}
             style={{
               width: '100%',
               backgroundColor: '#059669',
@@ -733,7 +733,7 @@ export default function DashboardPage() {
               textAlign: 'center'
             }}
           >
-            🤝 ЗНАЙШОВ, ХТО ШУКАЄ АРТ ПАРТНЕРА
+            💰ЗАНЙШОВ КОМУ ПРОДАТИ💰
           </button>
           <div style={{ marginTop: 6, fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>
             Бренди · дизайнери · простори · культурні та комерційні проєкти
