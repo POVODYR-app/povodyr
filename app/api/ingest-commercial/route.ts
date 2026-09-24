@@ -88,34 +88,38 @@ const SEARCH_QUERIES: SearchQuery[] = [
     locale: { gl: 'ua', hl: 'uk' },
   },
   {
-    q: `"закупівля" (живопис OR "оригінальні картини" OR "твори живопису") (готель OR лікарня OR університет OR офіс) 2026 ${SEARCH_EXCLUDES}`,
+    q: `"закупівля" (живопис OR "оригінальні картини") (готель OR лікарня OR університет OR офіс OR холл OR лобі) 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'ua', hl: 'uk' },
   },
   {
-    q: `(RFP OR RFQ OR "request for proposal" OR "request for qualifications") ("original paintings" OR "original artwork" OR "fine art" OR "works of art") (hotel OR hospital OR lobby OR university) 2026 ${SEARCH_EXCLUDES}`,
+    q: `"оформлення" (інтер'єру OR простору OR лобі OR холу OR офісу OR готелю OR лікарні) (картинами OR живописом OR полотнами) ${SEARCH_EXCLUDES}`,
+    locale: { gl: 'ua', hl: 'uk' },
+  },
+  {
+    q: `(RFP OR RFQ OR "request for proposal") ("original paintings" OR "original artwork" OR "fine art") (hotel OR hospital OR lobby OR "public building") 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'us', hl: 'en' },
   },
   {
-    q: `(tender OR procurement OR "art acquisition") ("original artwork" OR "original paintings" OR "works of art") (hospital OR hotel OR municipal OR museum) 2026 ${SEARCH_EXCLUDES}`,
+    q: `"paintings for" (hotel lobby OR hospital OR "corporate office" OR "public building" OR restaurant) (purchase OR commission OR procurement) ${SEARCH_EXCLUDES}`,
     locale: { gl: 'us', hl: 'en' },
   },
   {
-    q: `"buy original paintings" OR "purchase original artwork" OR "commission original paintings" (hotel OR hospital OR clinic OR "corporate office") 2026 ${SEARCH_EXCLUDES}`,
+    q: `"art for interiors" OR "artwork for commercial spaces" OR "lobby artwork" ("original paintings" OR "fine art") (hotel OR hospital OR office) ${SEARCH_EXCLUDES}`,
     locale: { gl: 'uk', hl: 'en' },
   },
   {
-    q: `site:ted.europa.eu ("works of art" OR "artistic services" OR "original paintings") (acquisition OR commission OR supply) 2026 ${SEARCH_EXCLUDES}`,
+    q: `site:ted.europa.eu ("works of art" OR "original paintings") (acquisition OR commission OR supply) 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'de', hl: 'en' },
   },
 ]
 
 const FALLBACK_QUERIES: SearchQuery[] = [
   {
-    q: `(hospital OR hotel OR university) ("purchase original artwork" OR "buy original paintings" OR "art acquisition") 2026 ${SEARCH_EXCLUDES}`,
+    q: `(hotel OR hospital OR university OR municipality) ("purchase original artwork" OR "commission original paintings" OR "art for lobby") ${SEARCH_EXCLUDES}`,
     locale: { gl: 'us', hl: 'en' },
   },
   {
-    q: `"закупівля картин" OR "придбання живопису" (готель OR лікарня OR університет OR офіс) 2026 ${SEARCH_EXCLUDES}`,
+    q: `"картини для" (готелю OR лікарні OR офісу OR ресторану OR холу) (закупівля OR замовити OR потрібні) ${SEARCH_EXCLUDES}`,
     locale: { gl: 'ua', hl: 'uk' },
   },
 ]
@@ -298,7 +302,7 @@ async function extractCommercialItems(
         role: 'system',
         content: `Ти аналітик арт-ринку для сервісу POVODYR.
 З тексту витягни ЛИШЕ реальні комерційні запити покупця/замовника на картини або оригінальний живопис:
-купівля картин, комісії, тендери, RFP, арт для готелів/ресторанів/офісів/клінік, корпоративні колекції.
+купівля картин, комісії, тендери, RFP, оформлення картинами громадських і комерційних просторів (готель, лікарня, офіс, лобі, університет, ресторан), корпоративні колекції.
 Географія: будь-яка країна. Україна, Європа, США, Канада, Азія, Близький Схід, Австралія — без обмежень.
 Ігноруй Facebook, Instagram, новини, open call без продажу, виставки «to display», гранти, резиденції, вакансії, магазини, блоги художників, картини за номерами, плани закупівель e-lot /plans/ і UA-P- за минулі роки.
 Ігноруй «looking for artist / шукаємо художника», якщо немає купівлі або комісії саме картин/живопису.
