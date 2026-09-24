@@ -259,9 +259,23 @@ export default function CommercialOpportunitiesPage() {
       }, { onConflict: 'user_id,opportunity_id' })
   }
 
+    const isArtFineNationOpp = (opp: any) => {
+    const source = String(opp?.source_url || '').toLowerCase()
+    const org = String(opp?.organization || '').toLowerCase()
+    return (
+      source.indexOf('artfinenation') !== -1 ||
+      org.indexOf('art fine nation') !== -1 ||
+      org.indexOf('artfinenation') !== -1
+    )
+  }
+
   const filteredOpportunities = selectedSubtype === 'all'
     ? opportunities
-    : opportunities.filter(o => o.subtype === selectedSubtype)
+    : opportunities.filter((o) => {
+        if (o.subtype === selectedSubtype) return true
+        if (selectedSubtype === 'exhibition_for_sale' && isArtFineNationOpp(o)) return true
+        return false
+      })
 
   const handleOpenProposalModal = (opp: any) => {
     setActiveModalOpp(opp)
