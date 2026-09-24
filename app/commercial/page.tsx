@@ -273,21 +273,30 @@ export default function CommercialOpportunitiesPage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', padding: '24px 16px', color: '#ffffff', fontFamily: 'sans-serif' }}>
       <div style={{ maxWidth: 720, margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: '#ffffff' }}>
-              💰 Можливості для продажу
-            </h1>
-            <p style={{ fontSize: 13, color: '#94a3b8', margin: '4px 0 0 0' }}>
-              Знайти шлях до покупця та реалізувати ваше мистецтво
-            </p>
-          </div>
+                <div style={{ marginBottom: 24 }}>
           <button
-            onClick={() => router.push('/dashboard')}
-            style={{ backgroundColor: '#334155', color: '#ffffff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+            onClick={() => { window.location.href = '/dashboard' }}
+            style={{
+              display: 'inline-block',
+              backgroundColor: '#334155',
+              color: '#ffffff',
+              border: 'none',
+              padding: '10px 16px',
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: 14,
+              marginBottom: 16
+            }}
           >
             ← Дашборд
           </button>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: '#ffffff' }}>
+            💰 Можливості для продажу
+          </h1>
+          <p style={{ fontSize: 13, color: '#94a3b8', margin: '4px 0 0 0' }}>
+            Знайти шлях до покупця та реалізувати ваше мистецтво
+          </p>
         </div>
 
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 12, marginBottom: 20 }}>
