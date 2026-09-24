@@ -180,6 +180,8 @@ export default function CommercialOpportunitiesPage() {
   const [selectedArtworks, setSelectedArtworks] = useState<string[]>([])
   const [generatedProposal, setGeneratedProposal] = useState<string>('')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [translations, setTranslations] = useState<Record<string, string>>({})
+  const [translatingId, setTranslatingId] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadData() {
@@ -285,7 +287,36 @@ export default function CommercialOpportunitiesPage() {
     setSelectedArtworks(defaultIds)
     setGeneratedProposal('')
   }
-
+  const handleTranslate = async (opp: any) => {
+    const oppId = String(opp?.id || '')
+    const sourceText = String(opp?.description || opp?.what_is_needed || opp?.title || '').trim()
+    if (!oppId || !sourceText) return
+    if (translations[oppId] || translatingId === oppId) return
+    setTranslatingId(oppId)
+    try {
+      const res = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: sourceText }),
+      })
+      const data = await res.json()
+      if (data?.success && data.translation) {
+        setTranslations((prev) => {
+          const next: Record<string, string> = {}
+          Object.keys(prev).forEach((key) => {
+            next[key] = prev[key]
+          })
+          next[oppId] = data.translation
+          return next
+        })
+      } else {
+        alert(data?.error || 'Не вдалося перекласти')
+      }
+    } catch {
+      alert('Не вдалося перекласти')
+    }
+    setTranslatingId(null)
+  }
   const handleGenerateProposalText = () => {
     setIsGenerating(true)
     setTimeout(() => {
@@ -440,9 +471,31 @@ export default function CommercialOpportunitiesPage() {
                     </select>
                   </div>
 
-                  <p style={{ fontSize: 13, color: '#cbd5e1', margin: 0, lineHeight: 1.5 }}>
+                                    <p style={{ fontSize: 13, color: '#cbd5e1', margin: 0, lineHeight: 1.5 }}>
                     {opp.description || opp.what_is_needed}
                   </p>
+                  <button
+                    onClick={() => handleTranslate(opp)}
+                    disabled={translatingId === opp.id}
+                    style={{
+                      alignSelf: 'flex-start',
+                      backgroundColor: 'transparent',
+                      color: '#93c5fd',
+                      border: '1px solid #334155',
+                      padding: '6px 10px',
+                      borderRadius: 8,
+                      cursor: translatingId === opp.id ? 'wait' : 'pointer',
+                      fontWeight: 600,
+                      fontSize: 12
+                    }}
+                  >
+                    {translatingId === opp.id ? 'Перекладаю…' : 'Українською'}
+                  </button>
+                  {translations[opp.id] ? (
+                    <p style={{ fontSize: 13, color: '#e2e8f0', margin: 0, lineHeight: 1.5, backgroundColor: '#0f172a', padding: 12, borderRadius: 8 }}>
+                      {translations[opp.id]}
+                    </p>
+                  ) : null}
 
                   {opp.budget && (
                     <div style={{ fontSize: 13, color: '#38bdf8', fontWeight: 600 }}>
