@@ -62,7 +62,12 @@ const ART_OBJECT_PATTERNS = [
   /придбання (картин|живопису|творів мистецтва)/i,
   /public art(work)?s?/i,
   /site[-\s]?specific artwork/i,
-  /permanent (outdoor )?public artwork/i,
+    /permanent (outdoor )?public artwork/i,
+  /оформлення[\s\S]{0,40}(картин|живопис|полотн)/i,
+  /картини для (готелю|лікарні|офісу|ресторану|холу|лобі)/i,
+  /paintings for (the )?(hotel|hospital|lobby|office|restaurant|public)/i,
+  /artwork for (commercial|public|hotel|hospital|lobby) (spaces?|interiors?)?/i,
+  /lobby artwork/i,
 ]
 
 const DEMAND_PATTERNS = [
@@ -80,7 +85,11 @@ const DEMAND_PATTERNS = [
   /art rental/i,
   /purchase (original )?(art|paintings?|artwork)/i,
   /buy (original )?(paintings?|artwork)/i,
-  /commission (original )?(paintings?|artwork)/i,
+    /commission (original )?(paintings?|artwork)/i,
+  /оформлення[\s\S]{0,40}(картин|живопис|полотн)/i,
+  /картини для (готелю|лікарні|офісу|ресторану|холу|лобі)/i,
+  /paintings for (the )?(hotel|hospital|lobby|office|restaurant)/i,
+  /artwork for (commercial|public|hotel|hospital|lobby)/i,
 ]
 
 const STRONG_BUYER_PATTERNS = [
@@ -97,7 +106,9 @@ const STRONG_BUYER_PATTERNS = [
   /request for (proposal|qualifications)[\s\S]{0,100}(artwork|paintings?|fine art|public art)/i,
   /\bRF[PQ]\b[\s\S]{0,100}(artwork|paintings?|fine art|public art|живопис|картин)/i,
   /art acquisition/i,
-  /придбання (картин|живопису|творів мистецтва)/i,
+    /придбання (картин|живопису|творів мистецтва)/i,
+  /оформлення[\s\S]{0,40}(картин|живопис|полотн)/i,
+  /paintings for (the )?(hotel lobby|hospital|corporate office)/i,
 ]
 
 const TALENT_NOT_BUYER_PATTERNS = [
