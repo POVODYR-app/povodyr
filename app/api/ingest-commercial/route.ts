@@ -70,10 +70,6 @@ const ALLOWED_SUBTYPES = [
 
 const CURATED_SOURCES: { url: string; name: string }[] = [
   {
-    url: 'https://akimbo.ca/listings/call-for-expressions-of-interest-permanent-public-art-for-dave-ryan-park-city-of-pickering/',
-    name: 'City of Pickering — Dave Ryan Park public art EOI',
-  },
-  {
     url: 'https://akimbo.ca/listings/request-for-qualifications-site-specific-artwork-for-riverside-south-community-centre-library-ottawa/',
     name: 'City of Ottawa — Riverside South Community Centre & Library RFQ',
   },
