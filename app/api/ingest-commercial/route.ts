@@ -77,6 +77,10 @@ const CURATED_SOURCES: { url: string; name: string }[] = [
     url: 'https://www.nsw.gov.au/departments-and-agencies/health-infrastructure/news/call-for-artists-to-help-shape-bathurst-hospital-redevelopment',
     name: 'Bathurst Hospital Redevelopment — 2D artworks for health facility',
   },
+  {
+    url: 'https://artafricamagazine.org/the-theatre-of-light-an-international-call-for-a-site-specific-artwork/',
+    name: 'Teatro Goldoni Livorno — international site-specific artwork (no nationality limit)',
+  },
 ]
 
 const SEARCH_EXCLUDES =
