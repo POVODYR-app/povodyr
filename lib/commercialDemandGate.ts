@@ -154,7 +154,9 @@ const ARTIST_SALE_EVENT_PATTERNS = [
   /kids['’`]?\s*gallery/i,
   /children can purchase original artwork/i,
   /festival artists/i,
-  /art (show|festival|extravaganza)/i,
+   /art (show|festival|extravaganza)/i,
+  /fundraiser/i,
+  /благодійн/i,
   /open-air gallery/i,
 ]
 
@@ -353,7 +355,20 @@ export function hasStalePlanYear(text: string, now = new Date()): boolean {
   }
   return hasPast && !hasCurrentOrFuture
 }
+export function hasStaleNewsYear(text: string, now = new Date()): boolean {
+  const currentYear = now.getFullYear()
+  const years = text.match(/20\d{2}/g) || []
+  if (!years.length) return false
 
+  let hasCurrentOrFuture = false
+  let hasOldNewsYear = false
+  for (let i = 0; i < years.length; i += 1) {
+    const year = Number(years[i])
+    if (year >= currentYear) hasCurrentOrFuture = true
+    if (year >= 2010 && year <= 2024) hasOldNewsYear = true
+  }
+  return hasOldNewsYear && !hasCurrentOrFuture
+}
 function failsSharedRejects(combined: string, url: string): boolean {
   if (isExhibitNotPurchase(combined)) return true
   if (isArtistSaleEvent(combined)) return true
@@ -365,6 +380,7 @@ function failsSharedRejects(combined: string, url: string): boolean {
   if (STALE_PUBLIC_URL.test(url)) return true
   if (TENDER_LISTING_URL.test(url)) return true
   if (hasStalePlanYear(combined)) return true
+  if (hasStaleNewsYear(combined)) return true
   if (isSellerOrPlanText(combined)) return true
   if (isWallTradeNotArt(combined)) return true
   if (blobHas(JUNK_PATTERNS, combined)) return true
