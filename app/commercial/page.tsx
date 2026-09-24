@@ -474,22 +474,22 @@ export default function CommercialOpportunitiesPage() {
                                     <p style={{ fontSize: 13, color: '#cbd5e1', margin: 0, lineHeight: 1.5 }}>
                     {opp.description || opp.what_is_needed}
                   </p>
-                  <button
+                                    <button
                     onClick={() => handleTranslate(opp)}
                     disabled={translatingId === opp.id}
                     style={{
                       alignSelf: 'flex-start',
-                      backgroundColor: 'transparent',
-                      color: '#93c5fd',
-                      border: '1px solid #334155',
-                      padding: '6px 10px',
+                      backgroundColor: translatingId === opp.id ? '#1e40af' : '#2563eb',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '8px 14px',
                       borderRadius: 8,
                       cursor: translatingId === opp.id ? 'wait' : 'pointer',
                       fontWeight: 600,
                       fontSize: 12
                     }}
                   >
-                    {translatingId === opp.id ? 'Перекладаю…' : 'Українською'}
+                    {translatingId === opp.id ? 'Перекладаю…' : 'Перекласти українською'}
                   </button>
                   {translations[opp.id] ? (
                     <p style={{ fontSize: 13, color: '#e2e8f0', margin: 0, lineHeight: 1.5, backgroundColor: '#0f172a', padding: 12, borderRadius: 8 }}>
