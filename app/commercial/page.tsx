@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
+import { isRealBuyerRequest } from '../../lib/commercialDemandGate'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -200,7 +201,26 @@ export default function CommercialOpportunitiesPage() {
         .select('*')
         .eq('opportunity_type', 'commercial')
         .order('date_added', { ascending: false })
-      if (opps) setOpportunities(opps)
+                  if (opps) {
+        setOpportunities(opps.filter((opp: any) => {
+          const source = String(opp.source_url || '').toLowerCase()
+          const org = String(opp.organization || '').toLowerCase()
+          const isArtFineNation =
+            source.indexOf('artfinenation') !== -1 ||
+            org.indexOf('art fine nation') !== -1 ||
+            org.indexOf('artfinenation') !== -1
+          const isSaleExhibition = opp.subtype === 'exhibition_for_sale'
+          if (isArtFineNation || isSaleExhibition) return true
+          return isRealBuyerRequest({
+            title: opp.title,
+            description: opp.description,
+            what_is_needed: opp.what_is_needed,
+            organization: opp.organization,
+            source_url: opp.source_url,
+            deadline: opp.deadline,
+          })
+        }))
+      }
 
       const { data: artworks } = await supabase
         .from('artist_artworks')
