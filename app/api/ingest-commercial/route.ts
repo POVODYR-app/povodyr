@@ -74,10 +74,6 @@ const CURATED_SOURCES: { url: string; name: string }[] = [
     name: 'City of Ottawa — Riverside South Community Centre & Library RFQ',
   },
   {
-    url: 'https://saccityarts.submittable.com/submit',
-    name: 'City of Sacramento — MLK Library wall artwork RFQ',
-  },
-  {
     url: 'https://www.nsw.gov.au/departments-and-agencies/health-infrastructure/news/call-for-artists-to-help-shape-bathurst-hospital-redevelopment',
     name: 'Bathurst Hospital Redevelopment — 2D artworks for health facility',
   },
