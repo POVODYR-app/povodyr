@@ -204,6 +204,8 @@ export default function CommercialOpportunitiesPage() {
                   if (opps) {
         setOpportunities(opps.filter((opp: any) => {
           const source = String(opp.source_url || '').toLowerCase()
+          if (source.indexOf('wnypapers.com') !== -1) return false
+          if (String(opp.title || '').toLowerCase().indexOf('art off the wall') !== -1) return false
           const org = String(opp.organization || '').toLowerCase()
           const isArtFineNation =
             source.indexOf('artfinenation') !== -1 ||
