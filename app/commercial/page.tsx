@@ -644,24 +644,102 @@ export default function CommercialOpportunitiesPage() {
                       resize: 'vertical'
                     }}
                   />
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(generatedProposal)
-                      alert('Текст пропозиції скопійовано в буфер обміну!')
-                    }}
-                    style={{
-                      backgroundColor: '#10b981',
-                      color: '#ffffff',
-                      border: 'none',
-                      padding: '10px',
-                      borderRadius: 8,
-                      fontWeight: 600,
-                      fontSize: 13,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Копіювати текст пропозиції
-                  </button>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatedProposal)
+                        alert('Текст пропозиції скопійовано в буфер обміну!')
+                      }}
+                      style={{
+                        backgroundColor: '#10b981',
+                        color: '#ffffff',
+                        border: 'none',
+                        padding: '10px',
+                        borderRadius: 8,
+                        fontWeight: 600,
+                        fontSize: 13,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Копіювати текст пропозиції
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const blob = new Blob([generatedProposal], { type: 'text/plain;charset=utf-8' })
+                        const url = URL.createObjectURL(blob)
+                        const link = document.createElement('a')
+                        const safeTitle = String(activeModalOpp?.title || 'proposal')
+                          .replace(/[^\wа-яіїєґ\- ]+/gi, '')
+                          .slice(0, 60)
+                        link.href = url
+                        link.download = `${safeTitle || 'proposal'}.txt`
+                        document.body.appendChild(link)
+                        link.click()
+                        document.body.removeChild(link)
+                        URL.revokeObjectURL(url)
+                      }}
+                      style={{
+                        backgroundColor: '#334155',
+                        color: '#ffffff',
+                        border: 'none',
+                        padding: '10px',
+                        borderRadius: 8,
+                        fontWeight: 600,
+                        fontSize: 13,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Зберегти як .txt
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const to = encodeURIComponent(String(userProfile?.email || ''))
+                        const subject = encodeURIComponent(`Чернетка пропозиції: ${activeModalOpp?.title || ''}`)
+                        const body = encodeURIComponent(generatedProposal)
+                        window.location.href = `mailto:${to}?subject=${subject}&body=${body}`
+                      }}
+                      style={{
+                        backgroundColor: '#1d4ed8',
+                        color: '#ffffff',
+                        border: 'none',
+                        padding: '10px',
+                        borderRadius: 8,
+                        fontWeight: 600,
+                        fontSize: 13,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Надіслати собі на пошту
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const rawContact = String(activeModalOpp?.contact_method || '')
+                        const emailMatch = rawContact.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
+                        const to = encodeURIComponent(emailMatch ? emailMatch[0] : '')
+                        const subject = encodeURIComponent(`Пропозиція: ${activeModalOpp?.title || ''}`)
+                        const body = encodeURIComponent(generatedProposal)
+                        window.location.href = `mailto:${to}?subject=${subject}&body=${body}`
+                      }}
+                      style={{
+                        backgroundColor: '#0f766e',
+                        color: '#ffffff',
+                        border: 'none',
+                        padding: '10px',
+                        borderRadius: 8,
+                        fontWeight: 600,
+                        fontSize: 13,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Відкрити лист замовнику
+                    </button>
+                    <p style={{ margin: 0, fontSize: 11, color: '#94a3b8' }}>
+                      Текст можна правити в полі вище, потім копіювати, зберегти файл або відкрити в пошті. Для Goldoni встав отримувача: ilteatrodellaluce@goldoniteatro.it
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
