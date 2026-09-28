@@ -840,7 +840,7 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
                   </button>
                 </div>
               ) : (
-                recentRelevantOpps.slice(0, 3).map((opp) => {
+                recentRelevantOpps.slice(0, 3).map((opp, oppIndex) => {
                   const deadlineInfo = getDeadlineDetails(opp.deadline, opp.title)
                   const isExpanded = expandedCardId === opp.id
                   return (
@@ -918,26 +918,37 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
                         {generatingProposalId === opp.id ? '⏳ Генерація пакету документів...' : '📄 Згенерувати пакет документів'}
                       </button>
                       {opp.link_url && (
-                        <a
-                          href={opp.link_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            display: 'inline-block',
-                            backgroundColor: '#2563eb',
-                            color: '#fff',
-                            textDecoration: 'none',
-                            borderRadius: 8,
-                            padding: '8px 10px',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            textAlign: 'center',
-                            width: '100%',
-                            boxSizing: 'border-box'
-                          }}
-                        >
-                          🔗 Перейти до першоджерела
-                        </a>
+                        (reason === 'locked' || reason === 'trial' && oppIndex > 0) ? (
+                          <div style={{ marginTop: 4 }}>
+                            <div style={{ fontSize: 11, fontWeight: 800, color: '#fbbf24', letterSpacing: 0.4, marginBottom: 8 }}>
+                              ВІДКРИТИ ДЖЕРЕЛО МОЖНА НА ЩОМІСЯЧНІЙ ПІДПИСЦІ
+                            </div>
+                            <a href={subscribeUrl} style={{ display: 'block', backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 10px', fontSize: 11, fontWeight: 700, textAlign: 'center' }}>
+                              Оформити підписку
+                            </a>
+                          </div>
+                        ) : (
+                          <a
+                            href={opp.link_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-block',
+                              backgroundColor: '#2563eb',
+                              color: '#fff',
+                              textDecoration: 'none',
+                              borderRadius: 8,
+                              padding: '8px 10px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              textAlign: 'center',
+                              width: '100%',
+                              boxSizing: 'border-box'
+                            }}
+                          >
+                            🔗 Перейти до першоджерела
+                          </a>
+                        )
                       )}
                     </div>
                   )
