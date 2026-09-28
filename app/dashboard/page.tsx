@@ -758,7 +758,7 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
               textAlign: 'center'
             }}
           >
-            📂 ВІДІБРАВ ДЛЯ ВАС
+            📂 ЗНАЙШОВ ДЛЯ ВАС КУДИ ПОДАТИ
           </button>
           <div style={{ marginTop: 6, fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>
             Поточний відбір під ваш профіль
@@ -773,7 +773,14 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
             Покупці · дизайнери · галереї · готелі · ресторани · колекціонери
           </div>
                     <button
-            onClick={() => { window.location.href = '/commercial' }}
+            onClick={() => {
+  if (reason === 'trial' || reason === 'locked') {
+    alert('ПЕРЕГЛЯД КОМЕРЦІЙНИХ ЗАПИТІВ ДОСТУПНИЙ НА ЩОМІСЯЧНІЙ ПІДПИСЦІ')
+    window.location.href = subscribeUrl
+    return
+  }
+  window.location.href = '/commercial'
+}}
             style={{
               width: '100%',
               backgroundColor: '#059669',
@@ -787,10 +794,15 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
               textAlign: 'center'
             }}
           >
-            💰ЗАНЙШОВ КОМУ ПРОДАТИ💰
+            💰ЗАНЙШОВ ДЛЯ ВАС КОМУ ПРОДАТИ💰
           </button>
           <div style={{ marginTop: 6, fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>
             Бренди · дизайнери · простори · культурні та комерційні проєкти
+            {(reason === 'trial' || reason === 'locked') ? (
+            <div style={{ marginTop: 8, fontSize: 11, fontWeight: 800, color: '#fbbf24', textAlign: 'center', letterSpacing: 0.3 }}>
+              ЦЕЙ БЛОК ДОСТУПНИЙ НА ЩОМІСЯЧНІЙ ПІДПИСЦІ
+            </div>
+          ) : null}
           </div>
         </div>
 
@@ -1182,13 +1194,13 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           notifications={modalOpportunities}
-          title="ВІДІБРАВ ДЛЯ ВАС"
+          title="ЗНАЙШОВ ДЛЯ ВАС КУДИ ПОДАТИ"
         />
                 <NotificationsModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           notifications={modalOpportunities}
-          title="ВІДІБРАВ ДЛЯ ВАС"
+          title="ЗНАЙШОВ ДЛЯ ВАС КУДИ ПОДАТИ"
         />
 
                 <ApplicationsTrackerModal
