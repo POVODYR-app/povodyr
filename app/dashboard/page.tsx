@@ -514,16 +514,18 @@ export default function DashboardPage() {
       })),
     }
   }
-if (reason === 'locked') {
+const localReason = accessReason({ ...(billingProfile || {}), created_at: authCreatedAt })
+    const localSubscribe = process.env.NEXT_PUBLIC_SUBSCRIBE_URL || 'https://secure.wayforpay.com/sub/povodyr.com'
+    if (localReason === 'locked') {
       alert('ГЕНЕРАЦІЯ ПАКЕТУ ДОКУМЕНТІВ ДОСТУПНА НА ЩОМІСЯЧНІЙ ПІДПИСЦІ')
-      window.location.href = subscribeUrl
+      window.location.href = localSubscribe
       return
     }
-    if (reason === 'trial') {
+    if (localReason === 'trial') {
       const used = window.localStorage.getItem('povodyr_trial_generate') === '1'
       if (used) {
         alert('У ПРОБНОМУ ПЕРІОДІ ГЕНЕРАЦІЯ ДОСТУПНА ОДИН РАЗ. ДАЛІ — НА ЩОМІСЯЧНІЙ ПІДПИСЦІ')
-        window.location.href = subscribeUrl
+        window.location.href = localSubscribe
         return
       }
       window.localStorage.setItem('povodyr_trial_generate', '1')
