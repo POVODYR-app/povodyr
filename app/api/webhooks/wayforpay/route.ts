@@ -56,14 +56,14 @@ async function findUser(data: any) {
       (u) => String(u.email || '').toLowerCase() === email
     )
     if (authUser) {
-      const { data: byId } = await supabase
+      const { data: byAuthId } = await supabase
         .from('profiles')
         .select('id, email, subscription_end, billing_exempt')
         .eq('id', authUser.id)
         .maybeSingle()
-      if (byId) {
-        await supabase.from('profiles').update({ email }).eq('id', byId.id)
-        return byId
+      if (byAuthId) {
+        await supabase.from('profiles').update({ email }).eq('id', byAuthId.id)
+        return byAuthId
       }
     }
   }
@@ -77,20 +77,6 @@ async function findUser(data: any) {
       .eq('id', m[1])
       .maybeSingle()
     if (byRef) return byRef
-  }
-
-  return null
-}
-
-  const ref = String(data.orderReference || '')
-  const m = ref.match(/^SUB-([0-9a-f-]{36})-/i)
-  if (m) {
-    const { data: byId } = await supabase
-      .from('profiles')
-      .select('id, email, subscription_end, billing_exempt')
-      .eq('id', m[1])
-      .maybeSingle()
-    if (byId) return byId
   }
 
   return null
