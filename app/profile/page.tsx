@@ -204,6 +204,7 @@ export default function ProfilePage() {
         .single()
 
       if (profile) {
+        setIsBillingExempt(!!profile.billing_exempt)
         setFullName(profile.full_name || '')
         setBio(profile.bio || '')
         setArtistLevel(profile.artist_level || 'вільний художник')
@@ -401,6 +402,12 @@ export default function ProfilePage() {
             ← Назад
           </button>
         </div>
+
+        {isBillingExempt ? (
+          <p style={{ margin: '0 0 16px 0', fontSize: 13, color: '#94a3b8' }}>
+            Ранній доступ: безкоштовно назавжди
+          </p>
+        ) : null}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
