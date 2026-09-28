@@ -90,8 +90,10 @@ export default function OnboardingPage() {
   const saveProgress = async (markCompleted = false) => {
     if (!userId) return false;
     setSaving(true);
+    const { data: { user } } = await supabase.auth.getUser()
     const { error } = await supabase.from('profiles').upsert({
       id: userId,
+      email: user?.email || null,
       full_name: fullName,
       country,
       city,
