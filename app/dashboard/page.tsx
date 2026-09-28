@@ -9,6 +9,7 @@ import ApplicationsTrackerModal from '../../components/ApplicationsTrackerModal'
 import { calculateMatch, ArtistProfile, Opportunity as MatchOpportunity } from '../../lib/matchEngine'
 import { isRealBuyerRequest } from '../../lib/commercialDemandGate'
 import { isUsableOpportunityUrl } from '../../lib/buildDigestPortion'
+import { hasPaidAccess, accessReason, trialEndsAt } from '../../lib/access'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -238,6 +239,9 @@ export default function DashboardPage() {
   const [proposalModalData, setProposalModalData] = useState<{ title: string; text: string; contactPerson?: string; organization?: string } | null>(null)
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
   const [userArtworks, setUserArtworks] = useState<any[]>([])
+  const [billingProfile, setBillingProfile] = useState<any>(null)
+  const [authCreatedAt, setAuthCreatedAt] = useState<string | null>(null)
+  const [paymentFlash, setPaymentFlash] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -245,6 +249,7 @@ export default function DashboardPage() {
     const loadDashboardData = async () => {
       setLoading(true)
       const { data: { user } } = await supabase.auth.getUser()
+      setAuthCreatedAt(user.created_at || null)
       if (!user || !isMounted) {
         setLoading(false)
         return
@@ -261,6 +266,7 @@ export default function DashboardPage() {
       if (!isMounted) return
 
       if (profile?.full_name) setUserName(profile.full_name)
+      setBillingProfile(profile || null)
       setUserObj({
         id: user.id,
         telegram_chat_id: profile?.telegram_chat_id || null,
