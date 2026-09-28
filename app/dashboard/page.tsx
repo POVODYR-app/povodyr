@@ -514,7 +514,8 @@ export default function DashboardPage() {
       })),
     }
   }
-const localReason = accessReason({ ...(billingProfile || {}), created_at: authCreatedAt })
+const handleGenerateProposal = async (opp: any) => {
+    const localReason = accessReason({ ...(billingProfile || {}), created_at: authCreatedAt })
     const localSubscribe = process.env.NEXT_PUBLIC_SUBSCRIBE_URL || 'https://secure.wayforpay.com/sub/povodyr.com'
     if (localReason === 'locked') {
       alert('ГЕНЕРАЦІЯ ПАКЕТУ ДОКУМЕНТІВ ДОСТУПНА НА ЩОМІСЯЧНІЙ ПІДПИСЦІ')
@@ -530,7 +531,6 @@ const localReason = accessReason({ ...(billingProfile || {}), created_at: authCr
       }
       window.localStorage.setItem('povodyr_trial_generate', '1')
     }
-  const handleGenerateProposal = async (opp: any) => {
     setGeneratingProposalId(opp.id)
     try {
       const res = await fetch('/api/generate-application', {
