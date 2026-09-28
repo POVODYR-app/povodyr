@@ -1524,17 +1524,28 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                <a
-                  href={`mailto:artfinenation@gmail.com?subject=${encodeURIComponent(proposalModalData.title)}&body=${encodeURIComponent(proposalModalData.text)}`}
-                  style={{
-                    flex: 1, backgroundColor: '#059669', color: '#fff', textDecoration: 'none',
-                    borderRadius: 8, padding: '10px', fontSize: '12px', fontWeight: 600,
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                    boxSizing: 'border-box'
-                  }}
-                >
-                  <span>✉️</span> Написати замовнику
-                </a>
+                {reason === 'trial' || reason === 'locked' ? (
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#fbbf24', marginBottom: 8, letterSpacing: 0.3 }}>
+                      ВІДПРАВКА НА ЗАПИТ І НА ПОШТУ ДОСТУПНА НА ЩОМІСЯЧНІЙ ПІДПИСЦІ
+                    </div>
+                    <a href={subscribeUrl} style={{ display: 'block', backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '10px', fontSize: 12, fontWeight: 700, textAlign: 'center' }}>
+                      Оформити підписку
+                    </a>
+                  </div>
+                ) : (
+                  <a
+                    href={`mailto:artfinenation@gmail.com?subject=${encodeURIComponent(proposalModalData.title)}&body=${encodeURIComponent(proposalModalData.text)}`}
+                    style={{
+                      flex: 1, backgroundColor: '#059669', color: '#fff', textDecoration: 'none',
+                      borderRadius: 8, padding: '10px', fontSize: '12px', fontWeight: 600,
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <span>✉️</span> Написати замовнику
+                  </a>
+                )}
               </div>
               <button
                 onClick={() => setProposalModalData(null)}
