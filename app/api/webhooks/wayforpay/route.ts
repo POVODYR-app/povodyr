@@ -42,6 +42,7 @@ function addMonths(date: Date, months: number) {
 
 async function findUser(data: any) {
   const email = String(data.clientEmail || data.email || '').trim().toLowerCase()
+
   if (email) {
     const { data: byEmail } = await supabase
       .from('profiles')
@@ -49,7 +50,37 @@ async function findUser(data: any) {
       .ilike('email', email)
       .maybeSingle()
     if (byEmail) return byEmail
+
+    const { data: usersData } = await supabase.auth.admin.listUsers({ perPage: 1000 })
+    const authUser = (usersData?.users || []).find(
+      (u) => String(u.email || '').toLowerCase() === email
+    )
+    if (authUser) {
+      const { data: byId } = await supabase
+        .from('profiles')
+        .select('id, email, subscription_end, billing_exempt')
+        .eq('id', authUser.id)
+        .maybeSingle()
+      if (byId) {
+        await supabase.from('profiles').update({ email }).eq('id', byId.id)
+        return byId
+      }
+    }
   }
+
+  const ref = String(data.orderReference || '')
+  const m = ref.match(/^SUB-([0-9a-f-]{36})-/i)
+  if (m) {
+    const { data: byRef } = await supabase
+      .from('profiles')
+      .select('id, email, subscription_end, billing_exempt')
+      .eq('id', m[1])
+      .maybeSingle()
+    if (byRef) return byRef
+  }
+
+  return null
+}
 
   const ref = String(data.orderReference || '')
   const m = ref.match(/^SUB-([0-9a-f-]{36})-/i)
