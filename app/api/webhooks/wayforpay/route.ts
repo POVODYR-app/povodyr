@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { planFromAmount, GRACE_DAYS } from '../../../../lib/access'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
