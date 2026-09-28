@@ -1006,18 +1006,6 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
                 </div>
               ) : null}
               </p>
-              if (reason === 'trial' || reason === 'locked') {
-                  return (
-                    <div style={{ backgroundColor: '#0f172a', border: '1px solid #f59e0b', borderRadius: 12, padding: 12 }}>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: '#fbbf24', letterSpacing: 0.4 }}>
-                        ПЕРЕГЛЯД ПІДБОРУ РОБІТ ПІД ЗАПИТИ ДОСТУПНИЙ НА ЩОМІСЯЧНІЙ ПІДПИСЦІ
-                      </div>
-                      <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700, fontSize: 12 }}>
-                        Оформити підписку
-                      </a>
-                    </div>
-                  )
-                }
               {(() => {
                 if (loading) {
                   return (
