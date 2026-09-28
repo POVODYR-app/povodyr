@@ -514,7 +514,20 @@ export default function DashboardPage() {
       })),
     }
   }
-
+if (reason === 'locked') {
+      alert('ГЕНЕРАЦІЯ ПАКЕТУ ДОКУМЕНТІВ ДОСТУПНА НА ЩОМІСЯЧНІЙ ПІДПИСЦІ')
+      window.location.href = subscribeUrl
+      return
+    }
+    if (reason === 'trial') {
+      const used = window.localStorage.getItem('povodyr_trial_generate') === '1'
+      if (used) {
+        alert('У ПРОБНОМУ ПЕРІОДІ ГЕНЕРАЦІЯ ДОСТУПНА ОДИН РАЗ. ДАЛІ — НА ЩОМІСЯЧНІЙ ПІДПИСЦІ')
+        window.location.href = subscribeUrl
+        return
+      }
+      window.localStorage.setItem('povodyr_trial_generate', '1')
+    }
   const handleGenerateProposal = async (opp: any) => {
     setGeneratingProposalId(opp.id)
     try {
