@@ -7,8 +7,8 @@ export type AccessProfile = {
   grace_until?: string | null
 }
 
-export const TRIAL_DAYS = 14
-export const GRACE_DAYS = 7
+export const TRIAL_DAYS = 7
+export const GRACE_DAYS = 2
 
 export const PLANS = {
   month: { amount: 149, months: 1, label: '1 місяць' },
