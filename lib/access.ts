@@ -13,7 +13,7 @@ export const GRACE_DAYS = 7
 export const PLANS = {
   month: { amount: 149, months: 1, label: '1 місяць' },
   halfyear: { amount: 849, months: 6, label: '6 місяців' },
-  year: { amount: 1698, months: 12, label: '1 рік' },
+  year: { amount: 1620, months: 12, label: '1 рік' },
 } as const
 
 export function planFromAmount(amount: number | string | null | undefined) {
