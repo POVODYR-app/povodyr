@@ -9,6 +9,7 @@ import {
   pickOpportunityUrl,
   sameIdSet,
 } from '../../../lib/buildDigestPortion';
+import { hasPaidAccess } from '../../../lib/access'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -282,7 +283,22 @@ export async function GET(request: NextRequest) {
     const runAt = new Date().toISOString();
     const keepAliveText = 'Сьогодні нових можливостей не знайшов. Продовжую шукати під Ваш профіль';
 
-    for (const user of users) {
+    const { data: authData } = await supabase.auth.admin.listUsers({ perPage: 1000 })
+    const createdById: Record<string, string> = {}
+    const authUsers = authData?.users || []
+    for (let i = 0; i < authUsers.length; i += 1) {
+      const au = authUsers[i]
+      if (au?.id && au.created_at) createdById[au.id] = au.created_at
+    }
+
+    const payableUsers = (users || []).filter((u: any) =>
+      hasPaidAccess({
+        ...u,
+        created_at: createdById[u.id] || u.created_at || null,
+      })
+    )
+
+    for (const user of payableUsers) {
       const previousIds = parseIdList(user.digest_opportunity_ids);
       const portion = buildDigestPortion({
         profile: user,
