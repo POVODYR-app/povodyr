@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
-import { accessReason } from '../../lib/access'
+import { accessReason, trialEndsAt } from '../../lib/access'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
@@ -153,6 +153,9 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [isBillingExempt, setIsBillingExempt] = useState(false)
+  const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null)
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null)
+  const [authCreatedAt, setAuthCreatedAt] = useState<string | null>(null)
 
   const [fullName, setFullName] = useState('')
   const [bio, setBio] = useState('')
@@ -196,6 +199,7 @@ export default function ProfilePage() {
         return
       }
       setUserId(user.id)
+      setAuthCreatedAt(user.created_at || null)
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -205,6 +209,8 @@ export default function ProfilePage() {
 
       if (profile) {
         setIsBillingExempt(!!profile.billing_exempt)
+        setSubscriptionEnd(profile.subscription_end || null)
+        setSubscriptionStatus(profile.subscription_status || null)
         setFullName(profile.full_name || '')
         setBio(profile.bio || '')
         setArtistLevel(profile.artist_level || 'вільний художник')
@@ -403,11 +409,86 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {isBillingExempt ? (
-          <p style={{ margin: '0 0 16px 0', fontSize: 13, color: '#94a3b8' }}>
-            Ранній доступ: безкоштовно назавжди
-          </p>
-        ) : null}
+        {(() => {
+          const reason = accessReason({
+            billing_exempt: isBillingExempt,
+            subscription_status: subscriptionStatus,
+            subscription_end: subscriptionEnd,
+            created_at: authCreatedAt,
+          })
+          const subscribeUrl = process.env.NEXT_PUBLIC_SUBSCRIBE_URL || 'https://secure.wayforpay.com/sub/povodyr.com'
+          const feeNote = 'До суми тарифу WayForPay додає комісію 1% за проведення платежу — як банк. Її сплачує той, хто оплачує.'
+          const endDate = subscriptionEnd ? new Date(subscriptionEnd) : null
+          const daysLeft = endDate ? Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / 86400000)) : 0
+          const endLabel = endDate ? endDate.toLocaleDateString('uk-UA') : ''
+          const trialEnd = trialEndsAt({ created_at: authCreatedAt, billing_exempt: isBillingExempt, subscription_status: subscriptionStatus, subscription_end: subscriptionEnd })
+          const trialDaysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / 86400000)) : 0
+
+          if (reason === 'exempt') {
+            return (
+              <p style={{ margin: '0 0 16px 0', fontSize: 13, color: '#94a3b8' }}>
+                Ранній доступ: безкоштовно назавжди
+              </p>
+            )
+          }
+
+          if (reason === 'paid') {
+            return (
+              <div style={{ margin: '0 0 16px 0', padding: 14, borderRadius: 12, backgroundColor: '#052e16', border: '1px solid #16a34a' }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#86efac' }}>Підписка активна</div>
+                <div style={{ marginTop: 6, fontSize: 13, color: '#dcfce7' }}>
+                  Залишилось {daysLeft} дн. До {endLabel} POVODYR шукає можливості і генерує листи. Після цієї дати доступ зупиниться.
+                </div>
+                <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#16a34a', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700 }}>
+                  Продовжити підписку
+                </a>
+                <div style={{ marginTop: 8, fontSize: 12, color: '#86efac' }}>{feeNote}</div>
+              </div>
+            )
+          }
+
+          if (reason === 'trial') {
+            return (
+              <div style={{ margin: '0 0 16px 0', padding: 14, borderRadius: 12, backgroundColor: '#1e293b', border: '1px solid #334155' }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>Пробний період: ще {trialDaysLeft} дн.</div>
+                <div style={{ marginTop: 6, fontSize: 13, color: '#cbd5e1' }}>
+                  Далі — від 149 грн/міс. Після закінчення пробного періоду пошук і генерація листів зупиняться.
+                </div>
+                <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700 }}>
+                  Оформити підписку
+                </a>
+                <div style={{ marginTop: 8, fontSize: 12, color: '#94a3b8' }}>{feeNote}</div>
+              </div>
+            )
+          }
+
+          if (reason === 'grace') {
+            return (
+              <div style={{ margin: '0 0 16px 0', padding: 14, borderRadius: 12, backgroundColor: '#422006', border: '1px solid #f59e0b' }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#fde68a' }}>Є 7 днів, щоб оновити картку</div>
+                <div style={{ marginTop: 6, fontSize: 13, color: '#fef3c7' }}>
+                  Не вдалося продовжити підписку. Ще 2 дні POVODYR шукає і генерує листи. Потім доступ зупиниться, доки не оновите оплату.
+                </div>
+                <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700 }}>
+                  Оновити підписку
+                </a>
+              </div>
+            )
+          }
+
+          return (
+            <div style={{ margin: '0 0 16px 0', padding: 14, borderRadius: 12, backgroundColor: '#1e293b', border: '1px solid #f59e0b' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#fde68a' }}>Підписка неактивна</div>
+              <div style={{ marginTop: 6, fontSize: 13, color: '#e2e8f0' }}>
+                POVODYR зупинив повний пошук і генерацію листів. Відновіть доступ від 149 грн/міс.
+              </div>
+              <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700 }}>
+                Оформити підписку
+              </a>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#94a3b8' }}>{feeNote}</div>
+            </div>
+          )
+        })()}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
