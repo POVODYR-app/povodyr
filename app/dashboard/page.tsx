@@ -635,7 +635,14 @@ export default function DashboardPage() {
       return { indicator: '🟢', label: `Дедлайн через ${diffDays} дн. (довгострокова)` }
     }
   }
-
+const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
+  const reason = billingProfile || authCreatedAt ? accessReason(accessProfile) : null
+  const trialEnd = trialEndsAt(accessProfile)
+  const trialDaysLeft = trialEnd
+    ? Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / 86400000))
+    : 0
+  const subscribeUrl = process.env.NEXT_PUBLIC_SUBSCRIBE_URL || 'https://secure.wayforpay.com/sub/povodyr.com'
+  const feeNote = 'До суми тарифу WayForPay додає комісію 1% за проведення платежу — як банк. Її сплачує той, хто оплачує.'
   return (
     <div
       style={{
@@ -684,7 +691,48 @@ export default function DashboardPage() {
             </span>
           </button>
         </div>
+{typeof window !== 'undefined' && window.location.search.indexOf('payment=success') !== -1 ? (
+          <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#052e16', border: '1px solid #16a34a', color: '#86efac', fontSize: 13 }}>
+            Підписку активовано.
+          </div>
+        ) : null}
+        {typeof window !== 'undefined' && window.location.search.indexOf('payment=failed') !== -1 ? (
+          <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#450a0a', border: '1px solid #dc2626', color: '#fecaca', fontSize: 13 }}>
+            Оплата не пройшла. Спробуйте іншу картку. Комісія платформи 1%.
+          </div>
+        ) : null}
 
+        {reason === 'trial' ? (
+          <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#1e293b', border: '1px solid #334155', fontSize: 13, color: '#e2e8f0' }}>
+            <div>Пробний період ще {trialDaysLeft} днів. Далі — 149 грн/міс (плюс комісія платформи 1%).</div>
+            <div style={{ marginTop: 8, color: '#94a3b8' }}>{feeNote}</div>
+            <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 600 }}>
+              Оформити підписку
+            </a>
+          </div>
+        ) : null}
+
+        {reason === 'locked' ? (
+          <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#1e293b', border: '1px solid #f59e0b', fontSize: 13, color: '#e2e8f0' }}>
+            <div>Пробний період завершено. Повний пошук, «Відібрав для вас» і генерація листів — за підпискою від 149 грн/міс.</div>
+            <div style={{ marginTop: 8, color: '#94a3b8' }}>{feeNote}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+              <a href={subscribeUrl} style={{ backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>149 грн / 1 місяць</a>
+              <a href={subscribeUrl} style={{ backgroundColor: '#1d4ed8', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>849 грн / 6 місяців</a>
+              <a href={subscribeUrl} style={{ backgroundColor: '#1e40af', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>1 620 грн / 1 рік</a>
+            </div>
+          </div>
+        ) : null}
+
+        {reason === 'grace' ? (
+          <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#422006', border: '1px solid #f59e0b', fontSize: 13, color: '#fde68a' }}>
+            Не вдалося продовжити підписку. Є 7 днів, щоб оновити картку.
+            <div style={{ marginTop: 8 }}>{feeNote}</div>
+            <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 600 }}>
+              Оновити підписку
+            </a>
+          </div>
+        ) : null}
         {userObj && <TelegramConnect user={userObj} />}
         <FollowUpAlerts savedItems={savedItemsForAlerts} />
 
