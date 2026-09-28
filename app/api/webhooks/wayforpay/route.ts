@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
-import { planFromAmount, GRACE_DAYS } from '../../../lib/access'
+import { planFromAmount, GRACE_DAYS } from '../../../../lib/access'
 
 export const dynamic = 'force-dynamic'
 
