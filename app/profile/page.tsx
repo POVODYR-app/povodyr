@@ -437,10 +437,16 @@ export default function ProfilePage() {
               <div style={{ margin: '0 0 16px 0', padding: 14, borderRadius: 12, backgroundColor: '#052e16', border: '1px solid #16a34a' }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#86efac' }}>Підписка активна</div>
                 <div style={{ marginTop: 6, fontSize: 13, color: '#dcfce7' }}>
-                  Залишилось {daysLeft} дн. До {endLabel} POVODYR шукає можливості і генерує листи. Після цієї дати доступ зупиниться.
+                  {daysLeft === 7
+                    ? '🧭 POVODYR ще 7 днів працює для тебе. Не забудь продовжити підписку, щоб він і далі шукав для тебе можливості.'
+                    : daysLeft === 3
+                    ? '🧭 POVODYR працюватиме для тебе ще 3 дні. Потім його пошук зупиниться. Продовжимо?'
+                    : daysLeft === 1
+                    ? '🧭 Завтра POVODYR завершить свою роботу для тебе. Якщо хочеш, щоб він і далі шукав, відбирав і нагадував — час продовжити підписку.'
+                    : `🧭 У POVODYR залишилося ${daysLeft} днів роботи для тебе. Подбай, щоб він не зупинився — продовж підписку. До ${endLabel}.`}
                 </div>
                 <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#16a34a', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700 }}>
-                  Продовжити підписку
+                  Продовжити роботу POVODYR
                   <button
                   type="button"
                   onClick={async () => {
@@ -472,7 +478,7 @@ export default function ProfilePage() {
               <div style={{ margin: '0 0 16px 0', padding: 14, borderRadius: 12, backgroundColor: '#1e293b', border: '1px solid #334155' }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>Пробний період: ще {trialDaysLeft} дн.</div>
                 <div style={{ marginTop: 6, fontSize: 13, color: '#cbd5e1' }}>
-                  Далі — від 149 грн/міс. Після закінчення пробного періоду пошук і генерація листів зупиняться.
+                  Далі — від 135 грн/міс. Після закінчення пробного періоду пошук і генерація листів зупиняться.
                 </div>
                 <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700 }}>
                   Оформити підписку
@@ -500,7 +506,7 @@ export default function ProfilePage() {
             <div style={{ margin: '0 0 16px 0', padding: 14, borderRadius: 12, backgroundColor: '#1e293b', border: '1px solid #f59e0b' }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: '#fde68a' }}>Підписка неактивна</div>
               <div style={{ marginTop: 6, fontSize: 13, color: '#e2e8f0' }}>
-                POVODYR зупинив повний пошук і генерацію листів. Відновіть доступ від 149 грн/міс.
+                POVODYR зупинив повний пошук і генерацію листів. Відновіть доступ від 135 грн/міс.
               </div>
               <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700 }}>
                 Оформити підписку
