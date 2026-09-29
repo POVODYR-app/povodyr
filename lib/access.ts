@@ -55,7 +55,7 @@ export function hasPaidAccess(profile: AccessProfile | null | undefined, now = n
 export function accessReason(profile: AccessProfile, now = new Date()) {
   if (profile.billing_exempt) return 'exempt'
   if (
-    profile.subscription_status === 'active' &&
+    (profile.subscription_status === 'active' || profile.subscription_status === 'canceling') &&
     profile.subscription_end &&
     new Date(profile.subscription_end) > now
   ) {
