@@ -341,7 +341,10 @@ export default function OnboardingPage() {
                 Щодня POVODYR принесе добірки в «Сьогодні я знайшов для вас» і «Відібрав для вас».
               </p>
               <p className="text-slate-400 text-sm mt-2 leading-relaxed">
-                Якщо за 7 днів знахідок мало — оновіть профіль, географію або техніки.
+                Якщо за 7 днів POVODYR мало знайшов цікавих для тебе можливостей — онови профіль, географію або техніки.
+              </p>
+              <p className="text-slate-300 text-sm mt-3 leading-relaxed">
+                Перші 7 днів пробного періоду — доступ до повноцінної роботи твого персонального асистента POVODYR. Далі твій персональний асистент потребує оплати за виконання своєї роботи - підписка від 135 грн/міс + комісія WayForPay 1%.
               </p>
             </div>
             <button type="button" onClick={finishToDashboard} disabled={saving} className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold transition">
