@@ -738,7 +738,24 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
             </div>
           </div>
         ) : null}
-
+{reason === 'paid' && subscriptionDaysLeft === 7 ? (
+          <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#052e16', border: '1px solid #16a34a', fontSize: 13, color: '#dcfce7' }}>
+            🧭 POVODYR ще 7 днів працює для тебе. Не забудь продовжити підписку, щоб він і далі шукав твої можливості.
+            <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#16a34a', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700 }}>Продовжити роботу POVODYR</a>
+          </div>
+        ) : null}
+        {reason === 'paid' && subscriptionDaysLeft === 3 ? (
+          <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#422006', border: '1px solid #f59e0b', fontSize: 13, color: '#fde68a' }}>
+            🧭 POVODYR працюватиме для тебе ще 3 дні. Потім його пошук зупиниться. Продовжимо?
+            <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700 }}>Продовжити роботу POVODYR</a>
+          </div>
+        ) : null}
+        {reason === 'paid' && subscriptionDaysLeft === 1 ? (
+          <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#450a0a', border: '1px solid #dc2626', fontSize: 13, color: '#fecaca' }}>
+            🧭 Завтра POVODYR завершить свою роботу для тебе. Якщо хочеш, щоб він і далі шукав, відбирав і нагадував — час продовжити підписку.
+            <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700 }}>Продовжити роботу POVODYR</a>
+          </div>
+        ) : null}
         {reason === 'grace' ? (
           <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#422006', border: '1px solid #f59e0b', fontSize: 13, color: '#fde68a' }}>
             Не вдалося продовжити підписку. Є 7 днів, щоб оновити картку.
