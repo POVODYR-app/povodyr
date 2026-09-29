@@ -84,7 +84,7 @@ const CURATED_SOURCES: { url: string; name: string }[] = [
 ]
 
 const SEARCH_EXCLUDES =
-  '-facebook -instagram -etsy -amazon -olx -pinterest -shop -blog -prints -muralist -"wall painting" -coatings -"painting contractors" -"paint by numbers" -"картини за номерами"'
+  '-facebook -instagram -etsy -amazon -olx -pinterest -shop -blog -prints -muralist -"wall painting" -coatings -"painting contractors" -"paint by numbers" -"картини за номерами" -"artist bio" -"available works" -"represented by" -forecast -trend'
 
 const SEARCH_QUERIES: SearchQuery[] = [
   {
@@ -100,11 +100,11 @@ const SEARCH_QUERIES: SearchQuery[] = [
     locale: { gl: 'ua', hl: 'uk' },
   },
   {
-    q: `(RFP OR RFQ OR "request for proposal") ("original paintings" OR "original artwork" OR "fine art") (hotel OR hospital OR lobby OR "public building") 2026 ${SEARCH_EXCLUDES}`,
+    q: `"international call" OR "open to international artists" OR "no nationality restriction" (artwork OR paintings OR "site-specific") (hotel OR hospital OR theatre OR library OR lobby) 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'us', hl: 'en' },
   },
   {
-    q: `"paintings for" (hotel lobby OR hospital OR "corporate office" OR "public building" OR restaurant) (purchase OR commission OR procurement) ${SEARCH_EXCLUDES}`,
+    q: `(RFQ OR RFP OR EOI OR "request for qualifications") ("original paintings" OR "fine art" OR "site-specific artwork") (hotel OR hospital OR library OR lobby OR theatre) 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'us', hl: 'en' },
   },
   {
