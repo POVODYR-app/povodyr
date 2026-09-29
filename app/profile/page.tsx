@@ -441,6 +441,26 @@ export default function ProfilePage() {
                 </div>
                 <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#16a34a', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700 }}>
                   Продовжити підписку
+                  <button
+                  type="button"
+                  onClick={async () => {
+                    const ok = window.confirm('Звільнити POVODYR? Він працюватиме до кінця вже оплаченого періоду, далі пошук зупиниться.')
+                    if (!ok || !userId) return
+                    const { error } = await supabase
+                      .from('profiles')
+                      .update({ subscription_status: 'canceling' })
+                      .eq('id', userId)
+                    if (error) {
+                      alert('Не вдалося зберегти скасування: ' + error.message)
+                      return
+                    }
+                    setSubscriptionStatus('canceling')
+                    alert('POVODYR працюватиме до кінця оплаченого періоду. Далі його треба буде покликати знову.')
+                  }}
+                  style={{ display: 'block', marginTop: 10, width: '100%', backgroundColor: 'transparent', color: '#86efac', border: '1px solid #16a34a', borderRadius: 8, padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Звільнити POVODYR (Скасувати підписку)
+                </button>
                 </a>
                 <div style={{ marginTop: 8, fontSize: 12, color: '#86efac' }}>{feeNote}</div>
               </div>
