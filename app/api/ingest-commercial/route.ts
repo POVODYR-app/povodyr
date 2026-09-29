@@ -115,6 +115,14 @@ const SEARCH_QUERIES: SearchQuery[] = [
     q: `site:ted.europa.eu ("works of art" OR "original paintings") (acquisition OR commission OR supply) 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'de', hl: 'en' },
   },
+  {
+    q: `site:akimbo.ca/listings (RFQ OR "request for qualifications" OR "site-specific artwork") 2026`,
+    locale: { gl: 'ca', hl: 'en' },
+  },
+  {
+    q: `"site-specific artwork" (RFQ OR EOI OR "expression of interest") (library OR hospital OR theatre OR "community centre") 2026 -facebook -instagram -etsy -amazon -directory`,
+    locale: { gl: 'us', hl: 'en' },
+  },
 ]
 
 const FALLBACK_QUERIES: SearchQuery[] = [
