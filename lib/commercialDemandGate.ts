@@ -68,6 +68,7 @@ const ART_OBJECT_PATTERNS = [
   /paintings for (the )?(hotel|hospital|lobby|office|restaurant|public)/i,
   /artwork for (commercial|public|hotel|hospital|lobby) (spaces?|interiors?)?/i,
   /lobby artwork/i,
+  /site[-\s]?specific/i,
 ]
 
 const DEMAND_PATTERNS = [
@@ -90,6 +91,10 @@ const DEMAND_PATTERNS = [
   /картини для (готелю|лікарні|офісу|ресторану|холу|лобі)/i,
   /paintings for (the )?(hotel|hospital|lobby|office|restaurant)/i,
   /artwork for (commercial|public|hotel|hospital|lobby)/i,
+  /international call[\s\S]{0,80}site[-\s]?specific/i,
+  /no nationality/i,
+  /request for qualifications/i,
+  /\bRF[PQ]\b[\s\S]{0,80}(artwork|paintings?|fine art|site[-\s]?specific|library|hospital|theatre|theater)/i,
 ]
 
 const STRONG_BUYER_PATTERNS = [
@@ -109,6 +114,8 @@ const STRONG_BUYER_PATTERNS = [
     /придбання (картин|живопису|творів мистецтва)/i,
   /оформлення[\s\S]{0,40}(картин|живопис|полотн)/i,
   /paintings for (the )?(hotel lobby|hospital|corporate office)/i,
+  /international call[\s\S]{0,80}site[-\s]?specific/i,
+  /request for qualifications[\s\S]{0,80}(library|hospital|theatre|theater|community)/i,
 ]
 
 const TALENT_NOT_BUYER_PATTERNS = [
