@@ -356,6 +356,18 @@ const subscribeUrl =
       if (reminderText && user.telegram_chat_id) {
         await sendTelegramMessage(user.telegram_chat_id, reminderText)
       }
+      if (reminderText && resend && user.email) {
+        try {
+          await resend.emails.send({
+            from: process.env.EMAIL_FROM || 'POVODYR <notifications@povodyr.app>',
+            to: [user.email],
+            subject: reminderText.split('\n')[0],
+            html: reminderText.split('\n').map((line) => `<p>${line}</p>`).join(''),
+          })
+        } catch (e) {
+          console.error('Resend reminder error:', e)
+        }
+      }
       if (user.notifications_enabled !== true) {
         logs.push({
           user: user.full_name || user.id,
