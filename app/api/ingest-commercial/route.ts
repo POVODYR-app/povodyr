@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import OpenAI from 'openai'
+import { completeCheap } from '../../../lib/ai/client'
 import {
   hasArtPurchaseObject,
   hasDemandSignal,
@@ -23,7 +23,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 )
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' })
+
 
 type CommercialItem = {
   title: string
@@ -305,14 +305,15 @@ async function extractCommercialItems(
 ): Promise<CommercialItem[]> {
   if (!process.env.OPENAI_API_KEY || text.length < 80) return []
 
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    response_format: { type: 'json_object' },
-    temperature: 0.2,
-    messages: [
-      {
-        role: 'system',
-        content: `Ти аналітик арт-ринку для сервісу POVODYR.
+   // Навіщо: той самий промпт і json, але облік токенів/USD через шлюз.
+  // Гейти й пошукові запити не змінюємо.
+  let raw = '{"items":[]}'
+  try {
+    const completion = await completeCheap('commercial_extract', {
+      messages: [
+        {
+          role: 'system',
+          content: `Ти аналітик арт-ринку для сервісу POVODYR.
 З тексту витягни ЛИШЕ реальні комерційні запити покупця/замовника на картини або оригінальний живопис:
 купівля картин, комісії, тендери, RFP, оформлення картинами громадських і комерційних просторів (готель, лікарня, офіс, лобі, університет, ресторан), корпоративні колекції.
 Географія: будь-яка країна. Україна, Європа, США, Канада, Азія, Близький Схід, Австралія — без обмежень.
@@ -337,15 +338,21 @@ source_url має бути прямим http/https посиланням на т�
   "deadline": "ISO-дата дедлайну якщо явно є, інакше null"
 }]}
 Якщо комерційних запитів немає — { "items": [] }.`,
-      },
-      {
-        role: 'user',
-        content: `Джерело: ${sourceName}\nURL: ${sourceUrl}\n\nТекст:\n${text}`,
-      },
-    ],
-  })
-
-  const raw = completion.choices[0]?.message?.content || '{"items":[]}'
+        },
+        {
+          role: 'user',
+          content: `Джерело: ${sourceName}\nURL: ${sourceUrl}\n\nТекст:\n${text}`,
+        },
+      ],
+      temperature: 0.2,
+      json: true,
+      source: sourceUrl,
+    })
+    raw = completion.text || '{"items":[]}'
+  } catch (err) {
+    console.warn('[ingest-commercial] completeCheap', err)
+    return []
+  }
   try {
     const parsed = JSON.parse(raw)
     const items = parsed.items || parsed.opportunities || []
