@@ -329,7 +329,33 @@ export async function GET(request: NextRequest) {
           error: digestError.message,
         });
       }
-
+const subscribeUrl =
+        process.env.NEXT_PUBLIC_SUBSCRIBE_URL || 'https://secure.wayforpay.com/sub/povodyr.com'
+      const endAt = user.subscription_end ? new Date(user.subscription_end) : null
+      const daysLeft = endAt
+        ? Math.ceil((endAt.getTime() - Date.now()) / 86400000)
+        : null
+      let reminderText = ''
+      if (!user.billing_exempt && daysLeft === 7) {
+        reminderText =
+          '🧭 POVODYR ще 7 днів працює для тебе.\nНе забудь продовжити підписку, щоб він і далі шукав для тебе можливості.\n' +
+          subscribeUrl
+      } else if (!user.billing_exempt && daysLeft === 3) {
+        reminderText =
+          '🧭 POVODYR працюватиме для тебе ще 3 дні.\nПотім його пошук зупиниться. Продовжимо?\n' +
+          subscribeUrl
+      } else if (!user.billing_exempt && daysLeft === 1) {
+        reminderText =
+          '🧭 Завтра POVODYR завершить свою роботу для тебе.\nЯкщо хочеш, щоб він і далі шукав, відбирав і нагадував — час продовжити підписку.\n' +
+          subscribeUrl
+      } else if (!user.billing_exempt && daysLeft === 0) {
+        reminderText =
+          '🧭 POVODYR завершив роботу за твоєю підпискою.\nЯкщо хочеш повернути його до роботи — продовж підписку.\n' +
+          subscribeUrl
+      }
+      if (reminderText && user.telegram_chat_id) {
+        await sendTelegramMessage(user.telegram_chat_id, reminderText)
+      }
       if (user.notifications_enabled !== true) {
         logs.push({
           user: user.full_name || user.id,
