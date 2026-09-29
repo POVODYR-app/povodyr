@@ -226,6 +226,9 @@ const JUNK_PATTERNS = [
   /guidelines for public art/i,
   /public art committee/i,
   /guidelines for public art acquisition/i,
+  /represented artist/i,
+  /artist bio/i,
+  /available works/i,
 ]
 
 const WALL_TRADE_PATTERNS = [
@@ -253,7 +256,7 @@ const WALL_TRADE_PATTERNS = [
 const JOB_BOARD_URL = /work\.ua|robota\.ua|djinni|hh\.ua|linkedin\.com\/jobs/i
 const MARKETPLACE_URL = /prom\.ua|rozetka|etsy\.com|amazon\.|olx\.ua/i
 const ARTIST_BLOG_OR_FICTION_URL =
-  /angelacameron\.com|arkush\.net|thirdandwall\.com|heiek\.de|rogersphotography\.com|despinapaintings\.com|onthewight\.com|leanesuarezgroup\.com|\/blogs\/|\/q-a-|\/commercial-artwork/i
+  /angelacameron\.com|arkush\.net|thirdandwall\.com|heiek\.de|rogersphotography\.com|despinapaintings\.com|onthewight\.com|leanesuarezgroup\.com|sheldonfineartnaples\.com|mus3ums\.com|\/blogs\/|\/q-a-|\/commercial-artwork/i
 const LISTING_OR_EMPTY_URL = /olx\.ua\/(?:uk\/)?list\//i
 const SOCIAL_SHALLOW_URL =
   /instagram\.com|facebook\.com|fb\.com|threads\.com|threads\.net|facebook\.com\/groups|facebook\.com\/.*\/mentions|facebook\.com\/.*\/posts/i
