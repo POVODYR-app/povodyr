@@ -658,6 +658,9 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
     : 0
   const subscribeUrl = process.env.NEXT_PUBLIC_SUBSCRIBE_URL || 'https://secure.wayforpay.com/sub/povodyr.com'
   const feeNote = 'До суми тарифу WayForPay додає комісію 1% за проведення платежу — як банк. Її сплачує той, хто оплачує.'
+  const subscriptionDaysLeft = accessProfile.subscription_end
+    ? Math.ceil((new Date(accessProfile.subscription_end).getTime() - Date.now()) / 86400000)
+    : null
   return (
     <div
       style={{
