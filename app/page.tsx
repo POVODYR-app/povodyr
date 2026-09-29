@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import NotificationsModal, { NotificationItem } from '../components/NotificationsModal';
-import TelegramConnect from '../components/TelegramConnect';
 import { supabase } from '../lib/supabase';
 
 export default function HomePage() {
@@ -16,19 +15,16 @@ export default function HomePage() {
     async function initData() {
       try {
         setLoading(true);
-        
-        // 1. Отримуємо поточного авторизованого користувача
+
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
+
         if (sessionError || !session?.user) {
-          console.warn('Користувач не авторизований');
           setLoading(false);
           return;
         }
 
         const authUser = session.user;
 
-        // Дотягуємо дані профілю з таблиці profiles (включно з telegram_chat_id)
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
@@ -40,7 +36,6 @@ export default function HomePage() {
           ...(profileData || {}),
         });
 
-        // 2. Робимо запит до сповіщень для цього user_id
         const { data, error } = await supabase
           .from('notifications')
           .select('*')
@@ -84,40 +79,34 @@ export default function HomePage() {
 
   return (
     <main style={{ padding: '30px 20px', fontFamily: 'sans-serif', maxWidth: '480px', margin: '0 auto', backgroundColor: '#0f172a', color: '#fff', minHeight: '100vh' }}>
-      
-      {/* Верхня панель */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '26px', margin: 0, fontWeight: 'bold' }}>Вітаю, Vanda!</h1>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button
-            onClick={() => setIsBellModalOpen(true)}
-            style={{ position: 'relative', padding: '10px 14px', backgroundColor: '#1e293b', color: '#fff', border: '1px solid #334155', borderRadius: '12px', cursor: 'pointer', fontSize: '16px' }}
-          >
-            🔔
-            {unreadCount > 0 && (
-              <span style={{ position: 'absolute', top: '-6px', right: '-6px', backgroundColor: '#3b82f6', color: '#fff', fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '10px' }}>
-                {unreadCount}
-              </span>
-            )}
-          </button>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <h1 style={{ fontSize: '26px', margin: 0, fontWeight: 'bold' }}>
+          Вітаю{user?.full_name ? `, ${user.full_name}` : ''}!
+        </h1>
+        <button
+          onClick={() => setIsBellModalOpen(true)}
+          style={{ position: 'relative', padding: '10px 14px', backgroundColor: '#1e293b', color: '#fff', border: '1px solid #334155', borderRadius: '12px', cursor: 'pointer', fontSize: '16px' }}
+        >
+          🔔
+          {unreadCount > 0 && (
+            <span style={{ position: 'absolute', top: '-6px', right: '-6px', backgroundColor: '#3b82f6', color: '#fff', fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '10px' }}>
+              {unreadCount}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* Підключення Telegram */}
-      {user ? (
-        <TelegramConnect user={user} />
-      ) : (
-        <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 16, marginBottom: 20, color: '#94a3b8', fontSize: 13, textAlign: 'center' }}>
-          {loading ? 'Завантаження профілю...' : 'Будь ласка, авторизуйтесь для підключення Telegram'}
-        </div>
-      )}
+      <p style={{ margin: '0 0 10px 0', fontSize: 14, lineHeight: 1.5, color: '#cbd5e1' }}>
+        Готовий почати роботу Вашим персональним асистентом з пошуку для Вас можливостей кар&apos;єрного розвитку та продажу Ваших робіт.
+      </p>
+      <p style={{ margin: '0 0 24px 0', fontSize: 14, lineHeight: 1.5, color: '#94a3b8' }}>
+        Пройдіть реєстрацію, щоб запустити мене в роботу — натисніть «Мій профіль» та заповніть його, щоб я міг шукати можливості персонально під Вас та Вашу творчість.
+      </p>
 
-      {/* Статус можливостей */}
       <div style={{ backgroundColor: '#1e293b', border: '1px solid #3b82f6', borderRadius: '14px', padding: '16px', textAlign: 'center', marginBottom: '14px', color: '#93c5fd', fontSize: '15px', fontWeight: '500' }}>
         🔍 {loading ? 'Пошук...' : `Отримано звітів: ${totalCount}`}
       </div>
 
-      {/* Основні кнопки */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '30px' }}>
         <button
           onClick={() => setIsCenterModalOpen(true)}
@@ -133,22 +122,20 @@ export default function HomePage() {
 
       <div style={{ borderTop: '1px solid #1e293b', margin: '24px 0' }} />
 
-      {/* Футер */}
       <div style={{ textAlign: 'center', paddingBottom: '30px' }}>
         <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 6px 0' }}>POVODYR</h3>
         <p style={{ fontSize: '12px', color: '#94a3b8', maxWidth: '360px', margin: '0 auto' }}>
           Ви створюєте картини. POVODYR допомагає їм знайти шлях.
         </p>
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
-          <img 
-            src="/icon-192.jpg" 
-            alt="POVODYR Logo" 
+          <img
+            src="/icon-192.jpg"
+            alt="POVODYR Logo"
             style={{ width: '96px', height: '96px', borderRadius: '16px', objectFit: 'cover', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
           />
         </div>
       </div>
 
-      {/* Модальні вікна */}
       <NotificationsModal
         isOpen={isBellModalOpen}
         onClose={() => setIsBellModalOpen(false)}
