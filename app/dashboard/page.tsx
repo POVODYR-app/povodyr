@@ -719,7 +719,7 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
 
         {reason === 'trial' ? (
           <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#1e293b', border: '1px solid #334155', fontSize: 13, color: '#e2e8f0' }}>
-            <div>Пробний період ще {trialDaysLeft} днів. Далі — 149 грн/міс (плюс комісія платформи 1%).</div>
+            <div>Пробний період ще {trialDaysLeft} днів. Далі — від 135 грн/міс (плюс комісія платформи 1%).</div>
             <div style={{ marginTop: 8, color: '#94a3b8' }}>{feeNote}</div>
             <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 600 }}>
               Оформити підписку
@@ -729,7 +729,7 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
 
         {reason === 'locked' ? (
           <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#1e293b', border: '1px solid #f59e0b', fontSize: 13, color: '#e2e8f0' }}>
-            <div>Пробний період завершено. Повний пошук, «Відібрав для вас» і генерація листів — за підпискою від 149 грн/міс.</div>
+            <div>Пробний період завершено. Повний пошук, «Відібрав для вас» і генерація листів — за підпискою від 135 грн/міс.</div>
             <div style={{ marginTop: 8, color: '#94a3b8' }}>{feeNote}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
               <a href={subscribeUrl} style={{ backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>149 грн / 1 місяць</a>
