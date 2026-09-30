@@ -303,10 +303,21 @@ export function isTalentNotBuyer(text: string): boolean {
   return blobHas(TALENT_NOT_BUYER_PATTERNS, text)
 }
 
+export function isPaidPublicCommission(text: string): boolean {
+  return /\b(RFQ|RFP|RFSQ|EOI|commission)\b/i.test(text) ||
+    /request for (qualifications|proposals)/i.test(text) ||
+    /expression of interest/i.test(text) ||
+    /artist[''`s]?\s*fee/i.test(text) ||
+    /production budget/i.test(text) ||
+    /permanent (collection|public art)/i.test(text) ||
+    (/site[-\s]?specific/i.test(text) && /deadline|дедлайн|fee|гонорар|budget|€\s*\d|\$\s*\d/i.test(text))
+}
+
 export function isExhibitNotPurchase(text: string): boolean {
   if (!blobHas(EXHIBIT_NOT_PURCHASE_PATTERNS, text)) return false
-  if (/\b(RFQ|RFP|RFSQ|commission|eoi|expression of interest)\b/i.test(text)) return false
-  if (/\$\s*\d|budget|дедлайн|deadline/i.test(text) && hasArtPurchaseObject(text)) return false
+  // Навіщо: RFQ / site-specific з гонораром — це комісія, не «виставка подивитись».
+  if (isPaidPublicCommission(text)) return false
+  if (/€\s*\d|\$\s*\d|budget|дедлайн|deadline|гонорар/i.test(text) && hasArtPurchaseObject(text)) return false
   return true
 }
 
@@ -424,10 +435,9 @@ export function isRealBuyerRequest(input: CommercialDemandInput): boolean {
   const artObject = hasArtPurchaseObject(combined)
   const procurement = isProcurementSourceUrl(url) && artObject
   const rfqCommission =
-    artObject &&
-    /\b(RFQ|RFP|RFSQ|EOI|expression of interest|закупівл|тендер|call for expressions of interest)\b/i.test(
-      combined
-    )
+    (artObject || /public art|site[-\s]?specific|artwork/i.test(combined)) &&
+    (isPaidPublicCommission(combined) ||
+      /\b(закупівл|тендер|call for expressions of interest)\b/i.test(combined))
 
   if (isArtistSaleEvent(combined)) return false
   if (isTalentNotBuyer(combined) && !strongBuyer && !procurement && !rfqCommission) return false
