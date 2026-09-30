@@ -87,52 +87,54 @@ export default function TelegramConnect({ user }: TelegramConnectProps) {
             <span>✈️</span> Підключити Telegram-бота
           </a>
 
-          <div style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #334155',
-            borderRadius: 10,
-            padding: 10,
-            fontSize: 12,
-            color: '#cbd5e1'
-          }}>
-            <p style={{ margin: '0 0 6px 0', color: '#94a3b8' }}>
-              Якщо бот не підключився автоматично:
-            </p>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <code style={{
-                backgroundColor: '#1e293b',
-                padding: '6px 8px',
-                borderRadius: 6,
-                flex: 1,
-                color: '#38bdf8',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                fontSize: 11
-              }}>
-                {manualCommand}
-              </code>
-              <button
-                onClick={copyToClipboard}
-                style={{
-                  backgroundColor: '#334155',
-                  border: 'none',
-                  color: 'white',
+          <details>
+            <summary style={{ fontSize: 12, color: '#94a3b8', cursor: 'pointer', marginBottom: 8 }}>
+              Не відкрилось? Підключити вручну
+            </summary>
+            <div style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid #334155',
+              borderRadius: 10,
+              padding: 10,
+              fontSize: 12,
+              color: '#cbd5e1'
+            }}>
+              <p style={{ margin: '0 0 6px 0', color: '#94a3b8' }}>
+                Відкрийте бота і надішліть скопійовану команду.
+              </p>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <code style={{
+                  backgroundColor: '#1e293b',
+                  padding: '6px 8px',
                   borderRadius: 6,
-                  padding: '6px 12px',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {copied ? 'Скопійовано!' : 'Копіювати'}
-              </button>
+                  flex: 1,
+                  color: '#38bdf8',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  fontSize: 11
+                }}>
+                  {manualCommand}
+                </code>
+                <button
+                  onClick={copyToClipboard}
+                  style={{
+                    backgroundColor: '#334155',
+                    border: 'none',
+                    color: 'white',
+                    borderRadius: 6,
+                    padding: '6px 12px',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {copied ? 'Скопійовано!' : 'Копіювати'}
+                </button>
+              </div>
             </div>
-            <p style={{ margin: '6px 0 0 0', fontSize: 11, color: '#64748b' }}>
-              Надішліть цю команду боту в чат вручну.
-            </p>
-          </div>
+          </details>
         </div>
       )}
     </div>
