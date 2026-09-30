@@ -16,7 +16,7 @@ import {
 } from '../../../lib/commercialDemandGate'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+export const maxDuration = 300
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -619,7 +619,11 @@ export async function GET(request: NextRequest) {
       collected.push(...items)
     }
 
-    const hasSearch = !!(process.env.SERPER_API_KEY || process.env.BRAVE_API_KEY)
+    const curatedOnly = request.nextUrl.searchParams.get('mode') === 'curated'
+    const hasSearch = !curatedOnly && !!(process.env.SERPER_API_KEY || process.env.BRAVE_API_KEY)
+    if (curatedOnly) {
+      logs.push('mode=curated — пошук Serper пропущено')
+    }
     if (hasSearch) {
       logs.push(process.env.SERPER_API_KEY ? 'Пошук через Serper (світ, без ліміту країни)' : 'Пошук через Brave')
       collected.push(...(await collectFromSearchQueries(SEARCH_QUERIES, logs)))
