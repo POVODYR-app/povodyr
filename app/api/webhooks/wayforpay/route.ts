@@ -35,7 +35,7 @@ function verifyIncoming(data: any) {
 }
 
 function addMonths(date: Date, months: number) {
-  const next = new Date(date)
+  const next = new Date(date.getTime())
   next.setMonth(next.getMonth() + months)
   return next
 }
@@ -46,7 +46,7 @@ async function findUser(data: any) {
   if (email) {
     const { data: byEmail } = await supabase
       .from('profiles')
-      .select('id, email, subscription_end, billing_exempt')
+      .select('id, email, subscription_end, billing_exempt, wayforpay_order_ref, subscription_status')
       .ilike('email', email)
       .maybeSingle()
     if (byEmail) return byEmail
@@ -58,7 +58,7 @@ async function findUser(data: any) {
     if (authUser) {
       const { data: byAuthId } = await supabase
         .from('profiles')
-        .select('id, email, subscription_end, billing_exempt')
+        .select('id, email, subscription_end, billing_exempt, wayforpay_order_ref, subscription_status')
         .eq('id', authUser.id)
         .maybeSingle()
       if (byAuthId) {
@@ -71,12 +71,12 @@ async function findUser(data: any) {
   const ref = String(data.orderReference || '')
   const m = ref.match(/^SUB-([0-9a-f-]{36})-/i)
   if (m) {
-    const { data: byRef } = await supabase
+    const { data: byId } = await supabase
       .from('profiles')
-      .select('id, email, subscription_end, billing_exempt')
+      .select('id, email, subscription_end, billing_exempt, wayforpay_order_ref, subscription_status')
       .eq('id', m[1])
       .maybeSingle()
-    if (byRef) return byRef
+    if (byId) return byId
   }
 
   return null
@@ -100,27 +100,30 @@ export async function POST(request: Request) {
     }
 
     const status = String(data.transactionStatus || '')
+    const orderReference = String(data.orderReference || '')
     const user = await findUser(data)
 
     if (user && status === 'Approved') {
-      const plan = planFromAmount(data.amount)
-      const base =
-        user.subscription_end && new Date(user.subscription_end) > new Date()
-          ? new Date(user.subscription_end)
-          : new Date()
-      const end = addMonths(base, plan.months)
+      const alreadyApplied = user.wayforpay_order_ref && user.wayforpay_order_ref === orderReference
+      if (!alreadyApplied) {
+        const plan = planFromAmount(data.amount)
+        const now = new Date()
+        const currentEnd = user.subscription_end ? new Date(user.subscription_end) : null
+        const base = currentEnd && currentEnd > now ? currentEnd : now
+        const end = addMonths(base, plan.months)
 
-      await supabase
-        .from('profiles')
-        .update({
-          subscription_status: 'active',
-          subscription_end: end.toISOString(),
-          grace_until: null,
-          wayforpay_rec_token: data.recToken || null,
-          wayforpay_order_ref: data.orderReference || null,
-          subscription_plan: plan.label,
-        })
-        .eq('id', user.id)
+        await supabase
+          .from('profiles')
+          .update({
+            subscription_status: 'active',
+            subscription_end: end.toISOString(),
+            grace_until: null,
+            wayforpay_rec_token: data.recToken || null,
+            wayforpay_order_ref: orderReference || null,
+            subscription_plan: plan.label,
+          })
+          .eq('id', user.id)
+      }
     }
 
     if (user && ['Declined', 'Expired', 'Refunded', 'Voided', 'Reasoned'].includes(status)) {
@@ -136,7 +139,6 @@ export async function POST(request: Request) {
     }
 
     const time = Math.floor(Date.now() / 1000)
-    const orderReference = String(data.orderReference || '')
     const signature = hmac(`${orderReference};ACCEPT;${time}`)
 
     return NextResponse.json({
