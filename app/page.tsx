@@ -22,7 +22,8 @@ export default function HomePage() {
           setLoading(false);
           return;
         }
-
+window.location.href = '/dashboard';
+        return;
         const authUser = session.user;
 
         const { data: profileData } = await supabase
