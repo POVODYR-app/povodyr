@@ -769,6 +769,24 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
           </div>
         ) : null}
         {userObj && <TelegramConnect user={userObj} />}
+        <details style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 16 }}>
+          <summary style={{ cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#ffffff' }}>
+            Відкривати POVODYR з робочого столу телефону
+          </summary>
+          <div style={{ marginTop: 12, fontSize: 13, color: '#cbd5e1', lineHeight: 1.5 }}>
+            <p style={{ margin: '0 0 10px 0' }}>
+              Додайте ярлик на головний екран — і POVODYR відкриватиметься як звичайний додаток.
+            </p>
+            <p style={{ margin: '0 0 6px 0', fontWeight: 700, color: '#ffffff' }}>iPhone</p>
+            <p style={{ margin: '0 0 10px 0' }}>
+              Відкрийте сайт у Safari → натисніть «Поділитися» (квадрат зі стрілкою внизу) → «На екран «Домів»» → Додати.
+            </p>
+            <p style={{ margin: '0 0 6px 0', fontWeight: 700, color: '#ffffff' }}>Android</p>
+            <p style={{ margin: 0 }}>
+              Відкрийте сайт у Chrome → три крапки вгорі праворуч → «Додати на головний екран» → Додати.
+            </p>
+          </div>
+        </details>
         <FollowUpAlerts savedItems={savedItemsForAlerts} />
 
         <div style={{ marginBottom: 20 }}>
