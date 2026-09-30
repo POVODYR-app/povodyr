@@ -179,6 +179,9 @@ function inferCountry(rawCountry: string | undefined, sourceUrl: string, queryLo
   if (value) return value.slice(0, 80)
 
   const url = sourceUrl.toLowerCase()
+  if (/akimbo\.ca/.test(url)) return 'Canada'
+  if (/nsw\.gov\.au/.test(url)) return 'Australia'
+  if (/goldoni|livorno|artafricamagazine/.test(url)) return 'Italy'
   if (/\.ua\b|ukraine|україн/.test(url)) return 'Україна'
   if (/\.uk\b|united kingdom|\.de\b|\.fr\b|\.it\b|\.nl\b|\.pl\b|europe|eu\b/.test(url)) return 'Europe'
   if (/\.us\b|united states|usa/.test(url)) return 'USA'
@@ -205,6 +208,44 @@ function sourceNameSafe(url: string) {
     return 'source'
   }
 }
+function stripListingChrome(text: string) {
+  return String(text || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&#038;/g, '&')
+    .replace(/Akimbo Art Close Listings|Akimblog|Subscribe|Advertise|Contact|About Us|Terms of Service|Privacy Policy|Back to Listings|Skip to (navigation|content|main content)|Open Menu|Close Menu/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function extractDeadlineFromBlob(text: string): string | null {
+  const raw = String(text || '')
+  const iso = raw.match(/\b(20\d{2})-(\d{2})-(\d{2})\b/)
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`
+  const months: Record<string, string> = {
+    january: '01', february: '02', march: '03', april: '04', may: '05', june: '06',
+    july: '07', august: '08', september: '09', october: '10', november: '11', december: '12',
+    jan: '01', feb: '02', mar: '03', apr: '04', jun: '06', jul: '07', aug: '08',
+    sep: '09', oct: '10', nov: '11', dec: '12',
+  }
+  const m = raw.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+(\d{1,2}),?\s+(20\d{2})\b/i)
+  if (!m) return null
+  const month = months[m[1].toLowerCase().replace(/\./g, '')]
+  if (!month) return null
+  const day = m[2].length === 1 ? `0${m[2]}` : m[2]
+  return `${m[3]}-${month}-${day}`
+}
+
+function extractBudgetFromBlob(text: string): { budget: string | null; currency: string | null } {
+  const raw = String(text || '')
+  const cad = raw.match(/\$\s*([\d,]{3,})(?:\s*CAD)?/i)
+  if (cad && /cad|canada|akimbo/i.test(raw)) return { budget: cad[1].replace(/,/g, ''), currency: 'CAD' }
+  const usd = raw.match(/\$\s*([\d,]{3,})/)
+  if (usd) return { budget: usd[1].replace(/,/g, ''), currency: 'USD' }
+  const eur = raw.match(/€\s*([\d.,]{3,})/)
+  if (eur) return { budget: eur[1].replace(/[.,](?=\d{3}\b)/g, '').replace(',', ''), currency: 'EUR' }
+  return { budget: null, currency: null }
+}
+
 function isKeepableCommercialItem(item: CommercialItem) {
   if (!isValidHttpUrl(item.source_url)) return false
   if (/facebook\.com|fb\.com|instagram\.com/i.test(item.source_url)) return false
@@ -381,19 +422,21 @@ source_url має бути прямим http/https посиланням на т�
         const source_url = sameHost ? extractedUrl : fetchedUrl
         const country = inferCountry(item.country, String(source_url), queryLocale)
         return {
-          title: String(item.title).slice(0, 220),
-          description: String(item.description || item.what_is_needed || '').slice(0, 1200),
+          title: stripListingChrome(String(item.title)).slice(0, 220),
+          description: stripListingChrome(String(item.description || item.what_is_needed || '')).slice(0, 1200),
           what_is_needed: String(item.what_is_needed || item.description || '').slice(0, 800),
           organization: String(item.organization || sourceName).slice(0, 180),
           city: item.city ? String(item.city).slice(0, 80) : '',
           country,
           subtype: normalizeSubtype(item.subtype),
-          budget: item.budget ?? null,
-          currency: inferCurrency(item.currency, country),
+          budget: item.budget ?? extractBudgetFromBlob(`${item.title} ${item.description} ${item.what_is_needed}`).budget,
+          currency: inferCurrency(item.currency, country) || extractBudgetFromBlob(`${item.title} ${item.description}`).currency,
           source_url: String(source_url).slice(0, 500),
           contact_person: item.contact_person || null,
           contact_method: item.contact_method || null,
-          deadline: item.deadline ? String(item.deadline).slice(0, 40) : null,
+          deadline: item.deadline
+            ? String(item.deadline).slice(0, 40)
+            : extractDeadlineFromBlob(`${item.title} ${item.description} ${item.what_is_needed}`),
         }
       })
       .filter((item) => isKeepableCommercialItem(item))
@@ -533,19 +576,19 @@ async function collectFromSearchQueries(
         if (paid) {
           const country = inferCountry('', result.url, query.locale)
           const fallback: CommercialItem = {
-            title: String(result.title || sourceNameSafe(result.url)).slice(0, 220),
-            description: blob.slice(0, 600),
+            title: stripListingChrome(String(result.title || sourceNameSafe(result.url))).slice(0, 220),
+            description: stripListingChrome(blob).slice(0, 600),
             what_is_needed: 'Public artwork / site-specific commission (RFQ / EOI)',
-            organization: String(result.title || 'Institution').slice(0, 180),
+            organization: stripListingChrome(String(result.title || 'Institution')).slice(0, 180),
             city: '',
             country,
             subtype: 'commercial_project',
-            budget: null,
-            currency: inferCurrency(undefined, country),
+            budget: extractBudgetFromBlob(blob).budget,
+            currency: extractBudgetFromBlob(blob).currency || inferCurrency(undefined, country),
             source_url: canonicalSourceUrl(result.url) || result.url,
             contact_person: null,
             contact_method: null,
-            deadline: null,
+            deadline: extractDeadlineFromBlob(blob),
           }
           if (isKeepableCommercialItem(fallback)) {
             items = [fallback]
@@ -597,19 +640,19 @@ export async function GET(request: NextRequest) {
         const country = inferCountry('', source.url)
         items = [
           {
-            title: source.name.slice(0, 220),
-            description: text.slice(0, 600),
+            title: stripListingChrome(source.name).slice(0, 220),
+            description: stripListingChrome(text).slice(0, 600),
             what_is_needed: 'Public artwork / site-specific commission (RFQ / EOI)',
-            organization: source.name.slice(0, 180),
+            organization: stripListingChrome(source.name).slice(0, 180),
             city: '',
             country,
             subtype: 'commercial_project',
-            budget: null,
-            currency: inferCurrency(undefined, country),
+            budget: extractBudgetFromBlob(text).budget,
+            currency: extractBudgetFromBlob(text).currency || inferCurrency(undefined, country),
             source_url: canonicalSourceUrl(source.url) || source.url,
             contact_person: null,
             contact_method: null,
-            deadline: null,
+            deadline: extractDeadlineFromBlob(text),
           },
         ]
         logs.push('GPT дав 0 — картка зібрана зі сторінки джерела')
