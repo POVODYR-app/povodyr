@@ -263,7 +263,7 @@ const WALL_TRADE_PATTERNS = [
 const JOB_BOARD_URL = /work\.ua|robota\.ua|djinni|hh\.ua|linkedin\.com\/jobs/i
 const MARKETPLACE_URL = /prom\.ua|rozetka|etsy\.com|amazon\.|olx\.ua/i
 const ARTIST_BLOG_OR_FICTION_URL =
-  /angelacameron\.com|arkush\.net|thirdandwall\.com|heiek\.de|rogersphotography\.com|despinapaintings\.com|onthewight\.com|leanesuarezgroup\.com|sheldonfineartnaples\.com|mus3ums\.com|starbridge\.ai|\/blogs\/|\/q-a-|\/commercial-artwork/i
+  /angelacameron\.com|arkush\.net|thirdandwall\.com|heiek\.de|rogersphotography\.com|despinapaintings\.com|onthewight\.com|leanesuarezgroup\.com|sheldonfineartnaples\.com|mus3ums\.com|starbridge\.ai|highergov\.com|\/blogs\/|\/q-a-|\/commercial-artwork/i
 const LISTING_OR_EMPTY_URL = /olx\.ua\/(?:uk\/)?list\//i
 const SOCIAL_SHALLOW_URL =
   /instagram\.com|facebook\.com|fb\.com|threads\.com|threads\.net|facebook\.com\/groups|facebook\.com\/.*\/mentions|facebook\.com\/.*\/posts/i
@@ -428,6 +428,8 @@ export function isRealBuyerRequest(input: CommercialDemandInput): boolean {
   const combined = blobOf(input)
   if (!combined.trim()) return false
   const url = normalizeCommercialSourceUrl(input.source_url) || String(input.source_url || '')
+  if (/library materials and processing/i.test(combined)) return false
+  if (/\bart curator\b/i.test(combined) && !/public art|site[-\s]?specific|paintings?|живопис/i.test(combined)) return false
   if (isDeadlineInPast(input.deadline)) return false
   if (failsSharedRejects(combined, url)) return false
 
