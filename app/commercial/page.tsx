@@ -272,7 +272,7 @@ export default function CommercialOpportunitiesPage() {
       org.indexOf('artfinenation') !== -1
     )
   }
-
+const hasPortfolioWorks = userArtworks.length > 0
   const filteredOpportunities = selectedSubtype === 'all'
     ? opportunities
     : opportunities.filter((o) => {
@@ -405,7 +405,12 @@ export default function CommercialOpportunitiesPage() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {filteredOpportunities.length === 0 ? (
+          {!hasPortfolioWorks ? (
+            <div style={{ backgroundColor: '#1e293b', padding: 24, borderRadius: 12, textAlign: 'center', color: '#cbd5e1', fontSize: 14, lineHeight: 1.5 }}>
+              Щоб показати, кому можна продати ваші роботи, спочатку додайте картини в профіль.
+              Без робіт у портфоліо пропозиції продажу не готуємо.
+            </div>
+          ) : filteredOpportunities.length === 0 ? (
             <div style={{ backgroundColor: '#1e293b', padding: 24, borderRadius: 12, textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>
               Наразі немає активних комерційних можливостей у цій категорії.
             </div>
