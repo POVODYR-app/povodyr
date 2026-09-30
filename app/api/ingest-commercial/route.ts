@@ -198,7 +198,13 @@ function inferCurrency(rawCurrency: string | undefined, country: string): string
   if (country === 'Europe') return 'EUR'
   return null
 }
-
+function sourceNameSafe(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return 'source'
+  }
+}
 function isKeepableCommercialItem(item: CommercialItem) {
   if (!isValidHttpUrl(item.source_url)) return false
   if (/facebook\.com|fb\.com|instagram\.com/i.test(item.source_url)) return false
@@ -317,8 +323,9 @@ async function extractCommercialItems(
 З тексту витягни ЛИШЕ реальні комерційні запити покупця/замовника на картини або оригінальний живопис:
 купівля картин, комісії, тендери, RFP, оформлення картинами громадських і комерційних просторів (готель, лікарня, офіс, лобі, університет, ресторан), корпоративні колекції.
 Географія: будь-яка країна. Україна, Європа, США, Канада, Азія, Близький Схід, Австралія — без обмежень.
-Ігноруй Facebook, Instagram, новини, open call без продажу, виставки «to display», гранти, резиденції, вакансії, магазини, блоги художників, картини за номерами, плани закупівель e-lot /plans/ і UA-P- за минулі роки.
-Ігноруй «looking for artist / шукаємо художника», якщо немає купівлі або комісії саме картин/живопису.
+Ігноруй Facebook, Instagram, новини, виставки «to display» без гонорару, гранти на навчання, резиденції без комісії, вакансії, магазини, блоги художників, картини за номерами, плани закупівель e-lot /plans/ і UA-P- за минулі роки.
+НЕ ігноруй RFQ / RFP / EOI / request for qualifications / site-specific / public art, якщо інституція платить fee, production budget або бере роботу в колекцію.
+Ігноруй «looking for artist / шукаємо художника», якщо немає купівлі, комісії, RFQ або гонорару за роботу.
 Ігноруй малярні тендери (фарба, емаль, wall painting, coatings, framing services, graffiti, мураліст як вакансія).
 source_url має бути прямим http/https посиланням на тендер, RFP або сторінку замовника. Не вигадуй URL.
 Поверни JSON:
@@ -517,7 +524,39 @@ async function collectFromSearchQueries(
           : `сторінка порожня, snippet: ${result.url}`
       )
 
-      const items = await extractCommercialItems(result.title || query.q, result.url, blob, query.locale)
+      let items = await extractCommercialItems(result.title || query.q, result.url, blob, query.locale)
+      if (!items.length) {
+        const dropReason = 'empty-or-filtered'
+        const paid =
+          /akimbo\.ca\/listings|request-for-qualifications|\/rfq|\/rfp/i.test(result.url) ||
+          /RFQ|RFP|EOI|request for qualifications|site-specific|public art|artist[''`s]?\s*fee|production budget/i.test(blob)
+        if (paid) {
+          const country = inferCountry('', result.url, query.locale)
+          const fallback: CommercialItem = {
+            title: String(result.title || sourceNameSafe(result.url)).slice(0, 220),
+            description: blob.slice(0, 600),
+            what_is_needed: 'Public artwork / site-specific commission (RFQ / EOI)',
+            organization: String(result.title || 'Institution').slice(0, 180),
+            city: '',
+            country,
+            subtype: 'commercial_project',
+            budget: null,
+            currency: inferCurrency(undefined, country),
+            source_url: canonicalSourceUrl(result.url) || result.url,
+            contact_person: null,
+            contact_method: null,
+            deadline: null,
+          }
+          if (isKeepableCommercialItem(fallback)) {
+            items = [fallback]
+            logs.push(`GPT дав 0 — картка зі сторінки (RFQ/commission): ${result.url}`)
+          } else {
+            logs.push(`drop after GPT: reason=${dropReason}, fallback rejected: ${result.url}`)
+          }
+        } else {
+          logs.push(`drop after GPT: reason=${dropReason}: ${result.url}`)
+        }
+      }
       kept += items.length
       logs.push(`після фільтра GPT: ${items.length}`)
       collected.push(...items)
