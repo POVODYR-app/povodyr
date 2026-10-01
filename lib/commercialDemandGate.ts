@@ -396,6 +396,8 @@ function failsSharedRejects(combined: string, url: string): boolean {
   if (isExhibitNotPurchase(combined)) return true
   if (isArtistSaleEvent(combined)) return true
   if (CANADA_ONLY_PORTAL_URL.test(url)) return true
+  if (/canadian (citizen|artists?) only|must be a canadian|residents? of canada only|open (only )?to canadian|artists? with connections to (toronto|canada)|canadian artists with connections/i.test(combined)) return true
+  if (/residing (within|in) the (county|city|state) of|must be a (legal )?resident of|open (only )?to (la|brooklyn|florida)[- ]based/i.test(combined) && !/international artists|no nationality|all nationalities/i.test(combined)) return true
   if (SOCIAL_SHALLOW_URL.test(url)) return true
   if (JOB_BOARD_URL.test(url)) return true
   if (MARKETPLACE_URL.test(url)) return true
