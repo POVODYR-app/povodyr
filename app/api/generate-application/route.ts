@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { createClient } from '@supabase/supabase-js'
+import { completeQuality, AiBudgetExceededError } from '../../../lib/ai/client'
 
 export const maxDuration = 60
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -14,7 +11,7 @@ const supabase = createClient(
 )
 
 const NAME_PLACEHOLDER = 'Художник'
-const MAX_ARTWORKS = 8
+const MAX_ARTWORKS = 5
 
 type CanonicalArtwork = {
   title: string
@@ -356,7 +353,7 @@ ${sparseNote}
 
 МОЖЛИВІСТЬ:
 - Назва: ${opportunityTitle}
-- Опис: ${opportunityDescription || 'Детальний опис відсутній'}
+- Опис: ${String(opportunityDescription || 'Детальний опис відсутній').slice(0, 1200)}
 
 Рівно 5 блоків українською:
 
@@ -369,21 +366,46 @@ ${sparseNote}
 Заборони: заглушка «Художник» якщо є ім'я; вигадані роботи, серії, виставки, нагороди, організації.
 `
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content:
-            "Пиши лише від наданих фактів. Заборонено «Художник», якщо передано інше ім'я. Заборонено вигадувати роботи й нагороди.",
-        },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.5,
-      max_tokens: 2500,
-    })
+    if (userId) {
+      const dayStart = new Date()
+      dayStart.setUTCHours(0, 0, 0, 0)
+      const { count } = await supabase
+        .from('ai_usage')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('task', 'application_letter')
+        .gte('created_at', dayStart.toISOString())
+      if ((count || 0) >= 5) {
+        return NextResponse.json(
+          { success: false, error: 'Ліміт 5 листів на день. Спробуйте завтра.' },
+          { status: 429 }
+        )
+      }
+    }
 
-    const resultText = completion.choices[0]?.message?.content || 'Не вдалося згенерувати документ.'
+    let resultText = 'Не вдалося згенерувати документ.'
+    try {
+      const completion = await completeQuality('application_letter', {
+        messages: [
+          {
+            role: 'system',
+            content:
+              "Пиши лише від наданих фактів. Заборонено «Художник», якщо передано інше ім'я. Заборонено вигадувати роботи й нагороди.",
+          },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.5,
+        maxTokens: 2500,
+        userId: userId || null,
+        source: String(opportunityId || opportunityTitle || '').slice(0, 200),
+      })
+      resultText = completion.text || resultText
+    } catch (err: any) {
+      if (err instanceof AiBudgetExceededError) {
+        return NextResponse.json({ success: false, error: 'Тимчасово недоступно (ліміт AI).' }, { status: 429 })
+      }
+      throw err
+    }
 
     if (userId && opportunityId) {
       await supabase.from('user_applications').insert({
