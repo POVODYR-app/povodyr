@@ -69,10 +69,7 @@ const ALLOWED_SUBTYPES = [
 ] as const
 
 const CURATED_SOURCES: { url: string; name: string }[] = [
-  {
-    url: 'https://akimbo.ca/listings/request-for-qualifications-site-specific-artwork-for-riverside-south-community-centre-library-ottawa/',
-    name: 'City of Ottawa — Riverside South Community Centre & Library RFQ',
-  },
+  
   {
     url: 'https://www.nsw.gov.au/departments-and-agencies/health-infrastructure/news/call-for-artists-to-help-shape-bathurst-hospital-redevelopment',
     name: 'Bathurst Hospital Redevelopment — 2D artworks for health facility',
@@ -115,10 +112,7 @@ const SEARCH_QUERIES: SearchQuery[] = [
     q: `site:ted.europa.eu ("works of art" OR "original paintings") (acquisition OR commission OR supply) 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'de', hl: 'en' },
   },
-  {
-    q: `site:akimbo.ca/listings (RFQ OR "request for qualifications" OR "site-specific artwork") 2026`,
-    locale: { gl: 'ca', hl: 'en' },
-  },
+  
   {
     q: `"site-specific artwork" (RFQ OR EOI OR "expression of interest") (library OR hospital OR theatre OR "community centre") 2026 -facebook -instagram -etsy -amazon -directory`,
     locale: { gl: 'us', hl: 'en' },
@@ -249,6 +243,8 @@ function extractBudgetFromBlob(text: string): { budget: string | null; currency:
 function isKeepableCommercialItem(item: CommercialItem) {
   if (!isValidHttpUrl(item.source_url)) return false
   if (/facebook\.com|fb\.com|instagram\.com/i.test(item.source_url)) return false
+  if (/akimbo\.ca/i.test(item.source_url)) return false
+  if (/gsa\.acgov\.org\/do-business-with-us\/contracting-opportunities\/?$/i.test(item.source_url)) return false
   return isRealBuyerRequest({
     title: item.title,
     description: item.description,
