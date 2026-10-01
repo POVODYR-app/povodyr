@@ -265,7 +265,7 @@ const MARKETPLACE_URL = /prom\.ua|rozetka|etsy\.com|amazon\.|olx\.ua/i
 const ARTIST_BLOG_OR_FICTION_URL =
   /angelacameron\.com|arkush\.net|thirdandwall\.com|heiek\.de|rogersphotography\.com|despinapaintings\.com|onthewight\.com|leanesuarezgroup\.com|sheldonfineartnaples\.com|mus3ums\.com|starbridge\.ai|highergov\.com|\/blogs\/|\/q-a-|\/commercial-artwork/i
 const LISTING_OR_EMPTY_URL =
-  /olx\.ua\/(?:uk\/)?list\/|gsa\.acgov\.org\/do-business-with-us\/contracting-opportunities\/?$/i
+  /olx\.ua\/(?:uk\/)?list\/|gsa\.acgov\.org\/do-business-with-us\/contracting-opportunities\/?$|arts\.texas\.gov\/initiatives\/public-art/i
 const CANADA_ONLY_PORTAL_URL = /akimbo\.ca/i
 const SOCIAL_SHALLOW_URL =
   /instagram\.com|facebook\.com|fb\.com|threads\.com|threads\.net|facebook\.com\/groups|facebook\.com\/.*\/mentions|facebook\.com\/.*\/posts/i
@@ -402,6 +402,7 @@ function failsSharedRejects(combined: string, url: string): boolean {
   if (JOB_BOARD_URL.test(url)) return true
   if (MARKETPLACE_URL.test(url)) return true
   if (ARTIST_BLOG_OR_FICTION_URL.test(url)) return true
+  if (/checking your browser|enable javascript to get past this challenge/i.test(combined)) return true
   if (STALE_PUBLIC_URL.test(url)) return true
   if (TENDER_LISTING_URL.test(url)) return true
   if (hasStalePlanYear(combined)) return true
