@@ -81,8 +81,7 @@ const CURATED_SOURCES: { url: string; name: string }[] = [
 ]
 
 const SEARCH_EXCLUDES =
-  '-facebook -instagram -etsy -amazon -olx -pinterest -shop -blog -prints -muralist -"wall painting" -coatings -"painting contractors" -"paint by numbers" -"картини за номерами" -"artist bio" -"available works" -"represented by" -forecast -trend'
-
+  '-facebook -instagram -etsy -amazon -olx -pinterest -shop -blog -prints -muralist -"wall painting" -coatings -"painting contractors" -"paint by numbers" -"картини за номерами" -"artist bio" -"available works" -"represented by" -forecast -trend -akimbo -"canadian citizens" -"residents of Canada only" -codaworx -artworkarchive'
 const SEARCH_QUERIES: SearchQuery[] = [
   {
     q: `site:prozorro.gov.ua/uk/tender (живопис OR "оригінальні картини" OR "твори мистецтва" OR "художні полотна") 2026 -фарба -емаль -малярний ${SEARCH_EXCLUDES}`,
@@ -115,6 +114,18 @@ const SEARCH_QUERIES: SearchQuery[] = [
   
   {
     q: `"site-specific artwork" (RFQ OR EOI OR "expression of interest") (library OR hospital OR theatre OR "community centre") 2026 -facebook -instagram -etsy -amazon -directory`,
+    locale: { gl: 'us', hl: 'en' },
+  },
+  {
+    q: `"open to international artists" OR "no nationality restriction" OR "artists of all nationalities" (RFQ OR RFP OR "public art commission" OR "site-specific") 2026 ${SEARCH_EXCLUDES}`,
+    locale: { gl: 'us', hl: 'en' },
+  },
+  {
+    q: `site:ted.europa.eu ("artistic services" OR "public art" OR "works of art" OR sculpture) (commission OR acquisition) 2026 -painting -coatings -travaux`,
+    locale: { gl: 'ie', hl: 'en' },
+  },
+  {
+    q: `"percent for art" OR "art in public places" (international OR "open to all artists") (RFQ OR commission) 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'us', hl: 'en' },
   },
 ]
