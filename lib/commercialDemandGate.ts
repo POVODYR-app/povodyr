@@ -264,7 +264,9 @@ const JOB_BOARD_URL = /work\.ua|robota\.ua|djinni|hh\.ua|linkedin\.com\/jobs/i
 const MARKETPLACE_URL = /prom\.ua|rozetka|etsy\.com|amazon\.|olx\.ua/i
 const ARTIST_BLOG_OR_FICTION_URL =
   /angelacameron\.com|arkush\.net|thirdandwall\.com|heiek\.de|rogersphotography\.com|despinapaintings\.com|onthewight\.com|leanesuarezgroup\.com|sheldonfineartnaples\.com|mus3ums\.com|starbridge\.ai|highergov\.com|\/blogs\/|\/q-a-|\/commercial-artwork/i
-const LISTING_OR_EMPTY_URL = /olx\.ua\/(?:uk\/)?list\//i
+const LISTING_OR_EMPTY_URL =
+  /olx\.ua\/(?:uk\/)?list\/|gsa\.acgov\.org\/do-business-with-us\/contracting-opportunities\/?$/i
+const CANADA_ONLY_PORTAL_URL = /akimbo\.ca/i
 const SOCIAL_SHALLOW_URL =
   /instagram\.com|facebook\.com|fb\.com|threads\.com|threads\.net|facebook\.com\/groups|facebook\.com\/.*\/mentions|facebook\.com\/.*\/posts/i
 const STALE_PUBLIC_URL = /UA-202[0-5]-/i
@@ -393,7 +395,7 @@ export function hasStaleNewsYear(text: string, now = new Date()): boolean {
 function failsSharedRejects(combined: string, url: string): boolean {
   if (isExhibitNotPurchase(combined)) return true
   if (isArtistSaleEvent(combined)) return true
-  if (LISTING_OR_EMPTY_URL.test(url)) return true
+  if (CANADA_ONLY_PORTAL_URL.test(url)) return true
   if (SOCIAL_SHALLOW_URL.test(url)) return true
   if (JOB_BOARD_URL.test(url)) return true
   if (MARKETPLACE_URL.test(url)) return true
