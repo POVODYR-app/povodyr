@@ -493,8 +493,7 @@ export default function DashboardPage() {
               if (!/україн|ukraine/.test(low)) return false
               if (/international|worldwide|europe|європ/.test(low)) return false
               return true
-            })
-            })
+              })
             setModalOpportunities(visibleOpps)
             setHasNoRecentRelevant(visibleOpps.length === 0)
             setRecentRelevantOpps(visibleOpps)
