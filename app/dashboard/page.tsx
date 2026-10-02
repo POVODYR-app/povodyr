@@ -459,6 +459,8 @@ export default function DashboardPage() {
                 created_at: opp.created_at || new Date().toISOString(),
                 deadline: opp.deadline || undefined,
                 link_url: opp.source_url || opp.link || opp.link_url || opp.url || undefined,
+                country: opp.country || '',
+                eligible_countries: opp.eligible_countries || [],
                 matchScore: match.score,
                 matchReasons: match.reasons,
                 recommendedAction: match.recommendedAction,
@@ -474,12 +476,24 @@ export default function DashboardPage() {
             })
 
                         const listingTitleRe = /актуальний open call та події|актуальні гранти та конкурсні програми|worldwide network open calls|grants database|eu supports ukraine through culture|swiss arts council residencies|selected artists in residence|selected projects/i
+            const geoBlob = String(profile?.search_countries || profile?.target_countries || '').toLowerCase()
+            const ukraineOnly =
+              /україн|ukraine/.test(geoBlob) &&
+              !/international|worldwide|європ|europe|\beu\b/.test(geoBlob)
             const visibleOpps = formattedOpps.filter((item) => {
               if (listingTitleRe.test(String(item.title || ''))) return false
-              return isUsableOpportunityUrl({
+              if (!isUsableOpportunityUrl({
                 source_url: item.link_url,
                 title: item.title,
-              })
+              })) return false
+              if (!ukraineOnly) return true
+              if (/art fine nation|artfinenation/i.test(String(item.title || '') + String(item.link_url || ''))) return true
+              const place = String(item.country || '') + ' ' + (Array.isArray(item.eligible_countries) ? item.eligible_countries.join(' ') : '')
+              const low = place.toLowerCase()
+              if (!/україн|ukraine/.test(low)) return false
+              if (/international|worldwide|europe|європ/.test(low)) return false
+              return true
+            })
             })
             setModalOpportunities(visibleOpps)
             setHasNoRecentRelevant(visibleOpps.length === 0)
