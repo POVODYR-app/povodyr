@@ -76,13 +76,27 @@ function isGlobalCountry(country: string): boolean {
   )
 }
 
-function isUkraineFriendly(value: string): boolean {
+function isUkraineToken(value: string): boolean {
   return (
     value.includes('україн') ||
     value.includes('ukraine') ||
-    value.includes('ua') ||
-    isGlobalCountry(value)
+    /(^|[^a-zа-яіїєґ])ua([^a-zа-яіїєґ]|$)/.test(value)
   )
+}
+
+function profileIsUkraineOnly(profile: any): boolean {
+  const countries = profileCountries(profile)
+  if (countries.length === 0) return false
+  if (countries.some(isGlobalCountry)) return false
+  return countries.every(isUkraineToken)
+}
+
+function opportunityIsUkraineOnly(opp: any): boolean {
+  if (isArtFineNationOpportunity(opp)) return true
+  const countries = opportunityCountries(opp)
+  if (countries.length === 0) return false
+  if (countries.some(isGlobalCountry)) return false
+  return countries.some(isUkraineToken)
 }
 
 function detectCurrency(opp: any): 'UAH' | 'EUR' | 'USD' {
@@ -270,6 +284,7 @@ export function scoreOpportunityForUser(profile: any, opp: any): PersonalizedOpp
   if (opp.is_active === false) return null
   if (isExpired(opp)) return null
   if (!ukrainiansAllowed(opp)) return null
+  if (profileIsUkraineOnly(profile) && !opportunityIsUkraineOnly(opp)) return null
 
   const userCountries = profileCountries(profile)
   const userTechs = profileTechniques(profile)
@@ -288,10 +303,7 @@ export function scoreOpportunityForUser(profile: any, opp: any): PersonalizedOpp
   if (userCountries.length > 0 && oppCountries.length > 0) {
     const countryHits = hasOverlap(userCountries, oppCountries)
     const global = oppCountries.some(isGlobalCountry)
-    const userWantsUkraineOrWorld = userCountries.some(isUkraineFriendly)
-    if (countryHits.length === 0 && !global && !userWantsUkraineOrWorld) {
-      return null
-    }
+    if (countryHits.length === 0 && !global) return null
   }
 
   const fee = Number(opp.cost_amount ?? opp.fee_amount ?? opp.org_fee ?? opp.reg_fee ?? 0) || 0
