@@ -21,7 +21,7 @@ const handleResetPassword = async () => {
     setError(null)
     setResetSent(false)
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-      redirectTo: 'https://povodyr.vercel.app/reset-password',
+      redirectTo: 'https://app.povodyr.com/reset-password',
     })
     setLoading(false)
     if (resetError) {
