@@ -263,8 +263,8 @@ const WALL_TRADE_PATTERNS = [
 const JOB_BOARD_URL = /work\.ua|robota\.ua|djinni|hh\.ua|linkedin\.com\/jobs/i
 const MARKETPLACE_URL = /prom\.ua|rozetka|etsy\.com|amazon\.|olx\.ua/i
 const ARTIST_BLOG_OR_FICTION_URL =
-  /angelacameron\.com|arkush\.net|thirdandwall\.com|heiek\.de|rogersphotography\.com|despinapaintings\.com|onthewight\.com|leanesuarezgroup\.com|sheldonfineartnaples\.com|mus3ums\.com|starbridge\.ai|highergov\.com|\/blogs\/|\/q-a-|\/commercial-artwork/i
-const LISTING_OR_EMPTY_URL =
+  /angelacameron\.com|arkush\.net|thirdandwall\.com|heiek\.de|rogersphotography\.com|despinapaintings\.com|onthewight\.com|leanesuarezgroup\.com|sheldonfineartnaples\.com|mus3ums\.com|starbridge\.ai|highergov\.com|bidbanana\.com|arts\.texas\.gov|oregon\.gov\/biz\/aboutus\/artscommission\/Documents|\/blogs\/|\/q-a-|\/commercial-artwork/i
+  const LISTING_OR_EMPTY_URL =
   /olx\.ua\/(?:uk\/)?list\/|gsa\.acgov\.org\/do-business-with-us\/contracting-opportunities\/?$|arts\.texas\.gov\/initiatives\/public-art/i
 const CANADA_ONLY_PORTAL_URL = /akimbo\.ca/i
 const SOCIAL_SHALLOW_URL =
@@ -435,6 +435,8 @@ export function isRealBuyerRequest(input: CommercialDemandInput): boolean {
   const url = normalizeCommercialSourceUrl(input.source_url) || String(input.source_url || '')
   if (/library materials and processing/i.test(combined)) return false
   if (/\bart curator\b/i.test(combined) && !/public art|site[-\s]?specific|paintings?|живопис/i.test(combined)) return false
+  if (/public art consultant/i.test(combined)) return false
+  if (/\.pdf($|\?)/i.test(url) && /oregon\.gov/i.test(url)) return false
   if (isDeadlineInPast(input.deadline)) return false
   if (failsSharedRejects(combined, url)) return false
 
