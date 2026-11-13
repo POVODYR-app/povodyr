@@ -220,7 +220,6 @@ export default function DashboardPage() {
   const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isCommercialModalOpen, setIsCommercialModalOpen] = useState(false)
-  const [isMatchingWorksOpen, setIsMatchingWorksOpen] = useState(true)
   const [loading, setLoading] = useState(true)
   const [dailyCount, setDailyCount] = useState<number>(0)
   const [monthlyMatchedCount, setMonthlyMatchedCount] = useState<number>(0)
@@ -427,9 +426,22 @@ export default function DashboardPage() {
         }
 
         if (digestIds.length === 0) {
-          setModalOpportunities([])
-          setRecentRelevantOpps([])
-          setHasNoRecentRelevant(true)
+          const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000
+            const startOfToday = new Date()
+            startOfToday.setHours(0, 0, 0, 0)
+
+            const last3Days = visibleOpps.filter((item) => {
+              const t = new Date(item.created_at || 0).getTime()
+              return t >= threeDaysAgo
+            })
+            const todayOnly = visibleOpps.filter((item) => {
+              const t = new Date(item.created_at || 0).getTime()
+              return t >= startOfToday.getTime()
+            })
+
+            setModalOpportunities(last3Days.length > 0 ? last3Days : visibleOpps.slice(0, 6))
+            setRecentRelevantOpps(todayOnly)
+            setHasNoRecentRelevant(todayOnly.length === 0)
         } else {
           const { data: opps } = await supabase
             .from('opportunities')
@@ -921,10 +933,7 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
                 </div>
               ) : hasNoRecentRelevant ? (
                 <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 16, textAlign: 'center' }}>
-                   <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 12 }}>
-                    У поточному відборі немає нових можливостей під ваш профіль.
-                  </p>
-                  <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 8 }}>
+                   <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 8 }}>
                      Сьогодні нових можливостей не знайшов.
                    </p>
                    <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.5, marginBottom: 12 }}>
@@ -1052,166 +1061,6 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
                   )
                 })
               )}
-            </div>
-          )}
-        </div>
-
-        <div style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden' }}>
-          <button
-            onClick={() => setIsMatchingWorksOpen(!isMatchingWorksOpen)}
-            style={{
-              width: '100%',
-              backgroundColor: '#1e293b',
-              border: 'none',
-              padding: '16px',
-              color: '#f8fafc',
-              fontSize: '15px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              textAlign: 'left'
-            }}
-          >
-            <span>🎨 ПІДІБРАВ ВАШІ РОБОТИ</span>
-            <span style={{ fontSize: '14px', color: '#38bdf8' }}>{isMatchingWorksOpen ? '▲ Згорнути' : '▼ Розгорнути'}</span>
-          </button>
-          {isMatchingWorksOpen && (
-            <div style={{ padding: '0 16px 16px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0, lineHeight: 1.4 }}>
-                Під актуальні запити покупців, дизайнерів, галерей та інших замовників
-                {(reason === 'trial' || reason === 'locked') ? (
-                <div style={{ padding: 12, borderRadius: 12, backgroundColor: '#0f172a', border: '1px solid #f59e0b' }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: '#fbbf24', letterSpacing: 0.4 }}>
-                    ПЕРЕГЛЯД ПІДБОРУ РОБІТ ПІД ЗАПИТИ ДОСТУПНИЙ НА ЩОМІСЯЧНІЙ ПІДПИСЦІ
-                  </div>
-                  <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700, fontSize: 12 }}>
-                    ОФОРМИТИ ПІДПИСКУ
-                  </a>
-                </div>
-              ) : null}
-              </p>
-              {(() => {
-                if (loading) {
-                  return (
-                    <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12, textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
-                      Аналіз творчої практики...
-                    </div>
-                  )
-                }
-
-                if (!userArtworks || userArtworks.length === 0) {
-                  return (
-                    <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12, textAlign: 'center' }}>
-                      <p style={{ fontSize: '12px', color: '#94a3b8', margin: '0 0 10px 0', lineHeight: 1.4 }}>
-                        Щоб підібрати конкретні твори під запит, додайте роботи в профіль.
-                      </p>
-                      <button
-                        onClick={() => { window.location.href = '/profile' }}
-                        style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                      >
-                        Додати роботи в профіль
-                      </button>
-                    </div>
-                  )
-                }
-
-                const matchingWorkCards = commercialOpportunities
-                  .filter((reqItem) => isValidHttpUrl(reqItem.source_url))
-                  .filter((reqItem) => isFreshMatchingRequest(reqItem))
-                  .map((reqItem) => ({
-                    reqItem,
-                    matched: matchArtworksToRequest(userArtworks, reqItem),
-                    summary: shortRequestSummary(reqItem),
-                  }))
-                  .filter((row) => row.matched.length > 0)
-                  .slice(0, 3)
-
-                const portfolioLine = portfolioSummaryLine(userArtworks)
-
-                if (!matchingWorkCards.length) {
-                  return (
-                    <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12, textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
-                      Немає активних запитів для підбору робіт.
-                    </div>
-                  )
-                }
-
-                return (
-                  <>
-                    {portfolioLine ? (
-                      <p style={{ fontSize: '11px', color: '#cbd5e1', margin: 0, lineHeight: 1.4 }}>
-                        {portfolioLine}
-                      </p>
-                    ) : null}
-                    {matchingWorkCards.map(({ reqItem, matched, summary }) => {
-                      const isGeneratingThis = generatingMatchingWorksId === reqItem.id
-                      return (
-                        <div key={`match-work-${reqItem.id}`} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}>
-                          <div style={{ fontSize: '11px', color: '#38bdf8', marginBottom: 4, fontWeight: 600 }}>
-                            Запит: {reqItem.title}
-                          </div>
-                          {summary ? (
-                            <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: 8, lineHeight: 1.4 }}>
-                              Коротко: {summary}
-                            </div>
-                          ) : null}
-                          <div style={{ fontSize: '11px', color: '#e2e8f0', marginBottom: 8, backgroundColor: '#1e293b', padding: 8, borderRadius: 8, lineHeight: 1.45 }}>
-                            <span style={{ color: '#34d399', fontWeight: 600 }}>Рекомендовані твори: </span>
-                            {formatMatchedWorksLine(matched)}
-                          </div>
-                          <a
-                            href={reqItem.source_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              display: 'inline-block',
-                              backgroundColor: '#2563eb',
-                              color: '#fff',
-                              textDecoration: 'none',
-                              borderRadius: 8,
-                              padding: '8px 12px',
-                              fontSize: '12px',
-                              fontWeight: 600,
-                              textAlign: 'center',
-                              width: '100%',
-                              boxSizing: 'border-box',
-                              marginBottom: '8px'
-                            }}
-                          >
-                            Відкрити запит
-                          </a>
-                          <button
-                            onClick={() => handleGenerateMatchingWorks(reqItem, matched)}
-                            disabled={isGeneratingThis}
-                            style={{
-                              width: '100%',
-                              backgroundColor: isGeneratingThis ? '#047857' : '#059669',
-                              color: '#fff',
-                              border: 'none',
-                              borderRadius: 8,
-                              padding: '8px 10px',
-                              fontSize: '11px',
-                              fontWeight: 600,
-                              cursor: isGeneratingThis ? 'not-allowed' : 'pointer',
-                              textAlign: 'center',
-                              opacity: isGeneratingThis ? 0.8 : 1
-                            }}
-                          >
-                            ✨ Формувати презентацію робіт
-                          </button>
-                          {isGeneratingThis && (
-                            <div style={{ color: '#ef4444', fontSize: '11px', fontWeight: 600, textAlign: 'center', marginTop: '6px' }}>
-                              Зачекайте, я формую
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </>
-                )
-              })()}
             </div>
           )}
         </div>
