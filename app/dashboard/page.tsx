@@ -853,13 +853,14 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
           </div>
                     <button
             onClick={() => {
-  if (reason === 'trial' || reason === 'locked') {
-    alert('ПЕРЕГЛЯД КОМЕРЦІЙНИХ ЗАПИТІВ ДОСТУПНИЙ НА ЩОМІСЯЧНІЙ ПІДПИСЦІ')
-    window.location.href = subscribeUrl
-    return
-  }
-  window.location.href = '/commercial'
-}}
+              if (reason === 'trial' || reason === 'locked') {
+                alert('ПЕРЕГЛЯД КОМЕРЦІЙНИХ ЗАПИТІВ ДОСТУПНИЙ НА ЩОМІСЯЧНІЙ ПІДПИСЦІ')
+                window.location.href = subscribeUrl
+                return
+              }
+              setIsMatchingWorksOpen(true)
+              window.location.href = '/commercial'
+            }}
             style={{
               width: '100%',
               backgroundColor: '#059669',
