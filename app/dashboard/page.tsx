@@ -461,12 +461,6 @@ export default function DashboardPage() {
               source_url: item.link_url,
               title: item.title,
             })) return false
-            if (!ukraineOnly) return true
-            if (/art fine nation|artfinenation/i.test(String(item.title || '') + String(item.link_url || ''))) return true
-            const place = String(item.country || '') + ' ' + (Array.isArray(item.eligible_countries) ? item.eligible_countries.join(' ') : '')
-            const low = place.toLowerCase()
-            if (!/україн|ukraine/.test(low)) return false
-            if (/international|worldwide|europe|європ/.test(low)) return false
             return true
           })
 
