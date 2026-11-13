@@ -861,11 +861,11 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
             }}
           >
             💰 ЗНАЙШОВ КОМУ ПРОДАТИ💰
+          <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: '#fbbf24' }}>
+          БЕТА — тестуємо і допрацьовуємо
           </button>
           <div style={{ marginTop: 6, fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>
             Бренди · дизайнери · простори · культурні та комерційні проєкти
-            <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: '#fbbf24' }}>
-              БЕТА — тестуємо і допрацьовуємо
             </div>
             {(reason === 'trial' || reason === 'locked') ? (
             <div style={{ marginTop: 8, fontSize: 11, fontWeight: 800, color: '#fbbf24', textAlign: 'center', letterSpacing: 0.3 }}>
