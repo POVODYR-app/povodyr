@@ -463,15 +463,6 @@ export default function DashboardPage() {
             })) return false
             return true
           })
-const hasAfn = visibleOpps.some((item) =>
-            /art fine nation|artfinenation/i.test(String(item.title || '') + String(item.link_url || ''))
-          )
-          if (!hasAfn) {
-            const afnFromAll = formattedOpps.find((item) =>
-              /art fine nation|artfinenation/i.test(String(item.title || '') + String(item.link_url || ''))
-            )
-            if (afnFromAll) visibleOpps.unshift(afnFromAll)
-          }
           const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000
           const last3Days = visibleOpps.filter((item) => {
             const t = new Date(item.created_at || 0).getTime()
