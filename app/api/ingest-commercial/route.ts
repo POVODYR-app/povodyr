@@ -637,7 +637,8 @@ export async function GET(request: NextRequest) {
         logs.push(`сирих: 0 → після фільтра: 0 (порожня відповідь)`)
         continue
       }
-      if (isSellerOrPlanText(text) || isWallTradeNotArt(text) || isArtistSaleEvent(text)) {
+      const isGuaranteedCurated = /artafricamagazine\.org|nsw\.gov\.au/i.test(source.url)
+      if (!isGuaranteedCurated && (isSellerOrPlanText(text) || isWallTradeNotArt(text) || isArtistSaleEvent(text))) {
         logs.push(`сирих: 1 сторінка → після фільтра: 0 (продавець/ярмарок)`)
         continue
       }
