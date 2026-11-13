@@ -389,7 +389,35 @@ export default function DashboardPage() {
           .order('created_at', { ascending: false })
           .limit(30)
 
-        const sourceOpps = Array.isArray(recentOpps) ? recentOpps : []
+        let sourceOpps = Array.isArray(recentOpps) ? recentOpps : []
+
+        if (sourceOpps.length === 0) {
+          const { data: digestProfile } = await supabase
+            .from('profiles')
+            .select('digest_opportunity_ids')
+            .eq('id', user.id)
+            .maybeSingle()
+          const rawDigestIds = digestProfile?.digest_opportunity_ids
+          let digestIds: string[] = []
+          if (Array.isArray(rawDigestIds)) {
+            digestIds = rawDigestIds.map((id: any) => String(id)).filter(Boolean)
+          } else if (typeof rawDigestIds === 'string' && rawDigestIds.trim()) {
+            try {
+              const parsed = JSON.parse(rawDigestIds)
+              if (Array.isArray(parsed)) digestIds = parsed.map((id: any) => String(id)).filter(Boolean)
+            } catch {
+              digestIds = []
+            }
+          }
+          if (digestIds.length > 0) {
+            const { data: digestOpps } = await supabase
+              .from('opportunities')
+              .select('*')
+              .in('id', digestIds)
+              .eq('is_active', true)
+            sourceOpps = Array.isArray(digestOpps) ? digestOpps : []
+          }
+        }
 
         if (sourceOpps.length === 0) {
           setModalOpportunities([])
