@@ -494,9 +494,22 @@ export default function DashboardPage() {
               if (/international|worldwide|europe|європ/.test(low)) return false
               return true
               })
-            setModalOpportunities(visibleOpps)
-            setHasNoRecentRelevant(visibleOpps.length === 0)
-            setRecentRelevantOpps(visibleOpps)
+            const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000
+            const startOfToday = new Date()
+            startOfToday.setHours(0, 0, 0, 0)
+
+            const last3Days = visibleOpps.filter((item) => {
+              const t = new Date(item.created_at || 0).getTime()
+              return t >= threeDaysAgo
+            })
+            const todayOnly = visibleOpps.filter((item) => {
+              const t = new Date(item.created_at || 0).getTime()
+              return t >= startOfToday.getTime()
+            })
+
+            setModalOpportunities(last3Days.length > 0 ? last3Days : visibleOpps.slice(0, 8))
+            setRecentRelevantOpps(todayOnly)
+            setHasNoRecentRelevant(todayOnly.length === 0)
           }
         }
       } catch (err) {
@@ -910,9 +923,12 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
                    <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 12 }}>
                     У поточному відборі немає нових можливостей під ваш профіль.
                   </p>
-                  <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.5, marginBottom: 12 }}>
-                    Продовжую шукати під Ваш профіль
-                  </p>
+                  <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 8 }}>
+                     Сьогодні нових можливостей не знайшов.
+                   </p>
+                   <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.5, marginBottom: 12 }}>
+                     Продовжую шукати під Ваш профіль
+                   </p>
                   <button
                     onClick={() => window.location.href = '/profile'}
                     style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
