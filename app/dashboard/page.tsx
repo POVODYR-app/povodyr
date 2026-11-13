@@ -499,7 +499,17 @@ const hasAfn = visibleOpps.some((item) =>
               visibleOpps.unshift(mapped)
             }
           }
-          setModalOpportunities(last3Days.length > 0 ? last3Days : visibleOpps)
+          const finalList = last3Days.length > 0 ? last3Days : visibleOpps
+          const hasAfnInFinal = finalList.some((item) =>
+            /art fine nation|artfinenation/i.test(String(item.title || '') + String(item.link_url || ''))
+          )
+          if (!hasAfnInFinal) {
+            const afnItem = visibleOpps.find((item) =>
+              /art fine nation|artfinenation/i.test(String(item.title || '') + String(item.link_url || ''))
+            )
+            if (afnItem) finalList.unshift(afnItem)
+          }
+          setModalOpportunities(finalList)
           setRecentRelevantOpps(todayOnly)
           setHasNoRecentRelevant(todayOnly.length === 0)
         }
