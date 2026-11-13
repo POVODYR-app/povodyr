@@ -481,7 +481,33 @@ const hasAfn = visibleOpps.some((item) =>
             const t = new Date(item.created_at || 0).getTime()
             return t >= startOfToday.getTime()
           })
-
+const hasAfn = visibleOpps.some((item) =>
+            /art fine nation|artfinenation/i.test(String(item.title || '') + String(item.link_url || ''))
+          )
+          if (!hasAfn) {
+            const { data: afnRows } = await supabase
+              .from('opportunities')
+              .select('*')
+              .eq('is_active', true)
+              .or('title.ilike.%Art Fine Nation%,source_url.ilike.%artfinenation%')
+              .limit(1)
+            const afn = Array.isArray(afnRows) && afnRows.length > 0 ? afnRows[0] : null
+            if (afn) {
+              const mapped: any = {
+                id: afn.id,
+                title: afn.title,
+                description: afn.raw_description || afn.description || '',
+                created_at: afn.created_at || new Date().toISOString(),
+                deadline: afn.deadline || undefined,
+                link_url: afn.source_url || afn.link || afn.link_url || afn.url || undefined,
+                country: afn.country || 'Україна',
+                eligible_countries: afn.eligible_countries || [],
+                matchScore: 99,
+                matchReasons: ['Гарантоване джерело для України: Art Fine Nation'],
+              }
+              visibleOpps.unshift(mapped)
+            }
+          }
           setModalOpportunities(last3Days.length > 0 ? last3Days : visibleOpps)
           setRecentRelevantOpps(todayOnly)
           setHasNoRecentRelevant(todayOnly.length === 0)
