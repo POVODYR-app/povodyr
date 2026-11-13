@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { hasPaidAccess, accessReason } from '../../lib/access'
 import { createClient } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
 import { isRealBuyerRequest } from '../../lib/commercialDemandGate'
@@ -273,6 +274,8 @@ export default function CommercialOpportunitiesPage() {
     )
   }
 const hasPortfolioWorks = userArtworks.length > 0
+  const reason = userProfile ? accessReason(userProfile) : null
+  const subscribeUrl = process.env.NEXT_PUBLIC_SUBSCRIBE_URL || 'https://secure.wayforpay.com/sub/povodyr.com'
   const filteredOpportunities = selectedSubtype === 'all'
     ? opportunities
     : opportunities.filter((o) => {
@@ -516,21 +519,34 @@ const hasPortfolioWorks = userArtworks.length > 0
                   </div>
 
                   <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
-                    <button
-                      onClick={() => handleOpenProposalModal(opp)}
-                      style={{ backgroundColor: '#2563eb', color: '#ffffff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 12 }}
-                    >
-                      Підготувати пропозицію
-                    </button>
-                    {opp.source_url && (
-                      <a
-                        href={opp.source_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ backgroundColor: '#334155', color: '#ffffff', textDecoration: 'none', padding: '8px 14px', borderRadius: 8, fontWeight: 600, fontSize: 12, display: 'inline-flex', alignItems: 'center' }}
-                      >
-                        Переглянути джерело ↗
-                      </a>
+                    {(reason === 'trial' || reason === 'locked') ? (
+                      <div style={{ width: '100%' }}>
+                        <div style={{ fontSize: 11, fontWeight: 800, color: '#fbbf24', marginBottom: 8 }}>
+                          ПІДГОТУВАТИ ПРОПОЗИЦІЮ І ВІДКРИТИ ДЖЕРЕЛО МОЖНА НА ЩОМІСЯЧНІЙ ПІДПИСЦІ
+                        </div>
+                        <a href={subscribeUrl} style={{ display: 'inline-block', backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 14px', fontWeight: 700, fontSize: 12 }}>
+                          Оформити підписку
+                        </a>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleOpenProposalModal(opp)}
+                          style={{ backgroundColor: '#2563eb', color: '#ffffff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 12 }}
+                        >
+                          Підготувати пропозицію
+                        </button>
+                        {opp.source_url && (
+                          <a
+                            href={opp.source_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ backgroundColor: '#334155', color: '#ffffff', textDecoration: 'none', padding: '8px 14px', borderRadius: 8, fontWeight: 600, fontSize: 12, display: 'inline-flex', alignItems: 'center' }}
+                          >
+                            Переглянути джерело ↗
+                          </a>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
