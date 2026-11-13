@@ -209,12 +209,14 @@ function isFreshMatchingRequest(reqItem: any, now = Date.now()): boolean {
     deadline: reqItem?.deadline,
   })
 }
+
 const PIPELINE_STATUSES = ['FOUND', 'INTERESTED', 'PREPARING', 'SUBMITTED', 'WAITING', 'SELECTED', 'REJECTED']
 
 function isPipelineApplicationStatus(status: unknown): boolean {
   const key = String(status || '').trim().toUpperCase()
   return PIPELINE_STATUSES.indexOf(key) !== -1
 }
+
 export default function DashboardPage() {
   const [userName, setUserName] = useState('')
   const [userObj, setUserObj] = useState<{ id: string; telegram_chat_id?: string | null } | null>(null)
@@ -226,7 +228,7 @@ export default function DashboardPage() {
   const [upcomingDeadlinesCount, setUpcomingDeadlinesCount] = useState<number>(0)
   const [modalOpportunities, setModalOpportunities] = useState<any[]>([])
   const [commercialOpportunities, setCommercialOpportunities] = useState<any[]>([])
-  const [savedItemsForAlerts, setSavedItemsForAlerts] = useState<any[]>([])  
+  const [savedItemsForAlerts, setSavedItemsForAlerts] = useState<any[]>([])
   const [isApplicationsModalOpen, setIsApplicationsModalOpen] = useState(false)
   const [applicationItems, setApplicationItems] = useState<any[]>([])
   const [isDeadlineModalOpen, setIsDeadlineModalOpen] = useState(false)
@@ -248,7 +250,7 @@ export default function DashboardPage() {
     const loadDashboardData = async () => {
       setLoading(true)
       const { data: { user } } = await supabase.auth.getUser()
-      setAuthCreatedAt(user.created_at || null)
+      setAuthCreatedAt(user?.created_at || null)
       if (!user || !isMounted) {
         setLoading(false)
         return
@@ -340,14 +342,9 @@ export default function DashboardPage() {
           item.status === 'submitted' || item.status === 'applied' || item.is_submitted === true || item.applied === true
         )
         setSavedItemsForAlerts(submittedOnly)
-      }
-      if (savedOpps && isMounted) {
-        const submittedOnly = savedOpps.filter((item: any) =>
-          item.status === 'submitted' || item.status === 'applied' || item.is_submitted === true || item.applied === true
-        )
-        setSavedItemsForAlerts(submittedOnly)
         setApplicationItems(savedOpps.filter((item: any) => isPipelineApplicationStatus(item.status)))
       }
+
       const { data: commOpps } = await supabase
         .from('commercial_opportunities')
         .select('*')
@@ -426,22 +423,9 @@ export default function DashboardPage() {
         }
 
         if (digestIds.length === 0) {
-          const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000
-            const startOfToday = new Date()
-            startOfToday.setHours(0, 0, 0, 0)
-
-            const last3Days = visibleOpps.filter((item) => {
-              const t = new Date(item.created_at || 0).getTime()
-              return t >= threeDaysAgo
-            })
-            const todayOnly = visibleOpps.filter((item) => {
-              const t = new Date(item.created_at || 0).getTime()
-              return t >= startOfToday.getTime()
-            })
-
-            setModalOpportunities(last3Days.length > 0 ? last3Days : visibleOpps.slice(0, 6))
-            setRecentRelevantOpps(todayOnly)
-            setHasNoRecentRelevant(todayOnly.length === 0)
+          setModalOpportunities([])
+          setRecentRelevantOpps([])
+          setHasNoRecentRelevant(true)
         } else {
           const { data: opps } = await supabase
             .from('opportunities')
@@ -487,7 +471,7 @@ export default function DashboardPage() {
               return (b.matchScore || 0) - (a.matchScore || 0)
             })
 
-                        const listingTitleRe = /актуальний open call та події|актуальні гранти та конкурсні програми|worldwide network open calls|grants database|eu supports ukraine through culture|swiss arts council residencies|selected artists in residence|selected projects/i
+            const listingTitleRe = /актуальний open call та події|актуальні гранти та конкурсні програми|worldwide network open calls|grants database|eu supports ukraine through culture|swiss arts council residencies|selected artists in residence|selected projects/i
             const geoBlob = String(profile?.search_countries || profile?.target_countries || '').toLowerCase()
             const ukraineOnly =
               /україн|ukraine/.test(geoBlob) &&
@@ -505,7 +489,8 @@ export default function DashboardPage() {
               if (!/україн|ukraine/.test(low)) return false
               if (/international|worldwide|europe|європ/.test(low)) return false
               return true
-              })
+            })
+
             const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000
             const startOfToday = new Date()
             startOfToday.setHours(0, 0, 0, 0)
@@ -519,7 +504,7 @@ export default function DashboardPage() {
               return t >= startOfToday.getTime()
             })
 
-            setModalOpportunities(last3Days.length > 0 ? last3Days : visibleOpps.slice(0, 8))
+            setModalOpportunities(last3Days.length > 0 ? last3Days : visibleOpps.slice(0, 6))
             setRecentRelevantOpps(todayOnly)
             setHasNoRecentRelevant(todayOnly.length === 0)
           }
@@ -552,7 +537,8 @@ export default function DashboardPage() {
       })),
     }
   }
-const handleGenerateProposal = async (opp: any) => {
+
+  const handleGenerateProposal = async (opp: any) => {
     const localReason = accessReason({ ...(billingProfile || {}), created_at: authCreatedAt })
     const localSubscribe = process.env.NEXT_PUBLIC_SUBSCRIBE_URL || 'https://secure.wayforpay.com/sub/povodyr.com'
     if (localReason === 'locked') {
@@ -668,7 +654,7 @@ const handleGenerateProposal = async (opp: any) => {
     }
   }
 
-        const getDeadlineDetails = (deadlineStr?: string, title?: string) => {
+  const getDeadlineDetails = (deadlineStr?: string, title?: string) => {
     if (title && /art fine nation|artfinenation/i.test(title)) {
       return { indicator: '🟢', label: 'Довгострокова можливість' }
     }
@@ -688,7 +674,8 @@ const handleGenerateProposal = async (opp: any) => {
       return { indicator: '🟢', label: `Дедлайн через ${diffDays} дн. (довгострокова)` }
     }
   }
-const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
+
+  const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
   const reason = billingProfile || authCreatedAt ? accessReason(accessProfile) : null
   const trialEnd = trialEndsAt(accessProfile)
   const trialDaysLeft = trialEnd
@@ -699,6 +686,7 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
   const subscriptionDaysLeft = accessProfile.subscription_end
     ? Math.ceil((new Date(accessProfile.subscription_end).getTime() - Date.now()) / 86400000)
     : null
+
   return (
     <div
       style={{
@@ -714,7 +702,7 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
             Вітаю{userName ? `, ${userName}` : ''}!
           </h1>
-                              <button
+          <button
             onClick={() => setIsDeadlineModalOpen(true)}
             style={{
               appearance: 'none',
@@ -747,7 +735,7 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
             </span>
           </button>
         </div>
-{typeof window !== 'undefined' && window.location.search.indexOf('payment=success') !== -1 ? (
+        {typeof window !== 'undefined' && window.location.search.indexOf('payment=success') !== -1 ? (
           <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#052e16', border: '1px solid #16a34a', color: '#86efac', fontSize: 13 }}>
             Підписку активовано.
           </div>
@@ -779,7 +767,7 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
             </div>
           </div>
         ) : null}
-{reason === 'paid' && subscriptionDaysLeft === 7 ? (
+        {reason === 'paid' && subscriptionDaysLeft === 7 ? (
           <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#052e16', border: '1px solid #16a34a', fontSize: 13, color: '#dcfce7' }}>
             🧭 POVODYR ще 7 днів працює для тебе. Не забудь продовжити підписку, щоб він і далі шукав твої можливості.
             <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#16a34a', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700 }}>Продовжити роботу POVODYR</a>
@@ -852,7 +840,7 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
             📂 ЗНАЙШОВ ДЛЯ ВАС КУДИ ПОДАТИ
           </button>
           <div style={{ marginTop: 6, fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>
-            Поточний відбір під ваш профіль
+            Добірка за останні 3 дні
           </div>
         </div>
 
@@ -863,14 +851,13 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
           <div style={{ marginBottom: 8, fontSize: '12px', color: '#94a3b8' }}>
             Покупці · дизайнери · галереї · готелі · ресторани · колекціонери
           </div>
-                    <button
+          <button
             onClick={() => {
               if (reason === 'trial' || reason === 'locked') {
                 alert('ПЕРЕГЛЯД КОМЕРЦІЙНИХ ЗАПИТІВ ДОСТУПНИЙ НА ЩОМІСЯЧНІЙ ПІДПИСЦІ')
                 window.location.href = subscribeUrl
                 return
               }
-              setIsMatchingWorksOpen(true)
               window.location.href = '/commercial'
             }}
             style={{
@@ -886,18 +873,18 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
               textAlign: 'center'
             }}
           >
-            💰 ЗНАЙШОВ КОМУ ПРОДАТИ💰
+            💰 ЗНАЙШОВ КОМУ ПРОДАТИ 💰
           </button>
           <div style={{ marginTop: 6, fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>
             Бренди · дизайнери · простори · культурні та комерційні проєкти
             <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: '#fbbf24' }}>
-  БЕТА — ТЕСТУЄМО І ДОПРАЦЬОВУЄМО
+              БЕТА — ТЕСТУЄМО І ДОПРАЦЬОВУЄМО
             </div>
             {(reason === 'trial' || reason === 'locked') ? (
-            <div style={{ marginTop: 8, fontSize: 11, fontWeight: 800, color: '#fbbf24', textAlign: 'center', letterSpacing: 0.3 }}>
-              ЦЕЙ БЛОК ДОСТУПНИЙ НА ЩОМІСЯЧНІЙ ПІДПИСЦІ
-            </div>
-          ) : null}
+              <div style={{ marginTop: 8, fontSize: 11, fontWeight: 800, color: '#fbbf24', textAlign: 'center', letterSpacing: 0.3 }}>
+                ЦЕЙ БЛОК ДОСТУПНИЙ НА ЩОМІСЯЧНІЙ ПІДПИСЦІ
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -933,12 +920,12 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
                 </div>
               ) : hasNoRecentRelevant ? (
                 <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 16, textAlign: 'center' }}>
-                   <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 8 }}>
-                     Сьогодні нових можливостей не знайшов.
-                   </p>
-                   <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.5, marginBottom: 12 }}>
-                     Продовжую шукати під Ваш профіль
-                   </p>
+                  <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 8 }}>
+                    Сьогодні нових можливостей не знайшов.
+                  </p>
+                  <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.5, marginBottom: 12 }}>
+                    Продовжую шукати під Ваш профіль
+                  </p>
                   <button
                     onClick={() => window.location.href = '/profile'}
                     style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
@@ -1025,7 +1012,7 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
                         {generatingProposalId === opp.id ? '⏳ Генерація пакету документів...' : '📄 Згенерувати пакет документів'}
                       </button>
                       {opp.link_url && (
-                        (reason === 'locked' || reason === 'trial' && oppIndex > 0) ? (
+                        (reason === 'locked' || (reason === 'trial' && oppIndex > 0)) ? (
                           <div style={{ marginTop: 4 }}>
                             <div style={{ fontSize: 11, fontWeight: 800, color: '#fbbf24', letterSpacing: 0.4, marginBottom: 8 }}>
                               ВІДКРИТИ ДЖЕРЕЛО МОЖНА НА ЩОМІСЯЧНІЙ ПІДПИСЦІ
@@ -1087,7 +1074,7 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
               textAlign: 'center'
             }}
           >
-         📋ВАШІ ЗАЯВКИ ТА РЕЗУЛЬТАТИ ({applicationItems.length})
+            📋 ВАШІ ЗАЯВКИ ТА РЕЗУЛЬТАТИ ({applicationItems.length})
           </button>
         </div>
 
@@ -1141,14 +1128,8 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
           notifications={modalOpportunities}
           title="ЗНАЙШОВ ДЛЯ ВАС КУДИ ПОДАТИ"
         />
-                <NotificationsModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          notifications={modalOpportunities}
-          title="ЗНАЙШОВ ДЛЯ ВАС КУДИ ПОДАТИ"
-        />
 
-                <ApplicationsTrackerModal
+        <ApplicationsTrackerModal
           isOpen={isApplicationsModalOpen}
           onClose={() => setIsApplicationsModalOpen(false)}
           items={applicationItems}
@@ -1234,6 +1215,7 @@ const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
             </div>
           </div>
         )}
+
         {isCommercialModalOpen && (
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
