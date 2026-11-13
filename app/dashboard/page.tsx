@@ -422,11 +422,84 @@ export default function DashboardPage() {
           }
         }
 
-        if (digestIds.length === 0) {
+        const threeDaysAgoIso = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+        const startOfToday = new Date()
+        startOfToday.setHours(0, 0, 0, 0)
+
+        const { data: recentOpps } = await supabase
+          .from('opportunities')
+          .select('*')
+          .eq('is_active', true)
+          .gte('created_at', threeDaysAgoIso)
+          .order('created_at', { ascending: false })
+          .limit(30)
+
+        const sourceOpps = (recentOpps && recentOpps.length > 0) ? recentOpps : []
+
+        if (sourceOpps.length === 0) {
           setModalOpportunities([])
           setRecentRelevantOpps([])
           setHasNoRecentRelevant(true)
         } else {
+          const formattedOpps = sourceOpps.map((opp: Opportunity) => {
+            const mappedOpp: MatchOpportunity = {
+              id: opp.id,
+              title: opp.title,
+              type: opp.type || 'open_call',
+              eligible_countries: opp.eligible_countries || ['Україна', 'Worldwide'],
+              deadline: opp.deadline || new Date().toISOString(),
+              fee: Number(opp.fee_amount || opp.cost_amount || opp.org_fee || 0),
+              currency: 'USD',
+              techniques: Array.isArray(opp.techniques) ? opp.techniques : [],
+              themes: Array.isArray(opp.themes) ? opp.themes : [],
+              required_level: opp.required_level || undefined,
+            }
+            const match = calculateMatch(artistProfileData, mappedOpp)
+            return {
+              id: opp.id,
+              title: opp.title,
+              description: opp.raw_description || opp.description || '',
+              created_at: opp.created_at || new Date().toISOString(),
+              deadline: opp.deadline || undefined,
+              link_url: opp.source_url || opp.link || opp.link_url || opp.url || undefined,
+              country: opp.country || '',
+              eligible_countries: opp.eligible_countries || [],
+              matchScore: match.score,
+              matchReasons: match.reasons,
+              recommendedAction: match.recommendedAction,
+            }
+          })
+
+          const listingTitleRe = /актуальний open call та події|актуальні гранти та конкурсні програми|worldwide network open calls|grants database|eu supports ukraine through culture|swiss arts council residencies|selected artists in residence|selected projects/i
+          const geoBlob = String(profile?.search_countries || profile?.target_countries || '').toLowerCase()
+          const ukraineOnly =
+            /україн|ukraine/.test(geoBlob) &&
+            !/international|worldwide|європ|europe|\beu\b/.test(geoBlob)
+
+          const visibleOpps = formattedOpps.filter((item) => {
+            if (listingTitleRe.test(String(item.title || ''))) return false
+            if (!isUsableOpportunityUrl({
+              source_url: item.link_url,
+              title: item.title,
+            })) return false
+            if (!ukraineOnly) return true
+            if (/art fine nation|artfinenation/i.test(String(item.title || '') + String(item.link_url || ''))) return true
+            const place = String(item.country || '') + ' ' + (Array.isArray(item.eligible_countries) ? item.eligible_countries.join(' ') : '')
+            const low = place.toLowerCase()
+            if (!/україн|ukraine/.test(low)) return false
+            if (/international|worldwide|europe|європ/.test(low)) return false
+            return true
+          })
+
+          const todayOnly = visibleOpps.filter((item) => {
+            const t = new Date(item.created_at || 0).getTime()
+            return t >= startOfToday.getTime()
+          })
+
+          setModalOpportunities(visibleOpps)
+          setRecentRelevantOpps(todayOnly)
+          setHasNoRecentRelevant(todayOnly.length === 0)
+        }
           const { data: opps } = await supabase
             .from('opportunities')
             .select('*')
