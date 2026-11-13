@@ -9,7 +9,7 @@ import ApplicationsTrackerModal from '../../components/ApplicationsTrackerModal'
 import { calculateMatch, ArtistProfile, Opportunity as MatchOpportunity } from '../../lib/matchEngine'
 import { isRealBuyerRequest } from '../../lib/commercialDemandGate'
 import { isUsableOpportunityUrl } from '../../lib/buildDigestPortion'
-import { hasPaidAccess, accessReason, trialEndsAt } from '../../lib/access'
+import { accessReason, trialEndsAt } from '../../lib/access'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -95,14 +95,6 @@ function tokenizeQueryText(raw: string): string[] {
     .filter((t) => t.length >= 4)
 }
 
-function shortRequestSummary(request: any): string {
-  const text = String(request?.what_is_needed || request?.description || '')
-    .replace(/\s+/g, ' ')
-    .trim()
-  if (!text) return ''
-  return text.length > 180 ? `${text.slice(0, 177)}…` : text
-}
-
 function scoreArtworkAgainstRequest(art: any, queryText: string): MatchedArtwork {
   const title = String(art?.title || '').trim()
   const themes = toArray(art?.themes)
@@ -177,20 +169,6 @@ function formatMatchedWorksLine(matched: MatchedArtwork[]): string {
     .join('; ')
 }
 
-function portfolioSummaryLine(artworks: any[]): string {
-  const list = Array.isArray(artworks) ? artworks : []
-  if (!list.length) return ''
-  const styles = uniqueStrings(list.flatMap((a) => toArray(a.styles))).slice(0, 3)
-  const techniques = uniqueStrings(list.flatMap((a) => toArray(a.techniques_list || a.techniques))).slice(0, 3)
-  const themes = uniqueStrings(list.flatMap((a) => toArray(a.themes))).slice(0, 3)
-  const parts = [
-    styles.length ? `стилі: ${styles.join(', ')}` : '',
-    techniques.length ? `техніки: ${techniques.join(', ')}` : '',
-    themes.length ? `теми: ${themes.join(', ')}` : '',
-  ].filter(Boolean)
-  return parts.length ? `З портфоліо: ${parts.join('; ')}.` : ''
-}
-
 function isFreshMatchingRequest(reqItem: any, now = Date.now()): boolean {
   const added = Date.parse(String(reqItem?.created_at || reqItem?.date_added || ''))
   if (Number.isFinite(added) && now - added > 45 * 24 * 60 * 60 * 1000) return false
@@ -242,7 +220,6 @@ export default function DashboardPage() {
   const [userArtworks, setUserArtworks] = useState<any[]>([])
   const [billingProfile, setBillingProfile] = useState<any>(null)
   const [authCreatedAt, setAuthCreatedAt] = useState<string | null>(null)
-  const [paymentFlash, setPaymentFlash] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -315,13 +292,11 @@ export default function DashboardPage() {
 
       if (works && isMounted) {
         setUserArtworks(works)
-
         const workStyles = works.flatMap((w: any) => toArray(w.styles))
         const workTechs = works.flatMap((w: any) => toArray(w.techniques_list || w.techniques))
         const workMaterials = works.flatMap((w: any) => toArray(w.materials))
         const workThemes = works.flatMap((w: any) => toArray(w.themes))
         const workTitles = works.map((w: any) => w.title).filter(Boolean)
-
         artistProfileData = {
           ...artistProfileData,
           artistic_styles: artistProfileData.artistic_styles.length ? artistProfileData.artistic_styles : workStyles,
@@ -402,26 +377,6 @@ export default function DashboardPage() {
           })
         }
 
-        const { data: digestProfile } = await supabase
-          .from('profiles')
-          .select('digest_opportunity_ids')
-          .eq('id', user.id)
-          .maybeSingle()
-        const rawDigestIds = digestProfile?.digest_opportunity_ids
-        let digestIds: string[] = []
-        if (Array.isArray(rawDigestIds)) {
-          digestIds = rawDigestIds.map((id: any) => String(id)).filter(Boolean)
-        } else if (typeof rawDigestIds === 'string' && rawDigestIds.trim()) {
-          try {
-            const parsed = JSON.parse(rawDigestIds)
-            if (Array.isArray(parsed)) {
-              digestIds = parsed.map((id: any) => String(id)).filter(Boolean)
-            }
-          } catch {
-            digestIds = []
-          }
-        }
-
         const threeDaysAgoIso = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
         const startOfToday = new Date()
         startOfToday.setHours(0, 0, 0, 0)
@@ -434,7 +389,7 @@ export default function DashboardPage() {
           .order('created_at', { ascending: false })
           .limit(30)
 
-        const sourceOpps = (recentOpps && recentOpps.length > 0) ? recentOpps : []
+        const sourceOpps = Array.isArray(recentOpps) ? recentOpps : []
 
         if (sourceOpps.length === 0) {
           setModalOpportunities([])
@@ -499,88 +454,6 @@ export default function DashboardPage() {
           setModalOpportunities(visibleOpps)
           setRecentRelevantOpps(todayOnly)
           setHasNoRecentRelevant(todayOnly.length === 0)
-        }
-          const { data: opps } = await supabase
-            .from('opportunities')
-            .select('*')
-            .in('id', digestIds)
-            .eq('is_active', true)
-
-          if (opps && isMounted) {
-            const formattedOpps = opps.map((opp: Opportunity) => {
-              const mappedOpp: MatchOpportunity = {
-                id: opp.id,
-                title: opp.title,
-                type: opp.type || 'open_call',
-                eligible_countries: opp.eligible_countries || ['Україна', 'Worldwide'],
-                deadline: opp.deadline || new Date().toISOString(),
-                fee: Number(opp.fee_amount || opp.cost_amount || opp.org_fee || 0),
-                currency: 'USD',
-                techniques: Array.isArray(opp.techniques) ? opp.techniques : [],
-                themes: Array.isArray(opp.themes) ? opp.themes : [],
-                required_level: opp.required_level || undefined,
-              }
-              const match = calculateMatch(artistProfileData, mappedOpp)
-              return {
-                id: opp.id,
-                title: opp.title,
-                description: opp.raw_description || opp.description || '',
-                created_at: opp.created_at || new Date().toISOString(),
-                deadline: opp.deadline || undefined,
-                link_url: opp.source_url || opp.link || opp.link_url || opp.url || undefined,
-                country: opp.country || '',
-                eligible_countries: opp.eligible_countries || [],
-                matchScore: match.score,
-                matchReasons: match.reasons,
-                recommendedAction: match.recommendedAction,
-              }
-            })
-
-            const order = new Map(digestIds.map((id, index) => [id, index]))
-            formattedOpps.sort((a, b) => {
-              const ai = order.has(a.id) ? (order.get(a.id) as number) : 999
-              const bi = order.has(b.id) ? (order.get(b.id) as number) : 999
-              if (ai !== bi) return ai - bi
-              return (b.matchScore || 0) - (a.matchScore || 0)
-            })
-
-            const listingTitleRe = /актуальний open call та події|актуальні гранти та конкурсні програми|worldwide network open calls|grants database|eu supports ukraine through culture|swiss arts council residencies|selected artists in residence|selected projects/i
-            const geoBlob = String(profile?.search_countries || profile?.target_countries || '').toLowerCase()
-            const ukraineOnly =
-              /україн|ukraine/.test(geoBlob) &&
-              !/international|worldwide|європ|europe|\beu\b/.test(geoBlob)
-            const visibleOpps = formattedOpps.filter((item) => {
-              if (listingTitleRe.test(String(item.title || ''))) return false
-              if (!isUsableOpportunityUrl({
-                source_url: item.link_url,
-                title: item.title,
-              })) return false
-              if (!ukraineOnly) return true
-              if (/art fine nation|artfinenation/i.test(String(item.title || '') + String(item.link_url || ''))) return true
-              const place = String(item.country || '') + ' ' + (Array.isArray(item.eligible_countries) ? item.eligible_countries.join(' ') : '')
-              const low = place.toLowerCase()
-              if (!/україн|ukraine/.test(low)) return false
-              if (/international|worldwide|europe|європ/.test(low)) return false
-              return true
-            })
-
-            const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000
-            const startOfToday = new Date()
-            startOfToday.setHours(0, 0, 0, 0)
-
-            const last3Days = visibleOpps.filter((item) => {
-              const t = new Date(item.created_at || 0).getTime()
-              return t >= threeDaysAgo
-            })
-            const todayOnly = visibleOpps.filter((item) => {
-              const t = new Date(item.created_at || 0).getTime()
-              return t >= startOfToday.getTime()
-            })
-
-            setModalOpportunities(last3Days.length > 0 ? last3Days : visibleOpps.slice(0, 6))
-            setRecentRelevantOpps(todayOnly)
-            setHasNoRecentRelevant(todayOnly.length === 0)
-          }
         }
       } catch (err) {
         console.error('Помилка завантаження статистики:', err)
@@ -653,7 +526,7 @@ export default function DashboardPage() {
         title: `Пакет документів / пропозиція для: ${opp.title}`,
         text: data.text,
         contactPerson: opp.contact_person,
-        organization: opp.organization
+        organization: opp.organization,
       })
     } catch (err: any) {
       console.error('Помилка генерації:', err)
@@ -670,9 +543,7 @@ export default function DashboardPage() {
       const descParts = [
         reqItem.description || '',
         reqItem.what_is_needed ? `Вимоги: ${reqItem.what_is_needed}` : '',
-        selectedLine
-          ? `Рекомендовані твори (лише ці title з портфоліо, інші не вигадуй): ${selectedLine}`
-          : '',
+        selectedLine ? `Рекомендовані твори (лише ці title з портфоліо, інші не вигадуй): ${selectedLine}` : '',
       ].filter(Boolean)
 
       const res = await fetch('/api/generate-application', {
@@ -700,7 +571,7 @@ export default function DashboardPage() {
         title: `Презентація робіт для: ${reqItem.title}`,
         text: data.text,
         contactPerson: reqItem.contact_person,
-        organization: reqItem.organization
+        organization: reqItem.organization,
       })
     } catch (err: any) {
       console.error('Помилка генерації презентації:', err)
@@ -743,9 +614,8 @@ export default function DashboardPage() {
       return { indicator: '🔵', label: `Дедлайн через ${diffDays} дн. (31–90 днів)` }
     } else if (diffDays < 0) {
       return { indicator: '⚪', label: 'Термін подачі вийшов' }
-    } else {
-      return { indicator: '🟢', label: `Дедлайн через ${diffDays} дн. (довгострокова)` }
     }
+    return { indicator: '🟢', label: `Дедлайн через ${diffDays} дн. (довгострокова)` }
   }
 
   const accessProfile = { ...(billingProfile || {}), created_at: authCreatedAt }
@@ -802,12 +672,12 @@ export default function DashboardPage() {
             </span>
             <span style={{ display: 'flex', gap: 2, fontSize: '12px' }}>
               {Array.from(new Set(
-                applicationItems
-                  .map((item: any) => getDeadlineDetails(item.opportunity?.deadline).indicator)
+                applicationItems.map((item: any) => getDeadlineDetails(item.opportunity?.deadline).indicator)
               )).join('')}
             </span>
           </button>
         </div>
+
         {typeof window !== 'undefined' && window.location.search.indexOf('payment=success') !== -1 ? (
           <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#052e16', border: '1px solid #16a34a', color: '#86efac', fontSize: 13 }}>
             Підписку активовано.
@@ -840,6 +710,7 @@ export default function DashboardPage() {
             </div>
           </div>
         ) : null}
+
         {reason === 'paid' && subscriptionDaysLeft === 7 ? (
           <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#052e16', border: '1px solid #16a34a', fontSize: 13, color: '#dcfce7' }}>
             🧭 POVODYR ще 7 днів працює для тебе. Не забудь продовжити підписку, щоб він і далі шукав твої можливості.
@@ -867,6 +738,7 @@ export default function DashboardPage() {
             </a>
           </div>
         ) : null}
+
         {userObj && <TelegramConnect user={userObj} />}
         <details style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 16 }}>
           <summary style={{ cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#ffffff' }}>
@@ -907,7 +779,7 @@ export default function DashboardPage() {
               fontSize: 16,
               fontWeight: 600,
               cursor: 'pointer',
-              textAlign: 'center'
+              textAlign: 'center',
             }}
           >
             📂 ЗНАЙШОВ ДЛЯ ВАС КУДИ ПОДАТИ
@@ -943,7 +815,7 @@ export default function DashboardPage() {
               fontSize: 16,
               fontWeight: 600,
               cursor: 'pointer',
-              textAlign: 'center'
+              textAlign: 'center',
             }}
           >
             💰 ЗНАЙШОВ КОМУ ПРОДАТИ 💰
@@ -976,7 +848,7 @@ export default function DashboardPage() {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              textAlign: 'left'
+              textAlign: 'left',
             }}
           >
             <span>✨ СЬОГОДНІ Я ЗНАЙШОВ ДЛЯ ВАС</span>
@@ -1000,7 +872,7 @@ export default function DashboardPage() {
                     Продовжую шукати під Ваш профіль
                   </p>
                   <button
-                    onClick={() => window.location.href = '/profile'}
+                    onClick={() => { window.location.href = '/profile' }}
                     style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                   >
                     Змінити критерії в профілі
@@ -1011,10 +883,7 @@ export default function DashboardPage() {
                   const deadlineInfo = getDeadlineDetails(opp.deadline, opp.title)
                   const isExpanded = expandedCardId === opp.id
                   return (
-                    <div
-                      key={opp.id}
-                      style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}
-                    >
+                    <div key={opp.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: 6, fontSize: '12px', color: '#cbd5e1' }}>
                         <span>{deadlineInfo.indicator}</span>
                         <span>{deadlineInfo.label}</span>
@@ -1044,7 +913,7 @@ export default function DashboardPage() {
                           textAlign: 'left',
                           display: 'flex',
                           justifyContent: 'space-between',
-                          alignItems: 'center'
+                          alignItems: 'center',
                         }}
                       >
                         <span>Чому POVODYR рекомендує це мені?</span>
@@ -1079,7 +948,7 @@ export default function DashboardPage() {
                           fontWeight: 600,
                           cursor: 'pointer',
                           marginBottom: '8px',
-                          textAlign: 'center'
+                          textAlign: 'center',
                         }}
                       >
                         {generatingProposalId === opp.id ? '⏳ Генерація пакету документів...' : '📄 Згенерувати пакет документів'}
@@ -1110,7 +979,7 @@ export default function DashboardPage() {
                               fontWeight: 600,
                               textAlign: 'center',
                               width: '100%',
-                              boxSizing: 'border-box'
+                              boxSizing: 'border-box',
                             }}
                           >
                             🔗 Перейти до першоджерела
@@ -1144,7 +1013,7 @@ export default function DashboardPage() {
               fontSize: 16,
               fontWeight: 600,
               cursor: 'pointer',
-              textAlign: 'center'
+              textAlign: 'center',
             }}
           >
             📋 ВАШІ ЗАЯВКИ ТА РЕЗУЛЬТАТИ ({applicationItems.length})
@@ -1159,7 +1028,7 @@ export default function DashboardPage() {
             Ваш профіль · стиль · техніка · теми · цілі
           </div>
           <button
-            onClick={() => window.location.href = '/profile'}
+            onClick={() => { window.location.href = '/profile' }}
             style={{
               width: '100%',
               backgroundColor: '#1e293b',
@@ -1170,7 +1039,7 @@ export default function DashboardPage() {
               fontSize: 16,
               fontWeight: 600,
               cursor: 'pointer',
-              textAlign: 'center'
+              textAlign: 'center',
             }}
           >
             ✏️ ДОДАЙТЕ ПРО СЕБЕ
@@ -1190,7 +1059,7 @@ export default function DashboardPage() {
               src="/icon-192.jpg"
               alt="POVODYR logo"
               style={{ width: 60, height: 'auto', borderRadius: 12, border: '1px solid #334155' }}
-              onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+              onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
             />
           </div>
         </div>
@@ -1256,9 +1125,7 @@ export default function DashboardPage() {
                     .map((item: any) => {
                       const info = getDeadlineDetails(item.opportunity?.deadline)
                       const d = new Date(item.opportunity.deadline)
-                      const dateLabel = Number.isNaN(d.getTime())
-                        ? 'не вказано'
-                        : d.toLocaleDateString('uk-UA')
+                      const dateLabel = Number.isNaN(d.getTime()) ? 'не вказано' : d.toLocaleDateString('uk-UA')
                       return (
                         <div
                           key={item.id}
@@ -1294,12 +1161,12 @@ export default function DashboardPage() {
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.75)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 1000, padding: 16
+            zIndex: 1000, padding: 16,
           }}>
             <div style={{
               backgroundColor: '#1e293b', border: '1px solid #334155',
               borderRadius: 16, padding: 20, width: '100%', maxWidth: 440,
-              maxHeight: '85dvh', overflowY: 'auto', color: '#fff'
+              maxHeight: '85dvh', overflowY: 'auto', color: '#fff',
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <h3 style={{ margin: 0, fontSize: 18, color: '#34d399' }}>🤝 ЗНАЙШОВ, ХТО ШУКАЄ АРТ ПАРТНЕРА</h3>
@@ -1350,7 +1217,7 @@ export default function DashboardPage() {
                           textAlign: 'center',
                           width: '100%',
                           boxSizing: 'border-box',
-                          marginBottom: '8px'
+                          marginBottom: '8px',
                         }}
                       >
                         🔗 Відкрити запит замовника
@@ -1368,7 +1235,7 @@ export default function DashboardPage() {
                           fontSize: '12px',
                           fontWeight: 600,
                           cursor: 'pointer',
-                          textAlign: 'center'
+                          textAlign: 'center',
                         }}
                       >
                         {generatingProposalId === comm.id ? '⏳ Генерація пропозиції...' : '✍️ Підготувати пропозицію та контакти'}
@@ -1386,12 +1253,12 @@ export default function DashboardPage() {
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.7)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 1000, padding: 16
+            zIndex: 1000, padding: 16,
           }}>
             <div style={{
               backgroundColor: '#1e293b', border: '1px solid #334155',
               borderRadius: 16, padding: 20, width: '100%', maxWidth: 440,
-              maxHeight: '85dvh', overflowY: 'auto', color: '#fff'
+              maxHeight: '85dvh', overflowY: 'auto', color: '#fff',
             }}>
               <h3 style={{ margin: '0 0 8px 0', fontSize: 16, color: '#38bdf8' }}>
                 {proposalModalData.title}
@@ -1409,7 +1276,7 @@ export default function DashboardPage() {
                   width: '100%', height: 160, backgroundColor: '#0f172a',
                   color: '#e2e8f0', border: '1px solid #334155', borderRadius: 8,
                   padding: 10, fontSize: '13px', resize: 'none', boxSizing: 'border-box',
-                  marginBottom: 12, outline: 'none'
+                  marginBottom: 12, outline: 'none',
                 }}
               />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
@@ -1421,7 +1288,7 @@ export default function DashboardPage() {
                   style={{
                     backgroundColor: '#334155', color: '#fff', border: '1px solid #475569',
                     borderRadius: 8, padding: '10px 8px', fontSize: '12px', fontWeight: 600,
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                   }}
                 >
                   <span>📋</span> Копіювати текст
@@ -1439,7 +1306,7 @@ export default function DashboardPage() {
                   style={{
                     backgroundColor: '#334155', color: '#fff', border: '1px solid #475569',
                     borderRadius: 8, padding: '10px 8px', fontSize: '12px', fontWeight: 600,
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                   }}
                 >
                   <span>💾</span> Завантажити (.txt)
@@ -1450,7 +1317,7 @@ export default function DashboardPage() {
                 border: '1px solid #334155',
                 borderRadius: 12,
                 padding: 12,
-                marginBottom: 12
+                marginBottom: 12,
               }}>
                 <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: 10, color: '#e2e8f0' }}>
                   Як вам цей варіант?
@@ -1461,7 +1328,7 @@ export default function DashboardPage() {
                     style={{
                       backgroundColor: '#059669', color: 'white', border: 'none',
                       borderRadius: 8, padding: '10px', fontSize: '13px', fontWeight: 600,
-                      cursor: 'pointer', textAlign: 'left'
+                      cursor: 'pointer', textAlign: 'left',
                     }}
                   >
                     ✅ Добре, можна використовувати
@@ -1471,7 +1338,7 @@ export default function DashboardPage() {
                     style={{
                       backgroundColor: '#1e293b', color: '#e2e8f0', border: '1px solid #475569',
                       borderRadius: 8, padding: '10px', fontSize: '13px', fontWeight: 600,
-                      cursor: 'pointer', textAlign: 'left'
+                      cursor: 'pointer', textAlign: 'left',
                     }}
                   >
                     ✏️ Потрібно змінити тон
@@ -1481,7 +1348,7 @@ export default function DashboardPage() {
                     style={{
                       backgroundColor: '#1e293b', color: '#e2e8f0', border: '1px solid #475569',
                       borderRadius: 8, padding: '10px', fontSize: '13px', fontWeight: 600,
-                      cursor: 'pointer', textAlign: 'left'
+                      cursor: 'pointer', textAlign: 'left',
                     }}
                   >
                     📄 Занадто офіційно
@@ -1491,7 +1358,7 @@ export default function DashboardPage() {
                     style={{
                       backgroundColor: '#1e293b', color: '#f87171', border: '1px solid #475569',
                       borderRadius: 8, padding: '10px', fontSize: '13px', fontWeight: 600,
-                      cursor: 'pointer', textAlign: 'left'
+                      cursor: 'pointer', textAlign: 'left',
                     }}
                   >
                     ❌ Не підходить
@@ -1515,7 +1382,7 @@ export default function DashboardPage() {
                       flex: 1, backgroundColor: '#059669', color: '#fff', textDecoration: 'none',
                       borderRadius: 8, padding: '10px', fontSize: '12px', fontWeight: 600,
                       cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                      boxSizing: 'border-box'
+                      boxSizing: 'border-box',
                     }}
                   >
                     <span>✉️</span> Написати замовнику
@@ -1527,7 +1394,7 @@ export default function DashboardPage() {
                 style={{
                   width: '100%', backgroundColor: '#1e293b', color: '#94a3b8',
                   border: '1px solid #334155', borderRadius: 8, padding: '8px',
-                  fontSize: '12px', fontWeight: 600, cursor: 'pointer'
+                  fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                 }}
               >
                 Закрити вікно
