@@ -377,53 +377,41 @@ export default function DashboardPage() {
           })
         }
 
-        const threeDaysAgoIso = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-        const startOfToday = new Date()
-        startOfToday.setHours(0, 0, 0, 0)
+        const { data: digestProfile } = await supabase
+          .from('profiles')
+          .select('digest_opportunity_ids')
+          .eq('id', user.id)
+          .maybeSingle()
 
-        const { data: recentOpps } = await supabase
-          .from('opportunities')
-          .select('*')
-          .eq('is_active', true)
-          .gte('created_at', threeDaysAgoIso)
-          .order('created_at', { ascending: false })
-          .limit(30)
-
-        let sourceOpps = Array.isArray(recentOpps) ? recentOpps : []
-
-        if (sourceOpps.length === 0) {
-          const { data: digestProfile } = await supabase
-            .from('profiles')
-            .select('digest_opportunity_ids')
-            .eq('id', user.id)
-            .maybeSingle()
-          const rawDigestIds = digestProfile?.digest_opportunity_ids
-          let digestIds: string[] = []
-          if (Array.isArray(rawDigestIds)) {
-            digestIds = rawDigestIds.map((id: any) => String(id)).filter(Boolean)
-          } else if (typeof rawDigestIds === 'string' && rawDigestIds.trim()) {
-            try {
-              const parsed = JSON.parse(rawDigestIds)
-              if (Array.isArray(parsed)) digestIds = parsed.map((id: any) => String(id)).filter(Boolean)
-            } catch {
-              digestIds = []
-            }
-          }
-          if (digestIds.length > 0) {
-            const { data: digestOpps } = await supabase
-              .from('opportunities')
-              .select('*')
-              .in('id', digestIds)
-              .eq('is_active', true)
-            sourceOpps = Array.isArray(digestOpps) ? digestOpps : []
+        const rawDigestIds = digestProfile?.digest_opportunity_ids
+        let digestIds: string[] = []
+        if (Array.isArray(rawDigestIds)) {
+          digestIds = rawDigestIds.map((id: any) => String(id)).filter(Boolean)
+        } else if (typeof rawDigestIds === 'string' && rawDigestIds.trim()) {
+          try {
+            const parsed = JSON.parse(rawDigestIds)
+            if (Array.isArray(parsed)) digestIds = parsed.map((id: any) => String(id)).filter(Boolean)
+          } catch {
+            digestIds = []
           }
         }
 
-        if (sourceOpps.length === 0) {
+        const startOfToday = new Date()
+        startOfToday.setHours(0, 0, 0, 0)
+
+        if (digestIds.length === 0) {
           setModalOpportunities([])
           setRecentRelevantOpps([])
           setHasNoRecentRelevant(true)
         } else {
+          const { data: opps } = await supabase
+            .from('opportunities')
+            .select('*')
+            .in('id', digestIds)
+            .eq('is_active', true)
+
+          const sourceOpps = Array.isArray(opps) ? opps : []
+
           const formattedOpps = sourceOpps.map((opp: Opportunity) => {
             const mappedOpp: MatchOpportunity = {
               id: opp.id,
@@ -453,6 +441,14 @@ export default function DashboardPage() {
             }
           })
 
+          const order = new Map(digestIds.map((id, index) => [id, index]))
+          formattedOpps.sort((a, b) => {
+            const ai = order.has(a.id) ? (order.get(a.id) as number) : 999
+            const bi = order.has(b.id) ? (order.get(b.id) as number) : 999
+            if (ai !== bi) return ai - bi
+            return (b.matchScore || 0) - (a.matchScore || 0)
+          })
+
           const listingTitleRe = /актуальний open call та події|актуальні гранти та конкурсні програми|worldwide network open calls|grants database|eu supports ukraine through culture|swiss arts council residencies|selected artists in residence|selected projects/i
           const geoBlob = String(profile?.search_countries || profile?.target_countries || '').toLowerCase()
           const ukraineOnly =
@@ -474,12 +470,17 @@ export default function DashboardPage() {
             return true
           })
 
+          const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000
+          const last3Days = visibleOpps.filter((item) => {
+            const t = new Date(item.created_at || 0).getTime()
+            return t >= threeDaysAgo
+          })
           const todayOnly = visibleOpps.filter((item) => {
             const t = new Date(item.created_at || 0).getTime()
             return t >= startOfToday.getTime()
           })
 
-          setModalOpportunities(visibleOpps)
+          setModalOpportunities(last3Days.length > 0 ? last3Days : visibleOpps)
           setRecentRelevantOpps(todayOnly)
           setHasNoRecentRelevant(todayOnly.length === 0)
         }
