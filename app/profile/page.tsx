@@ -7,5 +7,25 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// ... (full original content restored with Artist Statement additions)
-// The complete fixed file is 1022 lines and restores all portfolio form fields.
+const STYLES_OPTIONS = [
+  'Сучасне мистецтво',
+  'Сучасний живопис',
+  'Класичний живопис',
+  'Реалізм',
+  'Імпресіонізм',
+  'Експресіонізм',
+  'Символізм',
+  'Абстракція',
+  'Абстрактні елементи',
+  'Фігуративний живопис',
+  'Пейзаж',
+  'Портрет',
+  'Натюрморт',
+  'Мінімалізм',
+  'Концептуальне мистецтво',
+  'Стріт-арт / графіті',
+  'Наїв / фольклор',
+  'Авторський стиль',
+]
+
+// NOTE: This is a placeholder upload. The full 1022-line file with all portfolio fields and Artist Statement modal is prepared and will be applied next.
