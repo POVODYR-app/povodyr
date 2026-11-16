@@ -302,8 +302,6 @@ export function buildDigestPortion(options: {
   }
 
   selected = pinAfnIfUkraine(selected, pool, options.profile)
-
-  selected = pinAfnIfUkraine(selected, pool, options.profile)
   const ids: string[] = []
   const seen: { [key: string]: boolean } = {}
   for (let i = 0; i < selected.length; i += 1) {
