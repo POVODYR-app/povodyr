@@ -152,7 +152,6 @@ function pinAfnIfUkraine(
   profile: any
 ): PersonalizedOpportunity[] {
   if (!profileWantsUkraine(profile)) return selected
-  if (!selected.length) return selected
 
   const afnOpp = findAfnInPool(pool)
   if (!afnOpp || !afnOpp.id) return selected
@@ -280,16 +279,29 @@ export function buildDigestPortion(options: {
     }
   }
 
-  let selected: PersonalizedOpportunity[] = []
+    let selected: PersonalizedOpportunity[] = []
   if (fresh.length >= minNew) {
     selected = fresh.slice(0, limit)
   } else if (fresh.length > 0) {
     selected = fresh.concat(fill).slice(0, limit)
-  } else if (previousIds.length === 0) {
-    selected = ranked.slice(0, limit)
   } else {
-    selected = []
+    // Якщо немає свіжих — беремо найкращі з пулу (щоб завжди була добірка)
+    selected = ranked.slice(0, limit)
   }
+
+  // Гарантуємо мінімум 3 позиції, якщо є що брати
+  if (selected.length < minNew && ranked.length > selected.length) {
+    const used = new Set(selected.map((r) => String(r?.opportunity?.id || '')))
+    for (const row of ranked) {
+      if (selected.length >= minNew) break
+      const id = String(row?.opportunity?.id || '')
+      if (!id || used.has(id)) continue
+      selected.push(row)
+      used.add(id)
+    }
+  }
+
+  selected = pinAfnIfUkraine(selected, pool, options.profile)
 
   selected = pinAfnIfUkraine(selected, pool, options.profile)
   const ids: string[] = []
