@@ -788,14 +788,15 @@ const hasAfn = visibleOpps.some((item) =>
           </div>
         ) : null}
         {reason === 'grace' ? (
-          <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#422006', border: '1px solid #f59e0b', fontSize: 13, color: '#fde68a' }}>
-            Не вдалося продовжити підписку. Є 7 днів, щоб оновити картку.
-            <div style={{ marginTop: 8 }}>{feeNote}</div>
-            <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 600 }}>
-              Оновити підписку
-            </a>
-          </div>
-        ) : null}
+          {reason === 'grace' ? (
+  <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#422006', border: '1px solid #f59e0b', fontSize: 13, color: '#fde68a' }}>
+    Не вдалося продовжити підписку. Є 2 дні, щоб оновити картку.
+    <div style={{ marginTop: 8 }}>{feeNote}</div>
+    <a href={subscribeUrl} style={{ display: 'inline-block', marginTop: 10, backgroundColor: '#2563eb', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 600 }}>
+      Оновити підписку
+    </a>
+  </div>
+) : null}
 
         {userObj && <TelegramConnect user={userObj} />}
         <details style={{ marginBottom: 20, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 16 }}>
