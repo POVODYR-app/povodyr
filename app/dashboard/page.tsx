@@ -788,7 +788,6 @@ const hasAfn = visibleOpps.some((item) =>
           </div>
         ) : null}
         {reason === 'grace' ? (
-          {reason === 'grace' ? (
   <div style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#422006', border: '1px solid #f59e0b', fontSize: 13, color: '#fde68a' }}>
     Не вдалося продовжити підписку. Є 2 дні, щоб оновити картку.
     <div style={{ marginTop: 8 }}>{feeNote}</div>
