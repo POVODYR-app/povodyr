@@ -1,10 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import {
-  buildDigestPortion,
-  parseIdList,
-  shouldKeepExistingSameDaySnapshot,
-} from '../../../lib/buildDigestPortion';
+import { parseIdList } from '../../../lib/buildDigestPortion';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -34,57 +30,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: profileError?.message || 'Profile not found' }, { status: 404 });
     }
 
-    const nowISO = new Date().toISOString();
-    const { data: opportunities, error: oppError } = await supabaseAdmin
-      .from('opportunities')
-      .select('*')
-      .eq('is_active', true)
-      .or(`deadline.gte.${nowISO},deadline.is.null`)
-      .order('created_at', { ascending: false })
-      .limit(250);
+    const digestIds = parseIdList(profile.digest_opportunity_ids);
 
-    if (oppError) {
-      return NextResponse.json({ success: false, error: oppError.message }, { status: 500 });
-    }
-
-    const previousIds = parseIdList(profile.digest_opportunity_ids);
-    const portion = buildDigestPortion({
-      profile,
-      opportunities: opportunities || [],
-      previousIds,
-      previousRunAt: profile.digest_run_at,
-    });
-
-    const keepExisting = shouldKeepExistingSameDaySnapshot({
-      newIds: portion.ids,
-      previousIds,
-      previousRunAt: profile.digest_run_at,
-    });
-
-    const digestIds = keepExisting ? previousIds : portion.ids;
-    const runAt = keepExisting && profile.digest_run_at ? profile.digest_run_at : nowISO;
-
-    if (!keepExisting) {
-      const { error: digestError } = await supabaseAdmin
-        .from('profiles')
-        .update({
-          digest_opportunity_ids: digestIds,
-          digest_run_at: runAt,
-        })
-        .eq('id', userId);
-
-      if (digestError) {
-        return NextResponse.json({ success: false, error: digestError.message }, { status: 500 });
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      digest_run_at: runAt,
-      count: digestIds.length,
-      digest_opportunity_ids: digestIds,
-      kept_existing: keepExisting,
-    });
+return NextResponse.json({
+  success: true,
+  digest_run_at: profile.digest_run_at || null,
+  count: digestIds.length,
+  digest_opportunity_ids: digestIds,
+  kept_existing: true,
+});
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
