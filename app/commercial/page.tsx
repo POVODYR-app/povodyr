@@ -215,7 +215,11 @@ export default function CommercialOpportunitiesPage() {
             org.indexOf('art fine nation') !== -1 ||
             org.indexOf('artfinenation') !== -1
           const isSaleExhibition = opp.subtype === 'exhibition_for_sale'
-          if (isArtFineNation || isSaleExhibition) return true
+          const isGoldoni =
+            source.indexOf('artafricamagazine.org') !== -1 ||
+            source.indexOf('goldoni') !== -1 ||
+            String(opp.title || '').toLowerCase().indexOf('goldoni') !== -1
+          if (isArtFineNation || isSaleExhibition || isGoldoni) return true
           return isRealBuyerRequest({
             title: opp.title,
             description: opp.description,
