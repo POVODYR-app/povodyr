@@ -381,15 +381,15 @@ const subscribeUrl =
         ? 'POVODYR: можливості під ваш профіль'
         : 'POVODYR поруч';
 
-      const oppListTelegram = matchedOpps.slice(0, 5).map((o: any) => {
-        const url = pickOpportunityUrl(o) || 'https://povodyr.vercel.app/dashboard';
+      const top3 = matchedOpps.slice(0, 3);
+      const oppListTelegram = top3.map((o: any) => {
         const country = formatOpportunityCountry(o);
-        return `• <a href="${url}">${o.title || 'Мистецька можливість'}</a> (${country})`;
-      }).join('\n');
+        return `• ${o.title || 'Мистецька можливість'} (${country})`;
+      }).join('\\n');
 
       const telegramMessage = hasFreshPortion
-        ? `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nВідібрано ${matchedOpps.length} можливостей під ваш профіль:\n\n${oppListTelegram}\n\n<a href="https://povodyr.vercel.app/dashboard">Перегляньте деталі в особистому кабінеті</a>.`
-        : `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\n${keepAliveText}`;
+        ? `Привіт${user.full_name ? ', ' + user.full_name : ''}!\\n\\nЗа добу відібрано ${top3.length} джерел під ваш профіль:\\n\\n${oppListTelegram}\\n\\nПосилання на першоджерела відкриваються лише в кабінеті:\\n<a href=\"https://povodyr.vercel.app/dashboard\">Перейти до кабінету</a>`
+        : `Привіт${user.full_name ? ', ' + user.full_name : ''}!\\n\\n${keepAliveText}`;
 
       const oppListPlain = matchedOpps.slice(0, 5).map((o: any) => {
         return `• ${o.title || 'Мистецька можливість'} (${formatOpportunityCountry(o)})`;
@@ -399,9 +399,8 @@ const subscribeUrl =
         ? `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nВідібрано ${matchedOpps.length} можливостей під ваш профіль:\n\n${oppListPlain}\n\nПерегляньте деталі в особистому кабінеті.`
         : `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\n${keepAliveText}`;
 
-      const htmlItems = matchedOpps.slice(0, 5).map((o: any) => {
-        const url = pickOpportunityUrl(o) || 'https://povodyr.vercel.app/dashboard';
-        return `<li><a href="${url}"><strong>${o.title}</strong></a> (${formatOpportunityCountry(o)})</li>`;
+        const htmlItems = matchedOpps.slice(0, 3).map((o: any) => {
+        return `<li><strong>${o.title}</strong> (${formatOpportunityCountry(o)})</li>`;
       }).join('');
       const emailHtml = hasFreshPortion
         ? `<p>Привіт${user.full_name ? ', ' + user.full_name : ''}!</p><p>Відібрано ${matchedOpps.length} можливостей під ваш профіль:</p><ul>${htmlItems}</ul><p><a href="https://povodyr.vercel.app/dashboard">Переглянути в кабінеті</a></p>`
