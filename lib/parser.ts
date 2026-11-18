@@ -50,11 +50,15 @@ export const SEARCH_KEYWORDS = {
   ua: [
     'Open call для художників',
     'Open call для митців',
+    'Участь у виставці для українських художників',
+    'Виставка картин open call Україна',
     'Мистецька резиденція для художників',
     'Гранти для художників Україна',
   ],
   en: [
     'Open call for visual artists',
+    'Exhibition open call Ukrainian artists',
+    'Call for Ukrainian painters exhibition',
     'Artist residency open call Europe Ukraine eligible',
     'Art grant for Ukrainian artists',
     'Visual arts residency deadline',
