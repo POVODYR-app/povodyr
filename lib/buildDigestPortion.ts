@@ -19,7 +19,7 @@ const KNOWN_DEAD_URL_PARTS = [
   'legaragemoderne.org',
 ]
 
-const MS_24H = 24 * 60 * 60 * 1000
+const MS_24H = 7 * 24 * 60 * 60 * 1000
 
 function norm(value: any): string {
   return String(value || '')
