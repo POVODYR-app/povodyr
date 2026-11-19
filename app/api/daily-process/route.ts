@@ -381,16 +381,15 @@ const subscribeUrl =
         ? 'POVODYR: можливості під ваш профіль'
         : 'POVODYR поруч';
 
-      const top3 = matchedOpps.slice(0, 3);
+            const top3 = matchedOpps.slice(0, 3);
       const oppListTelegram = top3.map((o: any) => {
         const country = formatOpportunityCountry(o);
         return `• ${o.title || 'Мистецька можливість'} (${country})`;
-      }).join('\\n');
+      }).join('\n');
 
       const telegramMessage = hasFreshPortion
-        ? `Привіт${user.full_name ? ', ' + user.full_name : ''}!\\n\\nЗа добу відібрано ${top3.length} джерел під ваш профіль:\\n\\n${oppListTelegram}\\n\\nПосилання на першоджерела відкриваються лише в кабінеті:\\n<a href=\"https://povodyr.vercel.app/dashboard\">Перейти до кабінету</a>`
-        : `Привіт${user.full_name ? ', ' + user.full_name : ''}!\\n\\n${keepAliveText}`;
-
+        ? `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\nВідібрано ${top3.length} можливостей під ваш профіль:\n\n${oppListTelegram}\n\n<a href="https://povodyr.vercel.app/dashboard">Перегляньте деталі в особистому кабінеті</a>.`
+        : `Привіт${user.full_name ? ', ' + user.full_name : ''}!\n\n${keepAliveText}`;
       const oppListPlain = matchedOpps.slice(0, 5).map((o: any) => {
         return `• ${o.title || 'Мистецька можливість'} (${formatOpportunityCountry(o)})`;
       }).join('\n');
