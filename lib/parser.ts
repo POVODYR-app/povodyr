@@ -26,7 +26,7 @@ export const ART_FINE_NATION_URL =
 
 const FETCH_TIMEOUT_MS = 8000
 const SERPER_TIMEOUT_MS = 9000
-const SERPER_MAX_QUERIES = 6
+const SERPER_MAX_QUERIES = 10
 const SERPER_RESULTS_PER_QUERY = 8
 
 const LISTING_TITLE_RE =
@@ -201,6 +201,9 @@ function inferType(title: string, description: string): string {
   if (/residenc|резиденц/.test(t)) return 'Residency'
   if (/grant|грант|стипенд/.test(t)) return 'Grant'
   if (/prize|award|премі/.test(t)) return 'Award'
+  if (/виставк|exhibition|group show|solo show|call for artists to exhibit|участь у виставці/.test(t)) {
+    return 'Exhibition'
+  }
   return 'Open Call'
 }
 
@@ -415,6 +418,8 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
     'exhibition opportunity',
     'artist call',
     'mobility',
+    'exhibition',
+    'виставк',
     'відкритий конкурс',
     'резиденц',
     'грант',
@@ -736,13 +741,17 @@ export async function searchNewPagesViaSerper(logs: string[] = []): Promise<Pars
   }
 
   const year = new Date().getFullYear()
-  const queries = [
+    const queries = [
     `open call visual artists ${year} deadline`,
     `artist residency open call ${year} Ukraine eligible`,
     `open call для художників ${year} дедлайн`,
+    `участь у виставці для українських художників ${year} open call`,
+    `виставка картин open call Україна ${year} подати роботи`,
+    `exhibition open call Ukrainian artists ${year} paintings`,
+    `call for artists exhibition ${year} "Ukrainian" OR Ukraine deadline`,
     `гранти для митців Україна ${year} відкритий конкурс`,
     `site:ucf.in.ua конкурс ${year}`,
-    `site:e-flux.com open call ${year}`,
+    `site:e-flux.com open call exhibition ${year}`,
   ].slice(0, SERPER_MAX_QUERIES)
 
   const found: ParsedOpportunity[] = []
