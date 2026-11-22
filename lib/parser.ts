@@ -86,10 +86,13 @@ function isArtFineNationLink(link: string | undefined | null) {
   if (!link) return false
   return /sites\.google\.com\/view\/artfinenation/i.test(link) || /artfinenation/i.test(link)
 }
+function isAllowedTelegramSource(url: string): boolean {
+  return /t\.me\/(s\/)?artbotme/i.test(url)
+}
 
 function looksLikeListing(title: string, url: string): boolean {
   if (isArtFineNationLink(url) || isArtFineNationLink(title)) return false
-  if (/t\.me\//i.test(url) || /где выставка|gdeart/i.test(title + ' ' + url)) return true
+    if ((/t\.me\//i.test(url) && !isAllowedTelegramSource(url)) || /где выставка|gdeart/i.test(title + ' ' + url)) return true
   if (BANNED_REGION_RE.test(title + ' ' + url)) return true
   if (LISTING_TITLE_RE.test(title)) return true
   if (LISTING_HOST_PATH_RE.test(url)) return true
@@ -216,7 +219,7 @@ function isOpportunityValid(
   if (isArtFineNationLink(link)) return true
   const banBlob = `${title} ${description} ${link || ''}`
   if (BANNED_REGION_RE.test(banBlob)) return false
-  if (/t\.me\//i.test(String(link || ''))) return false
+    if (/t\.me\//i.test(String(link || '')) && !isAllowedTelegramSource(String(link || ''))) return false
   if (DEAD_URL_RE.test(String(link || ''))) return false
   if (looksLikeListing(title, String(link || ''))) return false
 
@@ -531,8 +534,79 @@ export async function parseRssSources(): Promise<ParsedOpportunity[]> {
   return opportunities
 }
 
+export async function parseArtBotMe(logs: string[] = []): Promise<ParsedOpportunity[]> {
+  const opportunities: ParsedOpportunity[] = []
+  const pageUrl = 'https://t.me/s/artbotme'
+  const html = await fetchText(pageUrl, 10000)
+  if (!html) {
+    logs.push('ART BOT: сторінка не відкрилась')
+    return opportunities
+  }
+
+  const $ = cheerio.load(html)
+  const blocks = $('.tgme_widget_message_wrap, .tgme_widget_message')
+  logs.push(`ART BOT: блоків на сторінці ${blocks.length}`)
+
+  const positive =
+    /open call|opencall|deadline|дедлайн|резиденц|грант|виставк|конкурс|подати|заявк|call for|residency|exhibition|award|prize|стипенд/
+  const negative =
+    /howtogetit|рекомендац|порад|реклам|підпис|промокод|курс з|вебінар|розбір портфоліо|як написати|практичний крок/
+
+  blocks.each((_, element) => {
+    const $el = $(element)
+    const text = $el.find('.tgme_widget_message_text').text().replace(/\s+/g, ' ').trim()
+    const postHref =
+      $el.find('a.tgme_widget_message_date').attr('href') ||
+      $el.find('.tgme_widget_message_date').attr('href') ||
+      pageUrl
+    if (!text || text.length < 40) return
+
+    const low = text.toLowerCase()
+    if (!positive.test(low)) return
+    if (negative.test(low) && !/дедлайн|deadline|open call|резиденц|грант/.test(low)) return
+
+    let external = ''
+    $el.find('a').each((__, a) => {
+      if (external) return
+      const href = String($(a).attr('href') || '')
+      if (/^https?:\/\//i.test(href) && !/t\.me\/|telegram\.me\//i.test(href)) {
+        external = href
+      }
+    })
+
+    const sourceUrl = external || postHref
+    if (BANNED_REGION_RE.test(`${text} ${sourceUrl}`)) return
+    if (DEAD_URL_RE.test(sourceUrl) && !isAllowedTelegramSource(sourceUrl)) return
+
+    const titleMatch = text.match(/[#\wА-Яа-яІіЇїЄєҐґ0-9«»"“”\-–—]{4,80}/)
+    const title = (titleMatch ? titleMatch[0] : text.slice(0, 90)).replace(/^#\S+\s*/, '').slice(0, 140)
+    const deadline = extractDeadlineFromText(text)
+    if (!isOpportunityValid(title, text, deadline, sourceUrl)) return
+
+    const geo = inferCountry(text)
+    opportunities.push(
+      baseOpportunity({
+        source_name: 'ART BOT',
+        title: title || 'Можливість з ART BOT',
+        link: sourceUrl,
+        source_url: sourceUrl,
+        type: inferType(title, text),
+        deadline,
+        country: geo.country,
+        eligible_countries: geo.eligible,
+        languages: ['uk'],
+        ukrainians_eligible: true,
+        raw_description: text.slice(0, 500),
+      })
+    )
+  })
+
+  logs.push(`ART BOT після фільтра: ${opportunities.length}`)
+  return opportunities
+}
+
 export async function parseSocialMediaAndHashtags(): Promise<ParsedOpportunity[]> {
-  return []
+  return parseArtBotMe()
 }
 
 export async function parseUkrainianInstitutionsHTML(): Promise<ParsedOpportunity[]> {
@@ -718,7 +792,7 @@ async function searchSerper(
 function isUsefulSearchHit(title: string, snippet: string, link: string): boolean {
   if (!/^https?:\/\//i.test(link)) return false
   if (BANNED_REGION_RE.test(`${title} ${snippet} ${link}`)) return false
-  if (/t\.me\//i.test(link)) return false
+    if (/t\.me\//i.test(link) && !isAllowedTelegramSource(link)) return false
   if (isArtFineNationLink(link) || isArtFineNationLink(title)) return false
   if (DEAD_URL_RE.test(link) || looksLikeListing(title, link)) return false
   if (/\.(pdf|docx?|zip)(\?|$)/i.test(link)) return false
@@ -834,13 +908,12 @@ export async function fetchFromApprovedSources(logs: string[] = []): Promise<Par
     logs.push(`Помилка RSS: ${err.message}`)
   }
 
-  logs.push('Збір публікацій із соцмереж та за хештегами...')
+    logs.push('Збір можливостей з ART BOT (t.me/artbotme)...')
   try {
-    const socialResults = await parseSocialMediaAndHashtags()
-    logs.push(`Знайдено записів із соцмереж та хештегів: ${socialResults.length}`)
-    allOpportunities.push.apply(allOpportunities, socialResults)
+    const artBotResults = await parseArtBotMe(logs)
+    allOpportunities.push.apply(allOpportunities, artBotResults)
   } catch (err: any) {
-    logs.push(`Помилка парсингу соцмереж: ${err.message}`)
+    logs.push(`Помилка ART BOT: ${err.message}`)
   }
 
   logs.push('Збір можливостей з українських інституцій (УКФ)...')
