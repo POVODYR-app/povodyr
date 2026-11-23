@@ -552,8 +552,7 @@ export async function parseArtBotMe(logs: string[] = []): Promise<ParsedOpportun
   const negative =
     /howtogetit|рекомендац|порад|реклам|підпис|промокод|курс з|вебінар|розбір портфоліо|як написати|практичний крок/
 
-  blocks.each((_, element) => {
-      const drafts: Array<{ text: string; external: string; postHref: string; bold: string }> = []
+  const drafts: Array<{ text: string; external: string; postHref: string; bold: string }> = []
 
   blocks.each((_, element) => {
     const $el = $(element)
