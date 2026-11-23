@@ -553,6 +553,9 @@ export async function parseArtBotMe(logs: string[] = []): Promise<ParsedOpportun
     /howtogetit|рекомендац|порад|реклам|підпис|промокод|курс з|вебінар|розбір портфоліо|як написати|практичний крок/
 
   blocks.each((_, element) => {
+      const drafts: Array<{ text: string; external: string; postHref: string; bold: string }> = []
+
+  blocks.each((_, element) => {
     const $el = $(element)
     const text = $el.find('.tgme_widget_message_text').text().replace(/\s+/g, ' ').trim()
     const postHref =
@@ -574,25 +577,30 @@ export async function parseArtBotMe(logs: string[] = []): Promise<ParsedOpportun
       }
     })
 
-    const sourceUrl = external || postHref
-    if (BANNED_REGION_RE.test(`${text} ${sourceUrl}`)) return
-    if (DEAD_URL_RE.test(sourceUrl) && !isAllowedTelegramSource(sourceUrl)) return
-
-        let title = ''
     const bold = $el.find('b, strong').first().text().replace(/\s+/g, ' ').trim()
-    if (bold && bold.length >= 8 && !/^#/.test(bold)) {
-      title = bold
+    drafts.push({ text, external, postHref, bold })
+  })
+
+  for (let i = 0; i < drafts.length; i += 1) {
+    const draft = drafts[i]
+    const sourceUrl = draft.external || draft.postHref
+    if (BANNED_REGION_RE.test(`${draft.text} ${sourceUrl}`)) continue
+    if (DEAD_URL_RE.test(sourceUrl) && !isAllowedTelegramSource(sourceUrl)) continue
+
+    let title = ''
+    if (draft.bold && draft.bold.length >= 8 && !/^#/.test(draft.bold)) {
+      title = draft.bold
     }
     if (!title) {
-      const cleaned = text
+      const cleaned = draft.text
         .replace(/#[\wА-Яа-яІіЇїЄєҐґ]+/g, ' ')
         .replace(/\s+/g, ' ')
         .trim()
       const cut = cleaned.split(/[.\n•]/)[0] || cleaned
       title = cut.slice(0, 140).trim()
     }
-    if (external && title.length < 12) {
-      const pageHtml = await fetchText(external, 5000)
+    if (draft.external && title.length < 12) {
+      const pageHtml = await fetchText(draft.external, 5000)
       if (pageHtml) {
         const $page = cheerio.load(pageHtml)
         const pageTitle = (
@@ -605,28 +613,28 @@ export async function parseArtBotMe(logs: string[] = []): Promise<ParsedOpportun
         if (pageTitle && pageTitle.length >= 8) title = pageTitle.slice(0, 140)
       }
     }
-    if (!title || title.length < 6) return
+    if (!title || title.length < 6) continue
 
-    const deadline = extractDeadlineFromText(text)
-    if (!isOpportunityValid(title, text, deadline, sourceUrl)) return
+    const deadline = extractDeadlineFromText(draft.text)
+    if (!isOpportunityValid(title, draft.text, deadline, sourceUrl)) continue
 
-    const geo = inferCountry(text)
+    const geo = inferCountry(draft.text)
     opportunities.push(
       baseOpportunity({
         source_name: 'ART BOT',
         title,
         link: sourceUrl,
         source_url: sourceUrl,
-        type: inferType(title, text),
+        type: inferType(title, draft.text),
         deadline,
         country: geo.country,
         eligible_countries: geo.eligible,
         languages: ['uk'],
         ukrainians_eligible: true,
-        raw_description: text.slice(0, 500),
+        raw_description: draft.text.slice(0, 500),
       })
     )
-  })
+  }
 
   logs.push(`ART BOT після фільтра: ${opportunities.length}`)
   return opportunities
