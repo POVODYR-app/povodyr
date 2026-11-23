@@ -578,8 +578,35 @@ export async function parseArtBotMe(logs: string[] = []): Promise<ParsedOpportun
     if (BANNED_REGION_RE.test(`${text} ${sourceUrl}`)) return
     if (DEAD_URL_RE.test(sourceUrl) && !isAllowedTelegramSource(sourceUrl)) return
 
-    const titleMatch = text.match(/[#\wА-Яа-яІіЇїЄєҐґ0-9«»"“”\-–—]{4,80}/)
-    const title = (titleMatch ? titleMatch[0] : text.slice(0, 90)).replace(/^#\S+\s*/, '').slice(0, 140)
+        let title = ''
+    const bold = $el.find('b, strong').first().text().replace(/\s+/g, ' ').trim()
+    if (bold && bold.length >= 8 && !/^#/.test(bold)) {
+      title = bold
+    }
+    if (!title) {
+      const cleaned = text
+        .replace(/#[\wА-Яа-яІіЇїЄєҐґ]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+      const cut = cleaned.split(/[.\n•]/)[0] || cleaned
+      title = cut.slice(0, 140).trim()
+    }
+    if (external && title.length < 12) {
+      const pageHtml = await fetchText(external, 5000)
+      if (pageHtml) {
+        const $page = cheerio.load(pageHtml)
+        const pageTitle = (
+          $page('meta[property="og:title"]').attr('content') ||
+          $page('title').text() ||
+          ''
+        )
+          .replace(/\s+/g, ' ')
+          .trim()
+        if (pageTitle && pageTitle.length >= 8) title = pageTitle.slice(0, 140)
+      }
+    }
+    if (!title || title.length < 6) return
+
     const deadline = extractDeadlineFromText(text)
     if (!isOpportunityValid(title, text, deadline, sourceUrl)) return
 
@@ -587,7 +614,7 @@ export async function parseArtBotMe(logs: string[] = []): Promise<ParsedOpportun
     opportunities.push(
       baseOpportunity({
         source_name: 'ART BOT',
-        title: title || 'Можливість з ART BOT',
+        title,
         link: sourceUrl,
         source_url: sourceUrl,
         type: inferType(title, text),
