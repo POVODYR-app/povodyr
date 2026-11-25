@@ -128,6 +128,22 @@ const SEARCH_QUERIES: SearchQuery[] = [
     q: `"percent for art" OR "art in public places" (international OR "open to all artists") (RFQ OR commission) 2026 ${SEARCH_EXCLUDES}`,
     locale: { gl: 'us', hl: 'en' },
   },
+  {
+    q: `"купити" OR "замовити" OR "закупівля" ("оригінальні картини" OR живопис OR полотна) (готель OR лікарня OR офіс OR холл OR лобі) (україн OR Ukraine OR "українських художників") ${SEARCH_EXCLUDES}`,
+    locale: { gl: 'ua', hl: 'uk' },
+  },
+  {
+    q: `"commission original paintings" OR "purchase original artwork" OR "looking to buy original paintings" (hotel OR hospital OR lobby OR office) (Ukraine OR Ukrainian OR "open to international") ${SEARCH_EXCLUDES}`,
+    locale: { gl: 'us', hl: 'en' },
+  },
+  {
+    q: `"looking for Ukrainian artists" OR "commission paintings Ukrainian artists" OR "Ukrainian painters for" (hotel OR hospital OR lobby OR interiors) ${SEARCH_EXCLUDES}`,
+    locale: { gl: 'us', hl: 'en' },
+  },
+  {
+    q: `"original paintings for" (hotel lobby OR hospital OR corporate office) (commission OR purchase OR buy) 2026 ${SEARCH_EXCLUDES}`,
+    locale: { gl: 'uk', hl: 'en' },
+  },
 ]
 
 const FALLBACK_QUERIES: SearchQuery[] = [
