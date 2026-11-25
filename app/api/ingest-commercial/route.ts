@@ -555,6 +555,13 @@ async function collectFromSearchQueries(
         continue
       }
 
+      // Жорстка відсічка агрегаторів / call-for-submission до GPT
+      if (/artworkarchive\.com\/call-for-submission|bidbanana|thebidlab\.com|civiciq\.com|\/statii\/|\/vidguky|google\.com\/goto/i.test(result.url)) {
+        skippedJunk++
+        logs.push(`пропуск агрегатора/статті: ${result.title}`)
+        continue
+      }
+
       if (shouldSkipSearchResult(result.title, result.content, result.url)) {
         skippedJunk++
         logs.push(`пропуск сміття (snippet): ${result.title}`)
