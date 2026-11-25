@@ -213,6 +213,12 @@ const SELLER_OR_PLAN_PATTERNS = [
   /artists selling (their )?work/i,
   /for sale by artists/i,
   /under the bed sale/i,
+  /\/statii\//i,
+  /\/articles?\//i,
+  /естетика/i,
+  /тренди в оформленні/i,
+  /як оформити/i,
+  /ідеї для інтер'єру/i,
 ]
 
 const JUNK_PATTERNS = [
@@ -402,6 +408,7 @@ function failsSharedRejects(combined: string, url: string): boolean {
   if (isArtistSaleEvent(combined)) return true
   if (CANADA_ONLY_PORTAL_URL.test(url)) return true
   if (/canadian (citizen|artists?) only|must be a canadian|residents? of canada only|open (only )?to canadian|artists? with connections to (toronto|canada)|canadian artists with connections/i.test(combined)) return true
+  if (/us (citizens?|residents?) only|must be (a )?(us|u\.s\.) (citizen|resident)|open (only )?to (us|american) (artists?|residents?)|only artists based in the (us|united states)|residents of (ohio|california|rhode island|texas|florida) only/i.test(combined) && !/international artists|no nationality|all nationalities|open to international|ukraine/i.test(combined)) return true
   if (/residing (within|in) the (county|city|state) of|must be a (legal )?resident of|open (only )?to (la|brooklyn|florida)[- ]based/i.test(combined) && !/international artists|no nationality|all nationalities/i.test(combined)) return true
   if (SOCIAL_SHALLOW_URL.test(url)) return true
   if (JOB_BOARD_URL.test(url)) return true
@@ -457,6 +464,9 @@ export function isRealBuyerRequest(input: CommercialDemandInput): boolean {
   if (isTalentNotBuyer(combined) && !strongBuyer && !procurement && !rfqCommission) return false
   if (procurement || rfqCommission) return true
   if (strongBuyer && artObject) return true
-  if (hasDemandSignal(combined) && artObject && !isTalentNotBuyer(combined)) return true
+  // Для звичайного demand вимагаємо явний purchase/commission, а не просто згадку картин
+  if (hasDemandSignal(combined) && artObject && !isTalentNotBuyer(combined)) {
+    if (/купимо|замовимо|закупівл|purchase original|commission original|looking to (buy|purchase|commission)/i.test(combined)) return true
+  }
   return false
 }
