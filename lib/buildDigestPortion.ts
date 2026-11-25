@@ -302,6 +302,26 @@ export function buildDigestPortion(options: {
   }
 
   selected = pinAfnIfUkraine(selected, pool, options.profile)
+
+  // Обмеження різноманітності: не більше 6 карток з одного джерела
+  const MAX_PER_SOURCE = 6
+  const sourceCount: { [key: string]: number } = {}
+  const diversified: PersonalizedOpportunity[] = []
+  for (let i = 0; i < selected.length; i += 1) {
+    const row = selected[i]
+    const opp = row?.opportunity || {}
+    const sourceKey = String(opp.source_name || opp.source_url || opp.link || 'unknown')
+      .toLowerCase()
+      .replace(/https?:\/\/(www\.)?/, '')
+      .split('/')[0]
+      .trim() || 'unknown'
+    const count = sourceCount[sourceKey] || 0
+    if (count >= MAX_PER_SOURCE) continue
+    sourceCount[sourceKey] = count + 1
+    diversified.push(row)
+  }
+  selected = diversified
+
   const ids: string[] = []
   const seen: { [key: string]: boolean } = {}
   for (let i = 0; i < selected.length; i += 1) {
