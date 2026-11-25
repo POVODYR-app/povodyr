@@ -95,6 +95,11 @@ const DEMAND_PATTERNS = [
   /no nationality/i,
   /request for qualifications/i,
   /\bRF[PQ]\b[\s\S]{0,80}(artwork|paintings?|fine art|site[-\s]?specific|library|hospital|theatre|theater)/i,
+  /купимо[\s\S]{0,30}(оригінальн|картин|живопис)/i,
+  /замовимо[\s\S]{0,30}(оригінальн|картин|живопис)/i,
+  /purchase original (paintings?|artwork)/i,
+  /commission original (paintings?|artwork)/i,
+  /looking for Ukrainian (artists?|painters?)/i,
 ]
 
 const STRONG_BUYER_PATTERNS = [
