@@ -593,9 +593,14 @@ async function collectFromSearchQueries(
       let items = await extractCommercialItems(result.title || query.q, result.url, blob, query.locale)
       if (!items.length) {
         const dropReason = 'empty-or-filtered'
+        const pageTooThin = !pageText || pageText.length < 500
+        const badDomain =
+          /bidbanana|thebidlab\.com|civiciq\.com|\/statii\/|\/vidguky|artworkarchive\.com\/call-for-submission|google\.com\/goto|kyiv\.gallery\/statii/i.test(result.url)
         const paid =
-          /akimbo\.ca\/listings|request-for-qualifications|\/rfq|\/rfp/i.test(result.url) ||
-          /RFQ|RFP|EOI|request for qualifications|site-specific|public art|artist[''`s]?\s*fee|production budget/i.test(blob)
+          !pageTooThin &&
+          !badDomain &&
+          (/akimbo\.ca\/listings|request-for-qualifications|\/rfq|\/rfp/i.test(result.url) ||
+           /RFQ|RFP|EOI|request for qualifications|site-specific|public art|artist[''`s]?\s*fee|production budget/i.test(blob))
         if (paid) {
           const country = inferCountry('', result.url, query.locale)
           const fallback: CommercialItem = {
